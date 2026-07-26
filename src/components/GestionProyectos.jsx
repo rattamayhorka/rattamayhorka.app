@@ -10,7 +10,7 @@ import {
   Position,
   NodeResizer,
   useReactFlow,
-  ReactFlowProvider // 👈 AGREGA ESTO AQUÍ
+  ReactFlowProvider
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { database } from '../api'; 
@@ -25,16 +25,28 @@ const defaultEdgeOptions = {
   style: { stroke: '#52525b', strokeWidth: 2 }, 
 };
 
+// AGREGADO: Configuración de paletas de color para los grupos
+const OPCIONES_COLOR_GRUPO = [
+  { id: 'purple', bg: 'bg-[#161619]', border: 'border-purple-500/80', dot: 'bg-purple-500', text: 'text-purple-400' },
+  { id: 'blue',   bg: 'bg-[#121824]', border: 'border-blue-500/80',   dot: 'bg-blue-500',   text: 'text-blue-400' },
+  { id: 'emerald',bg: 'bg-[#101c17]', border: 'border-emerald-500/80',dot: 'bg-emerald-500',text: 'text-emerald-400' },
+  { id: 'amber',  bg: 'bg-[#1f1a12]', border: 'border-amber-500/80',  dot: 'bg-amber-500',  text: 'text-amber-400' },
+  { id: 'rose',   bg: 'bg-[#1f1215]', border: 'border-rose-500/80',   dot: 'bg-rose-500',   text: 'text-rose-400' },
+  { id: 'zinc',   bg: 'bg-[#161619]', border: 'border-zinc-700',      dot: 'bg-zinc-500',   text: 'text-zinc-400' },
+];
+
 // =========================================================
-// 1. NODO GRUPO (Estilo Obsidian - Contraste Alto)
+// 1. NODO GRUPO (Estilo Obsidian - Contraste Alto y Colores)
 // =========================================================
 function NodoGrupoExpandible(props) {
   const { id, data, selected } = props;
   
+  // Obtenemos el esquema de color seleccionado o el morado por defecto
+  const colorActual = OPCIONES_COLOR_GRUPO.find(c => c.id === data.color) || OPCIONES_COLOR_GRUPO[0];
+
   return (
-    // 🛠️ Cambiamos 'bg-transparent' por 'bg-[#161619]' (un gris levísimo y sólido) o 'bg-zinc-950'
-    <div className={`w-full h-full border-[3px] bg-[#161619] rounded-2xl p-4 font-sans text-left relative min-w-[200px] min-h-[150px] transition-all duration-200 group/groupnode ${
-      selected ? 'border-purple-500 border-solid' : 'border-zinc-700 border-solid hover:border-zinc-500'
+    <div className={`w-full h-full border-[3px] rounded-2xl p-4 font-sans text-left relative min-w-[200px] min-h-[150px] transition-all duration-200 group/groupnode ${colorActual.bg} ${
+      selected ? 'border-solid ring-1 ring-white/20 ' + colorActual.border : colorActual.border + ' hover:brightness-125'
     }`}>  
       <NodeResizer 
         color="#a855f7" 
@@ -63,16 +75,32 @@ function NodoGrupoExpandible(props) {
       </div>
 
       <div className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50">
-        <Layers className="w-4 h-4 text-purple-400" />
+        <Layers className={`w-4 h-4 ${colorActual.text}`} />
         <span className="text-[12px] font-semibold tracking-wider text-zinc-100 uppercase bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-900 shadow-md">
           {data.label}
         </span>
       </div>
 
+      {/* MENÚ FLOTANTE DE MENÚ / ACCIONES DEL GRUPO */}
       <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-all duration-150 ease-out">
-        <div className="bg-zinc-950 border border-zinc-800 rounded-md shadow-2xl px-2 py-1 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto">
-          <span className="text-[9px] text-zinc-500 font-medium px-1 uppercase tracking-wider select-none">Grupo</span>
+        <div className="bg-zinc-950 border border-zinc-800 rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 backdrop-blur-md pointer-events-auto">
+          
+          {/* AGREGADO: Selector de Colores en el menú */}
+          <div className="flex items-center gap-1">
+            {OPCIONES_COLOR_GRUPO.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => data.onCambiarColorGrupo && data.onCambiarColorGrupo(id, c.id)}
+                className={`w-3 h-3 rounded-full ${c.dot} transition-transform hover:scale-125 cursor-pointer ${
+                  (data.color || 'purple') === c.id ? 'ring-2 ring-white scale-110' : 'opacity-60 hover:opacity-100'
+                }`}
+                title={`Color ${c.id}`}
+              />
+            ))}
+          </div>
+
           <div className="w-[1px] h-3 bg-zinc-800" />
+
           <button 
             onClick={() => data.onEliminarNodo(id)} 
             className="text-zinc-400 hover:text-red-400 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
@@ -93,20 +121,19 @@ function NodoGrupoExpandible(props) {
 function NodoMetaAutonomo(props) {
   const { id, data, selected } = props;
   
-  // 🎨 FONDOS 100% SÓLIDOS Y CON ALTO CONTRASTE (Sin tocar los estilos de tus bordes)
-  let statusColor = 'border-zinc-800 bg-zinc-800 text-zinc-100'; // Por Hacer: Gris sólido intermedio (resalta del fondo negro)
+  let statusColor = 'border-zinc-800 bg-zinc-800 text-zinc-100';
   
   if (data.status === 'En Progreso') {
-    statusColor = 'border-amber-500/30 bg-amber-900 text-amber-50'; // En Progreso: Café/Ámbar quemado sólido muy visible
+    statusColor = 'border-amber-500/30 bg-amber-900 text-amber-50';
   }
   if (data.status === 'Completado') {
-    statusColor = 'border-emerald-500/20 bg-emerald-900 text-emerald-50'; // Completado: Verde pino sólido muy visible
+    statusColor = 'border-emerald-500/20 bg-emerald-900 text-emerald-50';
   }
 
   const handleClass = "w-1.5 h-1.5 !bg-zinc-500 !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
 
   return (
-    <div className={`border rounded-lg p-3 w-56 shadow-2xl font-sans text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-1 ring-zinc-400 border-zinc-400 shadow-zinc-950/50' : ''}`}>{/* Handles de Conexión */}
+    <div className={`border rounded-lg p-3 w-56 shadow-2xl font-sans text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-1 ring-zinc-400 border-zinc-400 shadow-zinc-950/50' : ''}`}>
       <Handle type="target" position={Position.Top} id="t" className={`${handleClass} z-[60]`} />
       <Handle type="source" position={Position.Top} id="t-o" className={`${handleClass} z-[60]`} />
       
@@ -119,7 +146,6 @@ function NodoMetaAutonomo(props) {
       <Handle type="target" position={Position.Right} id="r" className={`${handleClass} z-[60]`} />
       <Handle type="source" position={Position.Right} id="r-o" className={`${handleClass} z-[60]`} />
 
-      {/* Contenido de la Nota sin iconos */}
       <div 
         className="min-w-0 cursor-text select-none"
         onDoubleClick={() => {
@@ -134,7 +160,6 @@ function NodoMetaAutonomo(props) {
         </p>
       </div>
 
-      {/* Menú Flotante de Acciones */}
       <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-[50] nodrag pointer-events-none opacity-0 group-hover/node:opacity-100 transition-all duration-150 ease-out">
         <div className="bg-zinc-950 border border-zinc-800 rounded-md shadow-2xl px-2 py-1 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto">
           <button onClick={() => data.onCambiarEstado(id, 'Por Hacer')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Por Hacer' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}>Nota</button>
@@ -153,7 +178,6 @@ const nodeTypes = { nodoMeta: NodoMetaAutonomo, nodoGrupo: NodoGrupoExpandible }
 // =========================================================
 // 3. COMPONENTE PRINCIPAL
 // =========================================================
-//export default function GestionProyectos() {
 export function GestionProyectosContenido() {
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
@@ -166,6 +190,20 @@ export function GestionProyectosContenido() {
 
   const nombrarGrupoX = (lista, id) => lista.find(n => n.id === id)?.position.x || 0;
   const nombrarGrupoY = (lista, id) => lista.find(n => n.id === id)?.position.y || 0;
+
+  // AGREGADO: Callback para cambiar el color del grupo y persistir el estado
+  const cambiarColorGrupo = useCallback((idGrupo, nuevoColor) => {
+    setNodes((nds) => nds.map((n) => {
+      if (n.id === idGrupo) {
+        return { ...n, data: { ...n.data, color: nuevoColor } };
+      }
+      return n;
+    }));
+
+    if (database && typeof database.guardarDatos === 'function') {
+      database.guardarDatos('cambiarStatusNodoFin', { idNodo: idGrupo, status: nuevoColor }).catch(()=>{});
+    }
+  }, []);
 
   // Sincronización del tamaño de contenedores
   useEffect(() => {
@@ -210,16 +248,13 @@ export function GestionProyectosContenido() {
     setNodes((nds) => {
       const resultado = nds.map((n) => {
         if (n.id === idNodo) {
-          // Modificamos el label en el estado de React
           nodoActualizado = { ...n, data: { ...n.data, label: nuevoTexto } };
           return nodoActualizado;
         }
         return n;
       });
 
-      // Si encontramos el nodo, disparamos la persistencia real a mapa_nodos
       if (nodoActualizado && database && typeof database.guardarDatos === 'function') {
-        // Calculamos las posiciones absolutas por si está dentro de un grupo
         let xParaSheets = nodoActualizado.position.x;
         let yParaSheets = nodoActualizado.position.y;
 
@@ -228,11 +263,9 @@ export function GestionProyectosContenido() {
           yParaSheets += nombrarGrupoY(resultado, nodoActualizado.parentId);
         }
 
-        // 🎯 Usamos la acción correcta de tu script de Sheets: 'guardarDimensionesYCoordenadas'
-        // Tu script actualizará las columnas F y G, y si le mandamos 'label', se guardará ahí.
         database.guardarDatos('guardarDimensionesYCoordenadas', {
           id: nodoActualizado.id,
-          label: nuevoTexto, // Le pasamos el nuevo texto
+          label: nuevoTexto,
           x: xParaSheets,
           y: yParaSheets,
           width: nodoActualizado.style?.width || '',
@@ -279,7 +312,6 @@ export function GestionProyectosContenido() {
     }
   }, []);
 
-  // Borrado de enlaces
   const onEdgeClick = useCallback((event, edge) => {
     const confirmar = window.confirm("¿Deseas eliminar este enlace de conexión?");
     if (!confirmar) return;
@@ -291,88 +323,85 @@ export function GestionProyectosContenido() {
     }
   }, []);
 
-  // Canal de lectura estricto plano inmutable
   const cargarMapa = useCallback(async (isMounted = { current: true }) => {
-  if (!database || typeof database.obtenerSeccion !== 'function') return;
-  setCargando(true);
-  try {
-    const [nodosData, conexionesData] = await Promise.all([
-      database.obtenerSeccion('mapa_nodos'),
-      database.obtenerSeccion('mapa_conexiones')
-    ]);
+    if (!database || typeof database.obtenerSeccion !== 'function') return;
+    setCargando(true);
+    try {
+      const [nodosData, conexionesData] = await Promise.all([
+        database.obtenerSeccion('mapa_nodos'),
+        database.obtenerSeccion('mapa_conexiones')
+      ]);
 
-    if (!isMounted.current) return;
+      if (!isMounted.current) return;
 
-    const arrayNodos = Array.isArray(nodosData) ? nodosData : [];
-    const arrayConexiones = Array.isArray(conexionesData) ? conexionesData : [];
+      const arrayNodos = Array.isArray(nodosData) ? nodosData : [];
+      const arrayConexiones = Array.isArray(conexionesData) ? conexionesData : [];
 
-    contadorMetasLocal.current = arrayNodos.filter(n => n.Type !== 'nodoGrupo').length;
-    contadorGruposLocal.current = arrayNodos.filter(n => n.Type === 'nodoGrupo').length;
+      contadorMetasLocal.current = arrayNodos.filter(n => n.Type !== 'nodoGrupo').length;
+      contadorGruposLocal.current = arrayNodos.filter(n => n.Type === 'nodoGrupo').length;
 
-    // 1. Mapeo inicial puro extrayendo los datos planos de Sheets
-    const nodosPlanos = arrayNodos.map(n => {
-      const esGrupo = n.Type === 'nodoGrupo';
-      let estiloGrupo = undefined;
-      if (esGrupo) {
-        const anchoGuardado = n.Width && !isNaN(parseFloat(n.Width)) ? parseFloat(n.Width) : 380;
-        const altoGuardado = n.Height && !isNaN(parseFloat(n.Height)) ? parseFloat(n.Height) : 280;
-        estiloGrupo = { width: anchoGuardado, height: altoGuardado };
-      }
-
-      return {
-        id: n.Id,
-        type: n.Type || 'nodoMeta',
-        parentId: n.ParentId || undefined,
-        extent: undefined, 
-        style: estiloGrupo,
-        _rawX: parseFloat(n.X || 200),
-        _rawY: parseFloat(n.Y || 200),
-        position: { x: parseFloat(n.X || 200), y: parseFloat(n.Y || 200) }, 
-        data: { 
-          id: n.Id, 
-          label: n.Label, 
-          status: n.Status || 'Por Hacer',
-          onCambiarEstado: cambiarEstadoMeta, 
-          onEliminarNodo: eliminarNodo,
-          onEditarTexto: editarTextoMeta
+      const nodosPlanos = arrayNodos.map(n => {
+        const esGrupo = n.Type === 'nodoGrupo';
+        let estiloGrupo = undefined;
+        if (esGrupo) {
+          const anchoGuardado = n.Width && !isNaN(parseFloat(n.Width)) ? parseFloat(n.Width) : 380;
+          const altoGuardado = n.Height && !isNaN(parseFloat(n.Height)) ? parseFloat(n.Height) : 280;
+          estiloGrupo = { width: anchoGuardado, height: altoGuardado };
         }
-      };
-    });
 
-    // 2. Separar grupos de notas para garantizar el orden de cálculo matemático
-    const mapeoGrupos = nodosPlanos.filter(n => n.type === 'nodoGrupo');
-    const mapeoNotas = nodosPlanos.filter(n => n.type !== 'nodoGrupo');
+        return {
+          id: n.Id,
+          type: n.Type || 'nodoMeta',
+          parentId: n.ParentId || undefined,
+          extent: undefined, 
+          style: estiloGrupo,
+          _rawX: parseFloat(n.X || 200),
+          _rawY: parseFloat(n.Y || 200),
+          position: { x: parseFloat(n.X || 200), y: parseFloat(n.Y || 200) }, 
+          data: { 
+            id: n.Id, 
+            label: n.Label, 
+            status: n.Status || 'Por Hacer',
+            color: esGrupo ? (n.Status || 'purple') : undefined, // Carga el color guardado en columna Status de Sheets
+            onCambiarEstado: cambiarEstadoMeta, 
+            onEliminarNodo: eliminarNodo,
+            onEditarTexto: editarTextoMeta,
+            onCambiarColorGrupo: cambiarColorGrupo // Inyectamos el handler
+          }
+        };
+      });
 
-    // 3. Corregir posiciones de las notas basándonos en sus grupos ya consolidados
-    const notasCorregidas = mapeoNotas.map(nota => {
-      if (nota.parentId) {
-        const papa = mapeoGrupos.find(g => g.id === nota.parentId);
-        if (papa) {
-          return {
-            ...nota,
-            position: {
-              x: nota._rawX - papa._rawX,
-              y: nota._rawY - papa._rawY
-            }
-          };
+      const mapeoGrupos = nodosPlanos.filter(n => n.type === 'nodoGrupo');
+      const mapeoNotas = nodosPlanos.filter(n => n.type !== 'nodoGrupo');
+
+      const notasCorregidas = mapeoNotas.map(nota => {
+        if (nota.parentId) {
+          const papa = mapeoGrupos.find(g => g.id === nota.parentId);
+          if (papa) {
+            return {
+              ...nota,
+              position: {
+                x: nota._rawX - papa._rawX,
+                y: nota._rawY - papa._rawY
+              }
+            };
+          }
         }
-      }
-      return nota;
-    });
+        return nota;
+      });
 
-    // 4. Unir todo dejando los grupos al principio del array (abajo en capas visuales de React Flow)
-    const nodosOrdenados = [...mapeoGrupos, ...notasCorregidas];
+      const nodosOrdenados = [...mapeoGrupos, ...notasCorregidas];
 
-    setNodes(nodosOrdenados);
-    setEdges(arrayConexiones.map(c => ({
-      id: c.Id, source: c.Source, target: c.Target, sourceHandle: c.SourceHandle, targetHandle: c.TargetHandle, ...defaultEdgeOptions
-    })));
-  } catch (e) {
-    console.error("Error en carga:", e);
-  } finally {
-    if (isMounted.current) setCargando(false);
-  }
-  }, [cambiarEstadoMeta, eliminarNodo]);
+      setNodes(nodosOrdenados);
+      setEdges(arrayConexiones.map(c => ({
+        id: c.Id, source: c.Source, target: c.Target, sourceHandle: c.SourceHandle, targetHandle: c.TargetHandle, ...defaultEdgeOptions
+      })));
+    } catch (e) {
+      console.error("Error en carga:", e);
+    } finally{
+      if (isMounted.current) setCargando(false);
+    }
+  }, [cambiarEstadoMeta, eliminarNodo, cambiarColorGrupo]);
 
   useEffect(() => {
     const isMounted = { current: true };
@@ -380,7 +409,6 @@ export function GestionProyectosContenido() {
     return () => { isMounted.current = false; };
   }, [cargarMapa]); 
 
-  // Dinámica de arrastre calibrada absoluta
   const onNodesChange = useCallback((changes) => {
     setNodes((nds) => {
       const nodosActualizados = applyNodeChanges(changes, nds);
@@ -434,7 +462,6 @@ export function GestionProyectosContenido() {
               return n;
             });
 
-            // Guardado inmediato de coordenadas si cambió de parent para evitar desfaces del debounce viejo
             if (database && typeof database.guardarDatos === 'function') {
               const nModificado = resultadoMapeado.find(x => x.id === nodoMovido.id);
               let xSheets = nModificado.position.x + (nuevoParentId ? nombrarGrupoX(resultadoMapeado, nuevoParentId) : 0);
@@ -450,13 +477,10 @@ export function GestionProyectosContenido() {
         }
       }
 
-      // 🛠️ CONTROL CRÍTICO DEL DEBOUNCE: Solo guarda si el cambio es un arrastre activo 
-      // y recalculamos usando el estado más fresco posible de 'nodosActualizados'
       const saveChange = changes.find(c => c.type === 'position' && c.position);
       if (saveChange && database && typeof database.guardarDatos === 'function') {
         clearTimeout(debounceTimer.current);
         debounceTimer.current = setTimeout(() => {
-          // Buscamos el nodo usando un callback funcional o directamente el scope limpio
           setNodes((nodosFrescos) => {
             const n = nodosFrescos.find(x => x.id === saveChange.id);
             if (n) {
@@ -472,14 +496,15 @@ export function GestionProyectosContenido() {
                 id: n.id, x: xParaSheets, y: yParaSheets, width: n.style?.width || '', height: n.style?.height || ''
               }).catch(()=>{});
             }
-            return nodosFrescos; // Retornamos el estado intacto sin alterarlo al guardar
+            return nodosFrescos;
           });
-        }, 800); // Reducimos a 800ms para que guarde más rápido antes de que cambies de pestaña
+        }, 800);
       }
 
       return [...nodosActualizados].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1));
     });
   }, [nombrarGrupoX, nombrarGrupoY, cambiarEstadoMeta, eliminarNodo]);
+
   const onEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
   
   const onConnect = useCallback((params) => {
@@ -499,8 +524,6 @@ export function GestionProyectosContenido() {
     const idMeta = `meta_${Date.now()}`;
     const textoLimpio = texto.trim();
 
-    // Si nos pasaron una posición (el clic del mouse), usamos esa. 
-    // Si no (botón del encabezado), usamos la cascada por defecto.
     let posicionFinal = posicionExplicita;
     
     if (!posicionFinal) {
@@ -515,7 +538,7 @@ export function GestionProyectosContenido() {
       id: idMeta, 
       type: 'nodoMeta', 
       position: posicionFinal,
-      data: { id: idMeta, label: textoLimpio, status: 'Por Hacer', onCambiarEstado: cambiarEstadoMeta, onEliminarNodo: eliminarNodo, onEditarTexto: editarTextoMeta  }
+      data: { id: idMeta, label: textoLimpio, status: 'Por Hacer', onCambiarEstado: cambiarEstadoMeta, onEliminarNodo: eliminarNodo, onEditarTexto: editarTextoMeta }
     };
 
     setNodes((nds) => [...nds, nuevaTarjetaMeta].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1)));
@@ -541,32 +564,37 @@ export function GestionProyectosContenido() {
     contadorGruposLocal.current += 1;
 
     const nuevoGrupo = {
-      id: idGrupo, type: 'nodoGrupo', position: posicionCascada, style: { width: 380, height: 280 }, data: { label: nombreLimpio, onEliminarNodo: eliminarNodo }
+      id: idGrupo, 
+      type: 'nodoGrupo', 
+      position: posicionCascada, 
+      style: { width: 380, height: 280 }, 
+      data: { 
+        label: nombreLimpio, 
+        color: 'purple', // Color inicial por defecto
+        onEliminarNodo: eliminarNodo, 
+        onCambiarColorGrupo: cambiarColorGrupo 
+      }
     };
 
     setNodes((nds) => [nuevoGrupo, ...nds]);
 
     if (database && typeof database.guardarDatos === 'function') {
       database.guardarDatos('crearNodoMeta', { 
-        id: idGrupo, label: nombreLimpio, type: 'nodoGrupo', status: 'Activo', parentId: '', x: posicionCascada.x, y: posicionCascada.y, width: 380, height: 280 
+        id: idGrupo, label: nombreLimpio, type: 'nodoGrupo', status: 'purple', parentId: '', x: posicionCascada.x, y: posicionCascada.y, width: 380, height: 280 
       }).catch(()=>{});
     }
   };
 
-  
-  const { screenToFlowPosition } = useReactFlow(); // Obtiene el proyector de coordenadas
+  const { screenToFlowPosition } = useReactFlow();
 
   const onPaneClick = useCallback((event) => {
-    // Convertimos la posición del cliente (pantalla) a la posición real en el espacio del mapa
     const posicionMapa = screenToFlowPosition({
       x: event.clientX,
       y: event.clientY,
     });
 
-    // Lanzamos la creación de la nota en ese lugar exacto
     handleCrearNuevaMetaDirecta(posicionMapa);
   }, [screenToFlowPosition, handleCrearNuevaMetaDirecta]);
-
 
   return (
     <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-4 text-left font-sans bg-zinc-950 p-4 text-zinc-200">
@@ -616,7 +644,7 @@ export function GestionProyectosContenido() {
 }
 
 // =========================================================
-// EXPORT COMPUESTO CON PROVIDER (Arregla el contexto del hook)
+// EXPORT COMPUESTO CON PROVIDER
 // =========================================================
 export default function GestionProyectos() {
   return (
@@ -625,6 +653,3 @@ export default function GestionProyectos() {
     </ReactFlowProvider>
   );
 }
-
-
-

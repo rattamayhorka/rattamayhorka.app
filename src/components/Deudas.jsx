@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { database } from '../api';
-import { RefreshCw, TrendingDown, Landmark } from 'lucide-react';
+import { RefreshCw, TrendingDown, Landmark, PiggyBank } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function Deudas({ refreshTrigger }) {
@@ -34,21 +34,27 @@ export default function Deudas({ refreshTrigger }) {
 
   const limpiarMonto = (valorCrudo) => {
     if (valorCrudo === null || valorCrudo === undefined) return 0;
-  
+    
     // Si ya es un número, solo asegúrate de que no sea negativo para la gráfica
     if (typeof valorCrudo === 'number') return Math.abs(valorCrudo);
-  
+    
     // Si es un string, remover todo lo que no sean números o puntos decimales
-    // Esto evita que textos pegados en la celda arruinen el parseFloat
     const stringLimpio = valorCrudo.toString().replace(/[^0-9.]/g, '');
-  
+    
     const numero = parseFloat(stringLimpio);
     return isNaN(numero) ? 0 : Math.abs(numero);
   };
 
-
   const deudasVigentes = deudas.filter(d => d.Status?.toUpperCase() !== 'LIQUIDADO');
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
+
+  // AGREGADO: Cálculo del total acumulado en AHORRO evaluando el rubro en transacciones
+  const totalAhorrado = transacciones
+    .filter(t => {
+      const rubroT = (t.Rubro || t.rubro || "").toString().toUpperCase().trim();
+      return rubroT === "AHORRO" || rubroT === "AHORROS";
+    })
+    .reduce((acc, curr) => acc + limpiarMonto(curr.Importe || curr.importe || 0), 0);
 
   const formatearMonedaCompleta = (valor) => {
     if (valor === null || valor === undefined || isNaN(valor)) return '';
@@ -99,7 +105,6 @@ export default function Deudas({ refreshTrigger }) {
     });
 
     if (abonosAgrupados.length === 0) {
-      // Si no hay abonos en el historial, necesitamos el punto 'Actual' para pintar la gráfica inicial
       dataPuntos.push({
         name: 'Actual',
         'Historial Real': actual,
@@ -107,12 +112,9 @@ export default function Deudas({ refreshTrigger }) {
         montoPagoReal: 0
       });
     } else {
-      // Si hay abonos, el último abono ya contiene matemáticamente el saldo impactado.
-      // Hacemos que este último punto sirva como puente directo para enlazar la Proyección.
       const ultimoPunto = dataPuntos[dataPuntos.length - 1];
       ultimoPunto['Proyección Proporcionada'] = saldoFlujoReal;
     }
-    // ==========================================
 
     const pagoPromedio = abonosReales.length > 0 
       ? abonosReales.reduce((acc, curr) => acc + curr.monto, 0) / abonosReales.length 
@@ -120,11 +122,18 @@ export default function Deudas({ refreshTrigger }) {
 
     let saldoSimulado = actual;
     let periodosProyectados = 1;
-
+    const hoy = new Date();
+    
     while (saldoSimulado > 0 && periodosProyectados <= 12) {
       saldoSimulado = Math.max(0, saldoSimulado - pagoPromedio);
+
+      const fechaProyectada = new Date(hoy.getFullYear(), hoy.getMonth() + periodosProyectados, 1);
+      const mesNombre = fechaProyectada.toLocaleDateString('es-MX', { month: 'short' });
+      const añoCorto = fechaProyectada.getFullYear().toString().slice(-2);
+      const etiquetaFecha = `${mesNombre.toUpperCase()} ${añoCorto}`;
+
       dataPuntos.push({
-        name: `Proy +${periodosProyectados}`,
+        name: etiquetaFecha,
         'Historial Real': null,
         'Proyección Proporcionada': Math.round(saldoSimulado * 100) / 100,
         montoPagoReal: 0
@@ -184,14 +193,28 @@ export default function Deudas({ refreshTrigger }) {
         </button>
       </div>
 
-      {/* CUADRO CONSOLIDADO */}
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 border-l-4 border-l-emerald-500 max-w-md shadow-2xl backdrop-blur-md">
-        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Capital Total de Pasivos Activos</span>
-        <div className="text-4xl font-black text-slate-100 tabular-nums tracking-tight mt-1 font-mono">
-          ${totalDeudaActual.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+      {/* CUADROS CONSOLIDADOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
+        {/* TARJETA 1: CAPITAL DE PASIVOS */}
+        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 border-l-4 border-l-rose-500 shadow-2xl backdrop-blur-md">
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Capital Total de Pasivos Activos</span>
+          <div className="text-3xl sm:text-4xl font-black text-slate-100 tabular-nums tracking-tight mt-1 font-mono">
+            ${totalDeudaActual.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-rose-400 font-bold uppercase tracking-tight">
+            <TrendingDown className="w-3.5 h-3.5" /> Portafolio de deuda viva analizado
+          </div>
         </div>
-        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold uppercase tracking-tight">
-          <TrendingDown className="w-3.5 h-3.5" /> Portafolio de deuda viva analizado
+
+        {/* AGREGADO: TARJETA 2 - FONDO ACUMULADO EN AHORRO */}
+        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 border-l-4 border-l-emerald-500 shadow-2xl backdrop-blur-md">
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Fondo de Ahorro Acumulado</span>
+          <div className="text-3xl sm:text-4xl font-black text-emerald-400 tabular-nums tracking-tight mt-1 font-mono">
+            ${totalAhorrado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold uppercase tracking-tight">
+            <PiggyBank className="w-3.5 h-3.5 text-emerald-400" /> Registros vinculados al Rubro AHORRO
+          </div>
         </div>
       </div>
 

@@ -249,6 +249,8 @@ export default function Finanzas({ refreshTrigger }) {
   let gastoGlobal = 0;
   let ingresosSueldo = 0;
   let ingresosSobrante = 0;
+  // AGREGADO: Acumulador de Ingreso tipo REGALO
+  let ingresosRegalo = 0;
   let presupuestoGlobalEstatico = 0;
   let totalDeudaMitigada = 0;
   let compromisosCriticosAsignados = 0;
@@ -301,6 +303,11 @@ export default function Finanzas({ refreshTrigger }) {
       ingresosSobrante += t.montoAbsoluto;
       return;
     }
+    // AGREGADO: Captura e integración del rubro REGALO
+    if (rubroUpper === "REGALO") {
+      ingresosRegalo += t.montoAbsoluto;
+      return;
+    }
 
     gastoGlobal += t.montoAbsoluto;
     const metodoActual = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
@@ -317,7 +324,10 @@ export default function Finanzas({ refreshTrigger }) {
     if (macrosObligatorias.includes(t.macroFinal)) compromisosCriticosGastados += t.montoAbsoluto;
   });
 
-  const ingresosTotalesFlujo = ingresosSueldo + ingresosSobrante;
+  // ANTERIOR: const ingresosTotalesFlujo = ingresosSueldo + ingresosSobrante;
+  // AGREGADO: Se incluye ingresosRegalo en los ingresos totales del flujo
+  const ingresosTotalesFlujo = ingresosSueldo + ingresosSobrante + ingresosRegalo;
+  
   const efectivoFisicoTotal = Object.values(saldosCuentas).reduce((acc, curr) => acc + curr, 0);
   const deudasAsignadas = macroEstructura["Deudas / Tarjetas"] ? macroEstructura["Deudas / Tarjetas"].asignado : 0;
   const bolsaDisponibleFlujoLibre = (presupuestoGlobalEstatico - deudasAsignadas) - (gastoGlobal - totalDeudaMitigada);
@@ -325,11 +335,6 @@ export default function Finanzas({ refreshTrigger }) {
   // =========================================================================
   //  ⚠️ CÁLCULO DE ALERTA POR DESFASE DE PRESUPUESTO
   // =========================================================================
-
-  /* CÓDIGO ANTERIOR:
-  const presupuestoExcedido = ingresosTotalesFlujo > 0 && 
-    (presupuestoGlobalEstatico - ingresosTotalesFlujo) > 1.00;
-  */
 
   // NUEVA IMPLEMENTACIÓN BIDIRECCIONAL (CON MARGEN DE TOLERANCIA DE $1.00):
   const diferenciaPresupuesto = presupuestoGlobalEstatico - ingresosTotalesFlujo;
@@ -347,7 +352,9 @@ export default function Finanzas({ refreshTrigger }) {
   
   transaccionesFiltradasYProcesadas.forEach(t => {
     const rubroUpper = t.rubroFinal.toUpperCase();
-    if (rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE") {
+    // ANTERIOR: if (rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE") {
+    // AGREGADO: Se agrega el rubro REGALO para conciliar los ingresos por cada medio de pago
+    if (rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO") {
       const metodo = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
       ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
     }
@@ -460,8 +467,13 @@ export default function Finanzas({ refreshTrigger }) {
                 <span className="text-slate-200 font-mono">${ingresosSueldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-zinc-500 font-semibold">📦 Sobrante Activo:</span>
+                <span className="text-zinc-500 font-semibold">📦 15na anterior:</span>
                 <span className="text-emerald-500 font-mono">${ingresosSobrante.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+              </div>
+              {/* AGREGADO: Fila en tarjeta para reflejar el ingreso de Regalo */}
+              <div className="flex justify-between">
+                <span className="text-zinc-500 font-semibold">🎁 Extras:</span>
+                <span className="text-emerald-400 font-mono">${ingresosRegalo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
@@ -495,36 +507,6 @@ export default function Finanzas({ refreshTrigger }) {
             )}
           </div>
         </div>
-
-        {/* CAJA DE SEGURIDAD LIBRE (CON ALERTA VISUAL CONDICIONAL DUAL) */}
-        {/* CÓDIGO ANTERIOR DE LA TARJETA:
-        <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all duration-300 ${
-          presupuestoExcedido 
-            ? 'bg-red-950/30 border-red-500 border-t-4 border-t-red-500 animate-pulse' 
-            : 'bg-zinc-900/40 border-zinc-800'
-        }`}>
-          <span className={`text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
-            presupuestoExcedido ? 'text-red-400' : 'text-emerald-400'
-          }`}>
-            <Flame className={`w-3 h-3 ${presupuestoExcedido ? 'text-red-400' : 'text-emerald-400'}`} /> 
-            {presupuestoExcedido ? '🚨 Presupuesto Excedido' : 'Caja de Seguridad Libre'}
-          </span>
-          <div className="mt-2">
-            <div className={`text-xl font-black tabular-nums ${
-              presupuestoExcedido || bolsaDisponibleFlujoLibre < 0 ? 'text-red-400' : 'text-emerald-400'
-            }`}>
-              ${bolsaDisponibleFlujoLibre.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-            </div>
-            <p className={`text-[8px] mt-1 uppercase font-bold tracking-tight ${
-              presupuestoExcedido ? 'text-red-300/80' : 'text-zinc-500'
-            }`}>
-              {presupuestoExcedido 
-                ? `Te excedes por: $${Math.abs(ingresosTotalesFlujo - presupuestoGlobalEstatico).toFixed(2)}` 
-                : 'Fondos netos ideales de supervivencia'}
-            </p>
-          </div>
-        </div>
-        */}
 
         {/* NUEVA TARJETA CON SOPORTE PARA EXCESO Y REPARTO FALTANTE */}
         <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all duration-300 ${
@@ -735,7 +717,9 @@ export default function Finanzas({ refreshTrigger }) {
                     const macro = t.macroFinal;
                     const rubroUpper = rubro.toUpperCase();
                     const esDeuda = macro === "Deudas / Tarjetas";
-                    const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE";
+                    // ANTERIOR: const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE";
+                    // AGREGADO: Se incluye REGALO como un ingreso puro
+                    const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO";
 
                     return (
                       <tr key={idx} className="hover:bg-zinc-800/40 transition-colors">
@@ -814,13 +798,17 @@ export default function Finanzas({ refreshTrigger }) {
                         setForm(prev => ({
                           ...prev, 
                           rubro: val, 
-                          descripcion: val === "SOBRANTE" ? "SOBRANTE PERIODO ANTERIOR" : "NÓMINA QUINCENAL"
+                          // ANTERIOR: descripcion: val === "SOBRANTE" ? "SOBRANTE PERIODO ANTERIOR" : "NÓMINA QUINCENAL"
+                          // AGREGADO: Se agrega el autocompletado por defecto para REGALO
+                          descripcion: val === "SOBRANTE" ? "SOBRANTE PERIODO ANTERIOR" : val === "REGALO" ? "REGALO RECIBIDO" : "NÓMINA QUINCENAL"
                         }));
                       }}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-black text-emerald-400 uppercase outline-none cursor-pointer"
                     >
                       <option value="SUELDO">💼 SUELDO</option>
                       <option value="SOBRANTE">📦 SOBRANTE</option>
+                      {/* AGREGADO: Opción para guardar con la cadena explícita 'REGALO' en la columna rubro */}
+                      <option value="REGALO">🎁 REGALO</option>
                     </select>
                   ) : (
                     <select value={form.rubro} onChange={(e) => setForm(prev => ({...prev, rubro: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 cursor-pointer">

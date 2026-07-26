@@ -355,7 +355,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-[#94a3b8] tracking-widest mt-1">
-            rattamayhorka v0.8.15 "omni bullet"
+            rattamayhorka v0.9.1 "project color"
           </div>
         </div>
       </div>
