@@ -3,6 +3,63 @@ import { database } from '../api'; // Usa tu API existente
 import { Send, Terminal, Database, Loader2, Sparkles, Trash2, Edit2, X, Columns3 } from 'lucide-react';
 
 // =========================================================================
+// 🧠 HELPER: PARSER DE FECHA Y DÍA/HORA PARA CLASIFICACIÓN (CASA / TRABAJO)
+// =========================================================================
+const MESES_MAP = {
+  ene: 0, jan: 0, feb: 1, mar: 2, abr: 3, apr: 3, may: 4, jun: 5,
+  jul: 6, ago: 7, aug: 7, sep: 8, oct: 9, nov: 10, dic: 11, dec: 11
+};
+
+const parsearFechaTexto = (strFecha) => {
+  const hoy = new Date();
+  if (!strFecha || !strFecha.trim()) return hoy;
+
+  const texto = strFecha.trim().toLowerCase();
+  
+  // Si viene como DD/MM o DD/MM/YYYY
+  if (texto.includes('/') || texto.includes('-')) {
+    const partes = texto.split(/[\/\-]/);
+    const dia = parseInt(partes[0], 10) || hoy.getDate();
+    const mes = (parseInt(partes[1], 10) - 1) ?? hoy.getMonth();
+    const año = partes[2] ? parseInt(partes[2], 10) : hoy.getFullYear();
+    return new Date(año, mes, dia);
+  }
+
+  // Si viene como "28jul" o "28-jul"
+  const match = texto.match(/^(\d{1,2})\-?([a-z]{3})$/i);
+  if (match) {
+    const dia = parseInt(match[1], 10);
+    const mesTexto = match[2].toLowerCase();
+    const mes = MESES_MAP[mesTexto] !== undefined ? MESES_MAP[mesTexto] : hoy.getMonth();
+    return new Date(hoy.getFullYear(), mes, dia);
+  }
+
+  return hoy;
+};
+
+const determinarTipoEvento = (fechaObj, horaStr) => {
+  const diaSemana = fechaObj.getDay(); // 0 = Domingo, 6 = Sábado
+
+  // 1. Sábado (6) o Domingo (0) -> Casa automáticamente
+  if (diaSemana === 0 || diaSemana === 6) {
+    return 'Casa';
+  }
+
+  // 2. Lunes a Viernes -> Evaluar Horario (08:00 a 17:00 = Trabajo)
+  let horaNum = 9; // Valor por defecto
+  if (horaStr && horaStr.includes(':')) {
+    const partesHora = horaStr.split(':');
+    horaNum = parseInt(partesHora[0], 10) + (parseInt(partesHora[1], 10) / 60);
+  }
+
+  if (horaNum >= 8.0 && horaNum <= 17.0) {
+    return 'Trabajo';
+  } else {
+    return 'Casa';
+  }
+};
+
+// =========================================================================
 // 🎛️ PARSER DE SINTAXIS BULLET JOURNAL (Rapid Logging)
 // =========================================================================
 const parsearLineaTerminal = (texto) => {
@@ -10,14 +67,22 @@ const parsearLineaTerminal = (texto) => {
 
   if (t.startsWith('$')) {
     const sinSimbolo = t.substring(1).trim();
+
+    /* 🔴 CÓDIGO ANTERIOR:
     const partes = sinSimbolo.split(',');
+    */
+
+    // 🟢 SOPORTE PARA SEPARADOR CON ';' Y ','
+    const partes = sinSimbolo.includes(';') ? sinSimbolo.split(';') : sinSimbolo.split(',');
     const concepto = partes[0] || 'Gasto sin concepto';
     const monto = partes[1] ? `$${partes[1].trim()}` : '$0.00';
     return {
       tipo: 'finanzas',
       icono: '💸',
       colorClase: 'text-emerald-400 font-mono font-bold',
-      formateado: `[FINANZAS] > ${concepto} : ${monto}`
+      formateado: `[FINANZAS] > ${concepto} : ${monto}`,
+      conceptoLimpio: concepto,
+      montoLimpio: partes[1] ? partes[1].trim() : '0.00'
     };
   } else if (t.startsWith('-')) {
     const contenido = t.substring(1).trim();
@@ -28,6 +93,7 @@ const parsearLineaTerminal = (texto) => {
       formateado: `[NOTA] >> ${contenido}`
     };
   } else if (t.startsWith('.')) {
+    /* 🔴 CÓDIGO ANTERIOR:
     const contenido = t.substring(1).trim();
     return {
       tipo: 'tarea',
@@ -35,7 +101,29 @@ const parsearLineaTerminal = (texto) => {
       colorClase: 'text-sky-400 font-semibold',
       formateado: `[PENDIENTE] . ${contenido}`
     };
+    */
+
+    // 🟢 SOPORTE EXTRAER TIEMPO EN TAREAS (.) CON ';'
+    const contenidoCompleto = t.substring(1).trim();
+    let limpio = contenidoCompleto;
+    let horaExtraida = "";
+
+    if (contenidoCompleto.includes(';')) {
+      const partes = contenidoCompleto.split(';');
+      limpio = partes[0].trim();
+      horaExtraida = partes[1].trim();
+    }
+
+    return {
+      tipo: 'tarea',
+      icono: '⚡',
+      colorClase: 'text-sky-400 font-semibold',
+      formateado: `[PENDIENTE] . ${limpio} ${horaExtraida ? `[Hora: ${horaExtraida}]` : ''}`,
+      textoLimpioSinPunto: limpio,
+      hora: horaExtraida
+    };
   } else if (t.startsWith('#')) {
+    /* 🔴 CÓDIGO ANTERIOR:
     const contenidoCompleto = t.substring(1).trim();
     let limpio = contenidoCompleto;
     let horaExtraida = "";
@@ -50,7 +138,48 @@ const parsearLineaTerminal = (texto) => {
       tipo: 'evento',
       icono: '📅',
       colorClase: 'text-fuchsia-400 font-bold',
-      formateado: `[EVENTO] # ${limpio} ${horaExtraida ? `[Hora: ${horaExtraida}]` : ''}`
+      formateado: `[EVENTO] # ${limpio} ${horaExtraida ? `[Hora: ${horaExtraida}]` : ''}`,
+      hora: horaExtraida
+    };
+    */
+
+    // 🟢 NUEVO PARSER ESTRUCTURADO DE EVENTOS FUTURELOG (# evento;28jul;10:00;lugar)
+    const contenidoCompleto = t.substring(1).trim();
+    const partes = contenidoCompleto.split(';');
+
+    const comite = partes[0] ? partes[0].trim() : 'Evento sin título';
+    const fechaTexto = partes[1] ? partes[1].trim() : '';
+    const horaTexto = partes[2] ? partes[2].trim() : '09:00';
+    const lugarTexto = partes[3] ? partes[3].trim() : 'Pendiente';
+
+    const fechaObj = parsearFechaTexto(fechaTexto);
+    const diaNum = String(fechaObj.getDate()).padStart(2, '0');
+    const mesNum = String(fechaObj.getMonth() + 1).padStart(2, '0');
+    const añoNum = fechaObj.getFullYear();
+    const fechaFormateadaDDMMYYYY = `${diaNum}/${mesNum}/${añoNum}`;
+
+    const tipoCalculado = determinarTipoEvento(fechaObj, horaTexto);
+
+    return {
+      tipo: 'evento',
+      icono: '📅',
+      colorClase: tipoCalculado === 'Casa' ? 'text-emerald-400 font-bold' : 'text-fuchsia-400 font-bold',
+      formateado: `[FUTURE_LOG] # ${comite.toUpperCase()} | ${fechaFormateadaDDMMYYYY} @ ${horaTexto} (${tipoCalculado})`,
+      comite,
+      fechaFormateada: fechaFormateadaDDMMYYYY,
+      hora: horaTexto,
+      lugar: lugarTexto,
+      tipoEvento: tipoCalculado
+    };
+  } 
+  // 🟢 DETECCIÓN DE IDEAS CON '!'
+  else if (t.startsWith('!')) {
+    const contenido = t.substring(1).trim();
+    return {
+      tipo: 'idea',
+      icono: '💡',
+      colorClase: 'text-yellow-300 font-bold italic',
+      formateado: `[IDEA] ! ${contenido}`
     };
   }
 
@@ -89,6 +218,7 @@ export default function Bullet({ refreshTrigger }) {
         const textoOriginal = item.Tarea || "";
         const fecha = item.Fecha || "---";
         const hora = item.Hora || "";
+        const tipoOriginal = item.Tipo || "Trabajo";
         
         let stringDeAnalisis = textoOriginal;
         if (hora) {
@@ -101,6 +231,7 @@ export default function Bullet({ refreshTrigger }) {
           id: idx,
           textoOriginal,
           fecha,
+          tipoOriginal,
           ...analisis
         };
       });
@@ -158,22 +289,75 @@ export default function Bullet({ refreshTrigger }) {
         ));
         cancelarEdicion();
       } else {
-        const nuevoLogOptimo = {
-          id: Date.now(),
-          textoOriginal: comandoCrudo,
-          fecha: fechaFormateada,
-          ...analisis
-        };
-        setLogs(prev => [...prev, nuevoLogOptimo]);
-
-        await database.guardarDatos('guardarTarea', {
-          datos: {
-            tarea: comandoCrudo,
-            status: 'Bullet', 
+        // 🟢 FINANZAS SIN RUBRO ASIGNADO POR DEFECTO
+        if (analisis.tipo === 'finanzas') {
+          const payloadFinanzas = {
             fecha: fechaFormateada,
-            tipo: 'BulletJournal'
-          }
-        });
+            importe: parseFloat(analisis.montoLimpio) || 0,
+            descripcion: analisis.conceptoLimpio.toUpperCase(),
+            metodo_pago: "Efectivo",
+            rubro: "" // Se deja vacío sin rubro por defecto para definir a mano después
+          };
+          await database.guardarDatos('guardarTransaccion', payloadFinanzas);
+        } 
+        // 🟢 SI ES TAREA (INICIA CON .) ENVÍA A KANBAN
+        else if (analisis.tipo === 'tarea') {
+          const cadenaSinPuntoConHora = analisis.hora 
+            ? `${analisis.textoLimpioSinPunto}; ${analisis.hora}` 
+            : analisis.textoLimpioSinPunto;
+
+          await database.guardarDatos('guardarTarea', {
+            datos: {
+              tarea: cadenaSinPuntoConHora, // Sin punto inicial
+              status: 'Por Hacer', // Va a Kanban directamente
+              fecha: fechaFormateada,
+              tipo: 'Trabajo' // Se fuerza a Trabajo para Kanban
+            }
+          });
+        } 
+        // 🟢 CORRECCIÓN EVENTO: ESCRIBE DIRECTO A LA PESTAÑA REUNIONES (FUTURELOG)
+        else if (analisis.tipo === 'evento') {
+          /* 🔴 CÓDIGO ANTERIOR (Guardaba en Pendientes):
+          await database.guardarDatos('guardarTarea', {
+            datos: {
+              tarea: comandoCrudo,
+              status: 'Bullet',
+              fecha: fechaFormateada,
+              tipo: 'BulletJournal'
+            }
+          });
+          */
+
+          // 🟢 NUEVA IMPLEMENTACIÓN (Llama a guardarReunion -> Pestaña Reuniones en Sheets)
+          const payloadReunion = {
+            comite: analisis.comite.toUpperCase(),
+            fecha: analisis.fechaFormateada,
+            hora: analisis.hora,
+            lugar: analisis.lugar,
+            tipo: analisis.tipoEvento
+          };
+
+          await database.guardarDatos('guardarReunion', { datos: payloadReunion });
+        } 
+        else {
+          // 🔴 COMPORTAMIENTO NORMAL PARA NOTAS E IDEAS (!) (SE GUARDAN COMO BULLET EN PENDIENTES)
+          const nuevoLogOptimo = {
+            id: Date.now(),
+            textoOriginal: comandoCrudo,
+            fecha: fechaFormateada,
+            ...analisis
+          };
+          setLogs(prev => [...prev, nuevoLogOptimo]);
+
+          await database.guardarDatos('guardarTarea', {
+            datos: {
+              tarea: comandoCrudo,
+              status: 'Bullet', 
+              fecha: fechaFormateada,
+              tipo: 'BulletJournal'
+            }
+          });
+        }
       }
       setNuevoComando('');
     } catch (err) {
@@ -183,17 +367,27 @@ export default function Bullet({ refreshTrigger }) {
     }
   };
 
-  // 📋 ENVIAR TAREA AL KANBAN (Cambia status 'Bullet' a 'Por Hacer')
+  // 📋 ENVIAR TAREA AL KANBAN
   const enviarAKanban = async (item) => {
-    // 1. Remoción visual optimista inmediata
+    // 1. Remoción visual optimista inmediata de la pantalla Bullet
     setLogs(prev => prev.filter(l => l.textoOriginal !== item.textoOriginal));
 
+    const hoy = new Date();
+    const fechaFormateada = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+
+    const nuevaTareaLimpia = item.hora && !item.textoLimpioSinPunto.includes(';')
+      ? `${item.textoLimpioSinPunto}; ${item.hora}`
+      : item.textoLimpioSinPunto;
+
     try {
-      // Usamos el endpoint existente en tu doPost
-      await database.guardarDatos('statusKanban', {
-        tareaTexto: item.textoOriginal,
-        nuevoStatus: 'Por Hacer',
-        nuevoTipo: 'Trabajo' // Tipo Trabajo por defecto para el kanban
+      await database.guardarDatos('modificarTarea', {
+        datos: {
+          tareaOriginal: item.textoOriginal,
+          nuevaTarea: nuevaTareaLimpia,
+          nuevoStatus: 'Por Hacer',
+          nuevaFecha: item.fecha !== '---' ? item.fecha : fechaFormateada,
+          nuevoTipo: 'Trabajo'
+        }
       });
     } catch (err) {
       console.error("Error al transferir al Kanban:", err);
@@ -250,6 +444,7 @@ export default function Bullet({ refreshTrigger }) {
           <span><b className="text-zinc-400">-</b> Nota</span>
           <span><b className="text-sky-400">.</b> Tarea</span>
           <span><b className="text-fuchsia-400">#</b> Evento</span>
+          <span><b className="text-yellow-300">!</b> Idea</span>
           <span className="text-zinc-800">|</span>
           <span className="flex items-center gap-1 text-[8px] text-zinc-650">
             <Database className="w-2.5 h-2.5 text-emerald-600" />
@@ -297,7 +492,6 @@ export default function Bullet({ refreshTrigger }) {
                   <div className="flex items-center gap-3 text-[8px] text-zinc-700 font-mono select-none flex-shrink-0 self-end sm:self-auto">
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-all mr-1">
                       
-                      {/* Botón dinámico para enviar al Kanban (solo se muestra si es tipo 'tarea') */}
                       {item.tipo === 'tarea' && (
                         <button 
                           onClick={() => enviarAKanban(item)}
@@ -357,7 +551,7 @@ export default function Bullet({ refreshTrigger }) {
               value={nuevoComando}
               onChange={(e) => setNuevoComando(e.target.value)}
               onKeyDown={manejarTeclado}
-              placeholder={modoEdicion ? "Modifica el comando y presiona Ctrl + Enter..." : "Escribe... ($ gasto,monto / . tarea / - nota / # evento) [Ctrl+Enter]"}
+              placeholder={modoEdicion ? "Modifica el comando y presiona Ctrl + Enter..." : "Escribe... ($ gasto;monto / . tarea;10:00 / # evento;28jul;10:00 / ! idea) [Ctrl+Enter]"}
               className="flex-1 bg-transparent resize-none outline-none border-none text-zinc-100 placeholder-zinc-800 font-mono text-xs leading-relaxed min-h-[18px] max-h-[180px] mt-0.5"
               disabled={enviando}
               style={{ overflowY: 'auto' }}

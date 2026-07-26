@@ -3,23 +3,137 @@ import { database } from '../api';
 import { CheckCircle2, AlertCircle, ArrowLeft, Terminal, Send, Database } from 'lucide-react';
 
 // =========================================================================
+// 🧠 HELPER: PARSER DE FECHA Y DÍA/HORA PARA CLASIFICACIÓN (CASA / TRABAJO)
+// =========================================================================
+const MESES_MAP = {
+  ene: 0, jan: 0, feb: 1, mar: 2, abr: 3, apr: 3, may: 4, jun: 5,
+  jul: 6, ago: 7, aug: 7, sep: 8, oct: 9, nov: 10, dic: 11, dec: 11
+};
+
+const parsearFechaTexto = (strFecha) => {
+  const hoy = new Date();
+  if (!strFecha || !strFecha.trim()) return hoy;
+
+  const texto = strFecha.trim().toLowerCase();
+  
+  // Si viene como DD/MM o DD/MM/YYYY
+  if (texto.includes('/') || texto.includes('-')) {
+    const partes = texto.split(/[\/\-]/);
+    const dia = parseInt(partes[0], 10) || hoy.getDate();
+    const mes = (parseInt(partes[1], 10) - 1) ?? hoy.getMonth();
+    const año = partes[2] ? parseInt(partes[2], 10) : hoy.getFullYear();
+    return new Date(año, mes, dia);
+  }
+
+  // Si viene como "28jul" o "28-jul"
+  const match = texto.match(/^(\d{1,2})\-?([a-z]{3})$/i);
+  if (match) {
+    const dia = parseInt(match[1], 10);
+    const mesTexto = match[2].toLowerCase();
+    const mes = MESES_MAP[mesTexto] !== undefined ? MESES_MAP[mesTexto] : hoy.getMonth();
+    return new Date(hoy.getFullYear(), mes, dia);
+  }
+
+  return hoy;
+};
+
+const determinarTipoEvento = (fechaObj, horaStr) => {
+  const diaSemana = fechaObj.getDay(); // 0 = Domingo, 6 = Sábado
+
+  // 1. Sábado (6) o Domingo (0) -> Casa automáticamente
+  if (diaSemana === 0 || diaSemana === 6) {
+    return 'Casa';
+  }
+
+  // 2. Lunes a Viernes -> Evaluar Horario (08:00 a 17:00 = Trabajo)
+  let horaNum = 9; // Valor por defecto
+  if (horaStr && horaStr.includes(':')) {
+    const partesHora = horaStr.split(':');
+    horaNum = parseInt(partesHora[0], 10) + (parseInt(partesHora[1], 10) / 60);
+  }
+
+  if (horaNum >= 8.0 && horaNum <= 17.0) {
+    return 'Trabajo';
+  } else {
+    return 'Casa';
+  }
+};
+
+// =========================================================================
 // 🎛️ PARSER LOCAL PARA PREVISUALIZAR EL TIPO DE BULLET MIENTRAS ESCRIBES
 // =========================================================================
 const parsearSintaxis = (texto) => {
   const t = texto.trim();
-  if (t.startsWith('$')) return { tipo: 'FINANZAS', icono: '💸', color: 'text-emerald-400' };
+
+  // 🟢 FINANZAS ($)
+  if (t.startsWith('$')) {
+    let limpio = t.substring(1).trim();
+    let monto = '0.00';
+    if (limpio.includes(';')) {
+      const partes = limpio.split(';');
+      limpio = partes[0].trim();
+      monto = partes[1]?.trim() || '0.00';
+    } else if (limpio.includes(',')) {
+      const partes = limpio.split(',');
+      limpio = partes[0].trim();
+      monto = partes[1]?.trim() || '0.00';
+    }
+    return { tipo: 'FINANZAS', icono: '💸', color: 'text-emerald-400', concepto: limpio, monto };
+  }
+
+  // 🟢 NOTAS (-)
   if (t.startsWith('-')) return { tipo: 'NOTA', icono: '📝', color: 'text-zinc-400' };
-  if (t.startsWith('.')) return { tipo: 'TAREA', icono: '⚡', color: 'text-sky-400' };
-  if (t.startsWith('#')) return { tipo: 'EVENTO', icono: '📅', color: 'text-fuchsia-400' };
+
+  // 🟢 TAREAS (.)
+  if (t.startsWith('.')) {
+    let limpio = t.substring(1).trim();
+    let horaExtraida = "";
+    if (limpio.includes(';')) {
+      const partes = limpio.split(';');
+      limpio = partes[0].trim();
+      horaExtraida = partes[1].trim();
+    }
+    return { tipo: 'TAREA', icono: '⚡', color: 'text-sky-400', textoLimpio: limpio, hora: horaExtraida };
+  }
+
+  // 🟢 EVENTOS / FUTURELOG (#) - PARSER ESTRUCTURADO: # comite;fecha;hora;lugar
+  if (t.startsWith('#')) {
+    const contenidoCompleto = t.substring(1).trim();
+    const partes = contenidoCompleto.split(';');
+
+    const comite = partes[0] ? partes[0].trim() : 'Evento sin título';
+    const fechaTexto = partes[1] ? partes[1].trim() : '';
+    const horaTexto = partes[2] ? partes[2].trim() : '09:00';
+    const lugarTexto = partes[3] ? partes[3].trim() : 'Pendiente';
+
+    const fechaObj = parsearFechaTexto(fechaTexto);
+    const diaNum = String(fechaObj.getDate()).padStart(2, '0');
+    const mesNum = String(fechaObj.getMonth() + 1).padStart(2, '0');
+    const añoNum = fechaObj.getFullYear();
+    const fechaFormateadaDDMMYYYY = `${diaNum}/${mesNum}/${añoNum}`;
+
+    const tipoCalculado = determinarTipoEvento(fechaObj, horaTexto);
+
+    return {
+      tipo: 'EVENTO',
+      icono: '📅',
+      color: tipoCalculado === 'Casa' ? 'text-emerald-400' : 'text-fuchsia-400',
+      comite,
+      fechaFormateada: fechaFormateadaDDMMYYYY,
+      hora: horaTexto,
+      lugar: lugarTexto,
+      tipoEvento: tipoCalculado
+    };
+  }
+
+  // 🟢 DETECCIÓN DE IDEAS CON '!'
+  if (t.startsWith('!')) return { tipo: 'IDEA', icono: '💡', color: 'text-yellow-300 font-bold' };
+
   return { tipo: 'REGISTRO PLANO', icono: '›', color: 'text-amber-200/90' };
 };
 
 export default function RegistroRapido() {
   const [texto, setTexto] = useState('');
-  
-  // 🔴 ANTES: Se usaba este estado para el switch de entorno (Hospital / Casa)
-  // const [destino, setDestino] = useState('hospital'); 
-
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
 
@@ -35,35 +149,68 @@ export default function RegistroRapido() {
     const hoy = new Date();
     const fechaFormateada = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
 
-    // =========================================================================
-    // 🔴 REGISTRO ANTERIOR (ENVIABA CON SELECTOR DE ENTORNO TRABAJO/CASA)
-    // =========================================================================
-    /*
-    const tipoColumna = destino === 'hospital' ? 'Trabajo' : 'Casa';
-    const payload = {
-      tarea: texto.trim().toUpperCase(),
-      status: "Por Hacer",
-      fecha: fechaFormateada,
-      tipo: tipoColumna
-    };
-    */
-
-    // =========================================================================
-    // 🟢 NUEVO REGISTRO TERMINAL BULLET (SINTAXIS DIRECTA CON STATUS BULLET)
-    // =========================================================================
-    const payload = {
-      tarea: texto.trim(), // Respetamos minusculas/mayusculas para sintaxis exacta
-      status: "Bullet",
-      fecha: fechaFormateada,
-      tipo: "BulletJournal"
-    };
-
     try {
-      await database.guardarDatos('guardarTarea', { datos: payload });
+      // 1. TAREAS (.) -> KANBAN
+      if (texto.trim().startsWith('.')) {
+        const cadenaSinPuntoConHora = deteccion.hora 
+          ? `${deteccion.textoLimpio}; ${deteccion.hora}` 
+          : deteccion.textoLimpio;
+
+        const payloadTarea = {
+          tarea: cadenaSinPuntoConHora,
+          status: "Por Hacer",
+          fecha: fechaFormateada,
+          tipo: "Trabajo"
+        };
+        await database.guardarDatos('guardarTarea', { datos: payloadTarea });
+      } 
+      // 2. FINANZAS ($) -> PESTAÑA FINANZAS
+      else if (texto.trim().startsWith('$')) {
+        const payloadFinanzas = {
+          fecha: fechaFormateada,
+          importe: parseFloat(deteccion.monto) || 0,
+          descripcion: deteccion.concepto.toUpperCase(),
+          metodo_pago: "Efectivo",
+          rubro: ""
+        };
+        await database.guardarDatos('guardarTransaccion', payloadFinanzas);
+      } 
+      // 🟢 3. EVENTOS (#) -> PESTAÑA REUNIONES (FUTURE LOG)
+      else if (texto.trim().startsWith('#')) {
+        /* 🔴 CÓDIGO ANTERIOR (Guardaba en Pendientes):
+        const payloadGenerico = {
+          tarea: texto.trim(),
+          status: "Bullet",
+          fecha: fechaFormateada,
+          tipo: "BulletJournal"
+        };
+        await database.guardarDatos('guardarTarea', { datos: payloadGenerico });
+        */
+
+        const payloadReunion = {
+          comite: deteccion.comite.toUpperCase(),
+          fecha: deteccion.fechaFormateada,
+          hora: deteccion.hora,
+          lugar: deteccion.lugar,
+          tipo: deteccion.tipoEvento
+        };
+
+        await database.guardarDatos('guardarReunion', { datos: payloadReunion });
+      } 
+      // 4. NOTAS (-), IDEAS (!) O TEXTO PLANO -> BULLET JOURNAL
+      else {
+        const payloadGenerico = {
+          tarea: texto.trim(),
+          status: "Bullet",
+          fecha: fechaFormateada,
+          tipo: "BulletJournal"
+        };
+        await database.guardarDatos('guardarTarea', { datos: payloadGenerico });
+      }
       
       setMensaje({ 
         tipo: 'success', 
-        texto: `LOG [${deteccion.tipo}] REGISTRADO EN BULLET` 
+        texto: `LOG [${deteccion.tipo}] REGISTRADO CORRECTAMENTE` 
       });
       setTexto(''); 
     } catch (err) {
@@ -91,35 +238,13 @@ export default function RegistroRapido() {
 
         <div className="p-5 space-y-5">
           {/* 💡 LEYENDA DE SINTAXIS RÁPIDA */}
-          <div className="grid grid-cols-4 gap-1.5 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
+          <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
             <div className="text-emerald-400 bg-emerald-950/20 py-1 rounded"><b className="text-emerald-300">$</b> Gasto</div>
             <div className="text-zinc-400 bg-zinc-900/40 py-1 rounded"><b className="text-zinc-200">-</b> Nota</div>
             <div className="text-sky-400 bg-sky-950/20 py-1 rounded"><b className="text-sky-300">.</b> Tarea</div>
             <div className="text-fuchsia-400 bg-fuchsia-950/20 py-1 rounded"><b className="text-fuchsia-300">#</b> Evento</div>
+            <div className="text-yellow-300 bg-yellow-950/20 py-1 rounded"><b className="text-yellow-200">!</b> Idea</div>
           </div>
-
-          {/* 🔴 SECCIÓN OBSOLETA DEL SWITCH TRABAJO/CASA (COMENTADA) */}
-          {/*
-          <div>
-            <label className="block text-[9px] font-black uppercase text-slate-500 mb-2">Entorno de Destino</label>
-            <div className="grid grid-cols-2 gap-2 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-              <button 
-                type="button"
-                onClick={() => { setDestino('hospital'); setMensaje(null); }}
-                className={`py-2.5 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer ${destino === 'hospital' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-slate-500'}`}
-              >
-                🏥 Hospital
-              </button>
-              <button 
-                type="button"
-                onClick={() => { setDestino('casa'); setMensaje(null); }}
-                className={`py-2.5 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer ${destino === 'casa' ? 'bg-amber-950/60 text-amber-400 border border-amber-900/30' : 'text-slate-500'}`}
-              >
-                🏠 Mi Casa
-              </button>
-            </div>
-          </div>
-          */}
 
           <form onSubmit={ejecutarGuardado} className="space-y-4">
             {/* INPUT ESTILO PROMPT DE TERMINAL */}
@@ -144,7 +269,7 @@ export default function RegistroRapido() {
                     setTexto(e.target.value);
                     if (mensaje) setMensaje(null);
                   }}
-                  placeholder="Escribe... ($ gasto,monto / . tarea / - nota / # evento)"
+                  placeholder="Escribe... ($ gasto;monto / . tarea;10:00 / # evento;28jul;10:00 / ! idea)"
                   className="w-full bg-transparent resize-none outline-none text-xs font-mono text-zinc-100 placeholder-zinc-700 leading-relaxed"
                 />
               </div>
