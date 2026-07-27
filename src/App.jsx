@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Kanban from './components/Kanban';
 import Bullet from './components/Bullet';
-import Gases from './components/Gases';
+//import Gases from './components/Gases';
 import Compromisos from './components/CompromisosHST';
 import Compras from './components/Compras';
 import FutureLogHST from './components/FutureLogHST';
@@ -9,7 +9,6 @@ import RegistroRapido from './components/RegistroRapido';
 import GestionProyectos from './components/GestionProyectos';
 import GastosCasa from './components/GastosCasa';
 import Deudas from './components/Deudas';
-//import ReunionesCasa from './components/ReunionesCasa';
 
 // 🛠️ Agregamos los iconos necesarios para el menú compacto
 import {
@@ -43,15 +42,12 @@ export default function App() {
   const [cargando, setCargando] = useState(false);
 
    useEffect(() => {
-      // 🎯 BYPASS LOCAL: Si estás en tu computadora (localhost o 127.0.0.1)
-      // te da acceso directo para que puedas desarrollar y ver tus cambios rápido.
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         setAutenticado(true);
-        return; // Nos salimos aquí para saltarnos el flujo en local
+        return;
       }
 
-      // 🔒 FLUJO DE PRODUCCIÓN: En internet sí valida tu sesión de forma estricta
-      const sesionValida = sessionStorage.getItem('sesion_biomedica_st'); // <- Cambiado a sessionStorage
+      const sesionValida = sessionStorage.getItem('sesion_biomedica_st');
             if (sesionValida) {
         setAutenticado(true);
       }
@@ -82,7 +78,7 @@ export default function App() {
       
       if (data.success) {
         setTempToken(data.tempToken);
-        setPasoAuth(2); // Pasamos al input para meter el código
+        setPasoAuth(2);
       } else {
         setErrorAuth(data.error || 'Error al enviar el código.');
       }
@@ -129,7 +125,7 @@ export default function App() {
     setPasoAuth(1);
   };
 
-  // 🔒 VISTA DE LOGIN AJUSTADA AL NUEVO FLUJO 2FA TELEGRAM
+  //VISTA DE LOGIN AJUSTADA AL NUEVO FLUJO 2FA TELEGRAM
   if (!autenticado) {
     return (
       <div className="h-screen w-screen bg-[#0f172a] flex items-center justify-center p-4 font-sans text-[#f8fafc]">
@@ -274,6 +270,7 @@ export default function App() {
               <span className="hidden xl:inline px-1">Compras</span>
             </button>
             
+            {/*
             <button 
               onClick={() => cambiarSeccion('gases')} 
               title="Control de Gases"
@@ -284,6 +281,7 @@ export default function App() {
               <Activity className="w-4 h-4 flex-shrink-0 xl:hidden" />
               <span className="hidden xl:inline px-1">Control de Gases</span>
             </button>
+            */} 
 
             {/* Sección Familia */}
             <div className="hidden xl:block text-[11px] font-black text-amber-400 uppercase tracking-widest px-3 mb-1 mt-6">
@@ -355,7 +353,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-[#94a3b8] tracking-widest mt-1">
-            rattamayhorka v0.9.1 "project color"
+            rattamayhorka v0.10.0 "Needs y wants"
           </div>
         </div>
       </div>
@@ -379,10 +377,11 @@ export default function App() {
           {seccionActiva === 'bullet' && (
             <Bullet key={refreshKeys['bullet'] || 0} />
           )}
-          
+          {/*
           {seccionActiva === 'gases' && (
             <Gases key={refreshKeys['gases'] || 0} />
           )}
+          */}
           {seccionActiva === 'compromisos' && (
             <Compromisos key={refreshKeys['compromisos'] || 0} />
           )}
@@ -395,11 +394,6 @@ export default function App() {
           {seccionActiva === 'proyectos_grafo' && (
             <GestionProyectos key={refreshKeys['proyectos_grafo'] || 0} />
           )}
-          {/*
-          {seccionActiva === 'casa_reuniones' && (
-            <ReunionesCasa key={refreshKeys['casa_reuniones'] || 0} />
-          )}
-          */}
           {seccionActiva === 'casa_gastos' && (
             <GastosCasa key={refreshKeys['casa_gastos'] || 0} />
           )}
@@ -408,23 +402,6 @@ export default function App() {
           )}  
         </div>
       </main>
-
-      {/*
-      <main className="flex-1 overflow-y-auto p-4 xl:p-8 bg-[#0f172a]">
-        <div id="contenedor-principal">
-          {seccionActiva === 'kanban' && <Kanban filtroTipo="Trabajo" refreshTrigger={refreshKeys['kanban']} />}
-          {seccionActiva === 'casa_pendientes' && <Kanban filtroTipo="Casa" refreshTrigger={refreshKeys['casa_pendientes']} />}
-          {seccionActiva === 'gases' && <Gases refreshTrigger={refreshKeys['gases']} />}
-          {seccionActiva === 'compromisos' && <Compromisos refreshTrigger={refreshKeys['compromisos']} />}
-          {seccionActiva === 'compras' && <Compras refreshTrigger={refreshKeys['compras']} />}
-          {seccionActiva === 'futureloghst' && <FutureLogHST refreshTrigger={refreshKeys['futureloghst']} />}
-          {seccionActiva === 'proyectos_grafo' && <GestionProyectos refreshTrigger={refreshKeys['proyectos_grafo']} />}
-          {seccionActiva === 'casa_reuniones' && <ReunionesCasa refreshTrigger={refreshKeys['casa_reuniones']} />}
-          {seccionActiva === 'casa_gastos' && <GastosCasa refreshTrigger={refreshKeys['casa_gastos']} />}
-          {seccionActiva === 'deudas' && <Deudas refreshTrigger={refreshKeys['deudas']} />}  
-        </div>
-      </main>
-      */}
     </div>
   );
 }
