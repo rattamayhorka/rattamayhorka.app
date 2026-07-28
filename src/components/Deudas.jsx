@@ -11,7 +11,7 @@ export default function Deudas({ refreshTrigger }) {
 
   // ESTADOS PARA NEEDS VS WANTS
   const [itemsNW, setItemsNW] = useState([]);
-  const [formNW, setFormNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'YO' });
+  const [formNW, setFormNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
   const [filtroPersona, setFiltroPersona] = useState('TODOS');
 
   const sincronizarDatos = async (silencioso = false) => {
@@ -33,7 +33,7 @@ export default function Deudas({ refreshTrigger }) {
             concepto: d.NW_Concepto,
             monto: limpiarMonto(d.NW_Monto),
             tipo: d.NW_Tipo || 'NEED',
-            asignado: d.NW_Asignado || 'YO',
+            asignado: d.NW_Asignado || 'ENRIQUE',
             completado: (d.NW_Status || '').toUpperCase() === 'COMPLETADO'
           }));
         
@@ -104,7 +104,16 @@ export default function Deudas({ refreshTrigger }) {
     return <p className="text-xs font-black uppercase tracking-wider text-slate-500 animate-pulse text-left p-4">Actualizando...</p>;
   }
 
-  const deudasVigentes = deudas.filter(d => d.Status?.toUpperCase() !== 'LIQUIDADO');
+  //const deudasVigentes = deudas.filter(d => d.Status?.toUpperCase() !== 'LIQUIDADO');
+  
+  // Filtramos ÚNICAMENTE las deudas cuyas descripciones coincidan exactamente con TDCV o TDCE
+const deudasPermitidas = ['TDCV', 'TDCE'];
+
+const deudasVigentes = deudas.filter(d => {
+  const descripcion = (d.Descripcion || '').toString().trim().toUpperCase();
+  return deudasPermitidas.includes(descripcion);
+});
+
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
 
   const totalAhorrado = transacciones
@@ -239,8 +248,8 @@ export default function Deudas({ refreshTrigger }) {
   const getBadgePersonaStyle = (persona) => {
     switch (persona) {
       case 'VICTORIA': return 'bg-pink-500/10 text-pink-400 border-pink-500/30';
-      case 'HIJO': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
-      case 'COMPARTIDO': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+      case 'PAKAL': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
+      case 'CASA': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
       default: return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
     }
   };
@@ -402,10 +411,10 @@ export default function Deudas({ refreshTrigger }) {
               className="bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-slate-200 rounded px-2 py-1 outline-none cursor-pointer uppercase"
             >
               <option value="TODOS">TODOS</option>
-              <option value="YO">YO</option>
+              <option value="ENRIQUE">ENRIQUE</option>
               <option value="VICTORIA">VICTORIA</option>
-              <option value="HIJO">HIJO</option>
-              <option value="COMPARTIDO">CASA / COMPARTIDO</option>
+              <option value="PAKAL">PAKAL</option>
+              <option value="CASA">CASA</option>
             </select>
           </div>
         </div>
@@ -414,7 +423,7 @@ export default function Deudas({ refreshTrigger }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-xl border-t-2 border-t-red-500">
             <span className="text-[9px] font-black uppercase tracking-wider text-red-400 flex items-center gap-1">
-              🔴 Necesidades Críticas (Needs)
+              🔴 Necesidades (Needs)
             </span>
             <div className="text-2xl font-black text-slate-100 font-mono mt-1 tabular-nums">
               ${totalNeeds.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
@@ -453,10 +462,10 @@ export default function Deudas({ refreshTrigger }) {
             onChange={(e) => setFormNW(prev => ({ ...prev, asignado: e.target.value }))}
             className="sm:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-[10px] font-black text-slate-100 outline-none cursor-pointer uppercase"
           >
-            <option value="YO">YO</option>
+            <option value="ENRIQUE">ENRIQUE</option>
             <option value="VICTORIA">VICTORIA</option>
-            <option value="HIJO">HIJO</option>
-            <option value="COMPARTIDO">COMPARTIDO</option>
+            <option value="PAKAL">PAKAL</option>
+            <option value="CASA">CASA</option>
           </select>
           <div className="sm:col-span-3 flex gap-2">
             <select

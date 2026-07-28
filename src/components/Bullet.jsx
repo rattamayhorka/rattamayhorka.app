@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { database } from '../api'; // Usa tu API existente
-import { Send, Terminal, Database, Loader2, Sparkles, Trash2, Edit2, X, Columns3 } from 'lucide-react';
+import { Send, Terminal, Database, Loader2, Sparkles, Trash2, Edit2, X, Columns3, Filter } from 'lucide-react';
 
 // =========================================================================
 // 🧠 HELPER: PARSER DE FECHA Y DÍA/HORA PARA CLASIFICACIÓN (CASA / TRABAJO)
@@ -16,7 +16,6 @@ const parsearFechaTexto = (strFecha) => {
 
   const texto = strFecha.trim().toLowerCase();
   
-  // Si viene como DD/MM o DD/MM/YYYY
   if (texto.includes('/') || texto.includes('-')) {
     const partes = texto.split(/[\/\-]/);
     const dia = parseInt(partes[0], 10) || hoy.getDate();
@@ -25,7 +24,6 @@ const parsearFechaTexto = (strFecha) => {
     return new Date(año, mes, dia);
   }
 
-  // Si viene como "28jul" o "28-jul"
   const match = texto.match(/^(\d{1,2})\-?([a-z]{3})$/i);
   if (match) {
     const dia = parseInt(match[1], 10);
@@ -38,15 +36,13 @@ const parsearFechaTexto = (strFecha) => {
 };
 
 const determinarTipoEvento = (fechaObj, horaStr) => {
-  const diaSemana = fechaObj.getDay(); // 0 = Domingo, 6 = Sábado
+  const diaSemana = fechaObj.getDay();
 
-  // 1. Sábado (6) o Domingo (0) -> Casa automáticamente
   if (diaSemana === 0 || diaSemana === 6) {
     return 'Casa';
   }
 
-  // 2. Lunes a Viernes -> Evaluar Horario (08:00 a 17:00 = Trabajo)
-  let horaNum = 9; // Valor por defecto
+  let horaNum = 9;
   if (horaStr && horaStr.includes(':')) {
     const partesHora = horaStr.split(':');
     horaNum = parseInt(partesHora[0], 10) + (parseInt(partesHora[1], 10) / 60);
@@ -67,12 +63,6 @@ const parsearLineaTerminal = (texto) => {
 
   if (t.startsWith('$')) {
     const sinSimbolo = t.substring(1).trim();
-
-    /* 🔴 CÓDIGO ANTERIOR:
-    const partes = sinSimbolo.split(',');
-    */
-
-    // 🟢 SOPORTE PARA SEPARADOR CON ';' Y ','
     const partes = sinSimbolo.includes(';') ? sinSimbolo.split(';') : sinSimbolo.split(',');
     const concepto = partes[0] || 'Gasto sin concepto';
     const monto = partes[1] ? `$${partes[1].trim()}` : '$0.00';
@@ -93,17 +83,6 @@ const parsearLineaTerminal = (texto) => {
       formateado: `[NOTA] >> ${contenido}`
     };
   } else if (t.startsWith('.')) {
-    /* 🔴 CÓDIGO ANTERIOR:
-    const contenido = t.substring(1).trim();
-    return {
-      tipo: 'tarea',
-      icono: '⚡',
-      colorClase: 'text-sky-400 font-semibold',
-      formateado: `[PENDIENTE] . ${contenido}`
-    };
-    */
-
-    // 🟢 SOPORTE EXTRAER TIEMPO EN TAREAS (.) CON ';'
     const contenidoCompleto = t.substring(1).trim();
     let limpio = contenidoCompleto;
     let horaExtraida = "";
@@ -123,27 +102,6 @@ const parsearLineaTerminal = (texto) => {
       hora: horaExtraida
     };
   } else if (t.startsWith('#')) {
-    /* 🔴 CÓDIGO ANTERIOR:
-    const contenidoCompleto = t.substring(1).trim();
-    let limpio = contenidoCompleto;
-    let horaExtraida = "";
-
-    if (contenidoCompleto.includes(';')) {
-      const partes = contenidoCompleto.split(';');
-      limpio = partes[0].trim();
-      horaExtraida = partes[1].trim();
-    }
-
-    return {
-      tipo: 'evento',
-      icono: '📅',
-      colorClase: 'text-fuchsia-400 font-bold',
-      formateado: `[EVENTO] # ${limpio} ${horaExtraida ? `[Hora: ${horaExtraida}]` : ''}`,
-      hora: horaExtraida
-    };
-    */
-
-    // 🟢 NUEVO PARSER ESTRUCTURADO DE EVENTOS FUTURELOG (# evento;28jul;10:00;lugar)
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
 
@@ -171,9 +129,7 @@ const parsearLineaTerminal = (texto) => {
       lugar: lugarTexto,
       tipoEvento: tipoCalculado
     };
-  } 
-  // 🟢 DETECCIÓN DE IDEAS CON '!'
-  else if (t.startsWith('!')) {
+  } else if (t.startsWith('!')) {
     const contenido = t.substring(1).trim();
     return {
       tipo: 'idea',
@@ -197,7 +153,9 @@ export default function Bullet({ refreshTrigger }) {
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   
-  // ✏️ Estados para control de Edición In-Place
+  // 🟢 1. ESTADO PARA FILTRAR
+  const [filtroTipo, setFiltroTipo] = useState('TODOS');
+  
   const [modoEdicion, setModoEdicion] = useState(false);
   const [notaAEditar, setNotaAEditar] = useState(null);
 
@@ -252,7 +210,6 @@ export default function Bullet({ refreshTrigger }) {
     bottomTerminalRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
-  // 📐 Ajustar altura de la caja de texto dinámicamente al escribir
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -289,46 +246,29 @@ export default function Bullet({ refreshTrigger }) {
         ));
         cancelarEdicion();
       } else {
-        // 🟢 FINANZAS SIN RUBRO ASIGNADO POR DEFECTO
         if (analisis.tipo === 'finanzas') {
           const payloadFinanzas = {
             fecha: fechaFormateada,
             importe: parseFloat(analisis.montoLimpio) || 0,
             descripcion: analisis.conceptoLimpio.toUpperCase(),
             metodo_pago: "Efectivo",
-            rubro: "" // Se deja vacío sin rubro por defecto para definir a mano después
+            rubro: ""
           };
           await database.guardarDatos('guardarTransaccion', payloadFinanzas);
-        } 
-        // 🟢 SI ES TAREA (INICIA CON .) ENVÍA A KANBAN
-        else if (analisis.tipo === 'tarea') {
+        } else if (analisis.tipo === 'tarea') {
           const cadenaSinPuntoConHora = analisis.hora 
             ? `${analisis.textoLimpioSinPunto}; ${analisis.hora}` 
             : analisis.textoLimpioSinPunto;
 
           await database.guardarDatos('guardarTarea', {
             datos: {
-              tarea: cadenaSinPuntoConHora, // Sin punto inicial
-              status: 'Por Hacer', // Va a Kanban directamente
+              tarea: cadenaSinPuntoConHora,
+              status: 'Por Hacer',
               fecha: fechaFormateada,
-              tipo: 'Trabajo' // Se fuerza a Trabajo para Kanban
+              tipo: 'Trabajo'
             }
           });
-        } 
-        // 🟢 CORRECCIÓN EVENTO: ESCRIBE DIRECTO A LA PESTAÑA REUNIONES (FUTURELOG)
-        else if (analisis.tipo === 'evento') {
-          /* 🔴 CÓDIGO ANTERIOR (Guardaba en Pendientes):
-          await database.guardarDatos('guardarTarea', {
-            datos: {
-              tarea: comandoCrudo,
-              status: 'Bullet',
-              fecha: fechaFormateada,
-              tipo: 'BulletJournal'
-            }
-          });
-          */
-
-          // 🟢 NUEVA IMPLEMENTACIÓN (Llama a guardarReunion -> Pestaña Reuniones en Sheets)
+        } else if (analisis.tipo === 'evento') {
           const payloadReunion = {
             comite: analisis.comite.toUpperCase(),
             fecha: analisis.fechaFormateada,
@@ -338,9 +278,7 @@ export default function Bullet({ refreshTrigger }) {
           };
 
           await database.guardarDatos('guardarReunion', { datos: payloadReunion });
-        } 
-        else {
-          // 🔴 COMPORTAMIENTO NORMAL PARA NOTAS E IDEAS (!) (SE GUARDAN COMO BULLET EN PENDIENTES)
+        } else {
           const nuevoLogOptimo = {
             id: Date.now(),
             textoOriginal: comandoCrudo,
@@ -367,9 +305,7 @@ export default function Bullet({ refreshTrigger }) {
     }
   };
 
-  // 📋 ENVIAR TAREA AL KANBAN
   const enviarAKanban = async (item) => {
-    // 1. Remoción visual optimista inmediata de la pantalla Bullet
     setLogs(prev => prev.filter(l => l.textoOriginal !== item.textoOriginal));
 
     const hoy = new Date();
@@ -429,24 +365,93 @@ export default function Bullet({ refreshTrigger }) {
     }
   };
 
+  // 🟢 2. APLICAR FILTRADO SOBRE LOS LOGS
+  const logsVisibles = logs.filter(log => {
+    if (filtroTipo === 'TODOS') return true;
+    return log.tipo === filtroTipo;
+  });
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] md:h-[calc(100vh-6rem)] w-full bg-zinc-950 font-mono text-xs text-zinc-300 rounded-2xl border border-zinc-900 overflow-hidden shadow-xl">
       
-      {/* 📊 BARRA DE ESTADO SUPERIOR */}
-      <div className="flex-shrink-0 bg-zinc-900/40 border-b border-zinc-900 select-none px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+      {/* 📊 BARRA DE ESTADO SUPERIOR CON BOTONES DE FILTRO */}
+      <div className="flex-shrink-0 bg-zinc-900/40 border-b border-zinc-900 select-none px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-sky-400" />
           <span className="font-black tracking-widest text-[9px] text-zinc-500">CORE://RAPID_LOG</span>
         </div>
 
-        <div className="flex items-center gap-3 text-[9px] text-zinc-650">
-          <span><b className="text-emerald-400">$</b> Finanzas</span>
-          <span><b className="text-zinc-400">-</b> Nota</span>
-          <span><b className="text-sky-400">.</b> Tarea</span>
-          <span><b className="text-fuchsia-400">#</b> Evento</span>
-          <span><b className="text-yellow-300">!</b> Idea</span>
-          <span className="text-zinc-800">|</span>
-          <span className="flex items-center gap-1 text-[8px] text-zinc-650">
+        {/* 🟢 3. OPCIONES DE FILTRADO INTERACTIVAS */}
+        <div className="flex items-center gap-2 text-[9px] flex-wrap">
+          <button
+            onClick={() => setFiltroTipo('TODOS')}
+            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer font-bold ${
+              filtroTipo === 'TODOS'
+                ? 'bg-zinc-800 text-zinc-100 border border-zinc-700'
+                : 'text-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            [TODOS]
+          </button>
+          
+          <button
+            onClick={() => setFiltroTipo('finanzas')}
+            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+              filtroTipo === 'finanzas'
+                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
+                : 'text-zinc-500 hover:text-emerald-400'
+            }`}
+          >
+            <b className="text-emerald-400">$</b> Finanzas
+          </button>
+
+          <button
+            onClick={() => setFiltroTipo('nota')}
+            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+              filtroTipo === 'nota'
+                ? 'bg-zinc-800 text-zinc-200 border border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <b className="text-zinc-400">-</b> Nota
+          </button>
+
+          <button
+            onClick={() => setFiltroTipo('tarea')}
+            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+              filtroTipo === 'tarea'
+                ? 'bg-sky-950/80 text-sky-400 border border-sky-800'
+                : 'text-zinc-500 hover:text-sky-400'
+            }`}
+          >
+            <b className="text-sky-400">.</b> Tarea
+          </button>
+
+          <button
+            onClick={() => setFiltroTipo('evento')}
+            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+              filtroTipo === 'evento'
+                ? 'bg-fuchsia-950/80 text-fuchsia-400 border border-fuchsia-800'
+                : 'text-zinc-500 hover:text-fuchsia-400'
+            }`}
+          >
+            <b className="text-fuchsia-400">#</b> Evento
+          </button>
+
+          <button
+            onClick={() => setFiltroTipo('idea')}
+            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+              filtroTipo === 'idea'
+                ? 'bg-yellow-950/80 text-yellow-300 border border-yellow-800'
+                : 'text-zinc-500 hover:text-yellow-300'
+            }`}
+          >
+            <b className="text-yellow-300">!</b> Idea
+          </button>
+
+          <span className="text-zinc-800 hidden sm:inline">|</span>
+
+          <span className="flex items-center gap-1 text-[8px] text-zinc-650 ml-auto sm:ml-0">
             <Database className="w-2.5 h-2.5 text-emerald-600" />
             SYNCED
           </span>
@@ -460,14 +465,14 @@ export default function Bullet({ refreshTrigger }) {
             <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
             <span className="text-[9px] uppercase tracking-widest font-bold">Cargando bitácora activa...</span>
           </div>
-        ) : logs.length === 0 ? (
+        ) : logsVisibles.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-zinc-700 gap-1 italic">
             <Sparkles className="w-3.5 h-3.5 text-zinc-800" />
-            <p>La consola de Rapid Logging está vacía.</p>
+            <p>{filtroTipo === 'TODOS' ? 'La consola de Rapid Logging está vacía.' : `No hay registros del tipo [${filtroTipo.toUpperCase()}].`}</p>
           </div>
         ) : (
-          logs.map((item, idx) => {
-            const mostrarSeparador = idx === 0 || logs[idx - 1].fecha !== item.fecha;
+          logsVisibles.map((item, idx) => {
+            const mostrarSeparador = idx === 0 || logsVisibles[idx - 1].fecha !== item.fecha;
 
             return (
               <div key={idx} className="space-y-2">

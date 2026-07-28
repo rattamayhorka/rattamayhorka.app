@@ -41,6 +41,21 @@ export default function App() {
   const [errorAuth, setErrorAuth] = useState('');
   const [cargando, setCargando] = useState(false);
 
+  const ENLACES_DATABASE = {
+    kanban: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
+    bullet: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
+    futureloghst: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1273409378',
+    compromisos: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=215090502',
+    compras: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1191916610',
+    casa_gastos: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=361143608',
+    deudas: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=2015874162',
+    proyectos_grafo: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1108017808',
+    
+    // URL por defecto en caso de que la clave no exista
+    default: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407'
+  };
+
+
    useEffect(() => {
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         setAutenticado(true);
@@ -332,10 +347,10 @@ export default function App() {
         <div className="p-2 xl:p-4 border-t border-[#334155] bg-[#1e293b] flex flex-col items-center xl:items-stretch gap-2 flex-shrink-0">
           
           <a 
-            href="https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q" 
+            href={ENLACES_DATABASE[seccionActiva] || ENLACES_DATABASE.default} 
             target="_blank" 
             rel="noopener noreferrer"
-            title="Base de Datos Google Sheets"
+            title={`Abrir hoja de ${seccionActiva} en Google Sheets`}
             className="w-full bg-zinc-900/60 hover:bg-zinc-800/80 text-slate-400 hover:text-violet-400 font-black p-3 xl:px-4 xl:py-2.5 rounded-xl border border-zinc-800/80 transition-all text-[10px] uppercase tracking-widest flex items-center justify-center xl:justify-between shadow-md"
           >
             <Database className="w-4 h-4 flex-shrink-0 xl:hidden" /> 

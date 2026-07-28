@@ -607,12 +607,15 @@ export function GestionProyectosContenido() {
           <button onClick={handleCrearContenedorGrupo} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer">
             <Layers className="w-3.5 h-3.5 mr-1.5 text-purple-400" /> Crear Grupo
           </button>
+          {/*
           <button onClick={handleCrearNuevaMetaDirecta} className="bg-zinc-100 hover:bg-zinc-200 text-zinc-950 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center transition-all cursor-pointer shadow-sm">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Nueva Nota
           </button>
+          
           <button onClick={() => cargarMapa()} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 p-1.5 rounded-lg transition-all border border-zinc-800 cursor-pointer" title="Cargar desde API">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
+          */}
         </div>
       </div>
 
