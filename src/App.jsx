@@ -368,7 +368,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-[#94a3b8] tracking-widest mt-1">
-            rattamayhorka v0.10.0 "Needs y wants"
+            rattamayhorka v0.10.1 "links y filtros bullet"
           </div>
         </div>
       </div>
