@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { database } from '../api';
 import { X, Star } from 'lucide-react';
 
-
-
 export default function Compras() {
   const [compras, setCompras] = useState([]);
   const [cargando, setCargando] = useState(true);

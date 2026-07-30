@@ -68,10 +68,6 @@ const parsearLineaTerminal = (texto) => {
   if (t.startsWith('$')) {
     const sinSimbolo = t.substring(1).trim();
 
-    /* 🔴 CÓDIGO ANTERIOR:
-    const partes = sinSimbolo.split(',');
-    */
-
     // 🟢 SOPORTE PARA SEPARADOR CON ';' Y ','
     const partes = sinSimbolo.includes(';') ? sinSimbolo.split(';') : sinSimbolo.split(',');
     const concepto = partes[0] || 'Gasto sin concepto';
@@ -93,15 +89,6 @@ const parsearLineaTerminal = (texto) => {
       formateado: `[NOTA] >> ${contenido}`
     };
   } else if (t.startsWith('.')) {
-    /* 🔴 CÓDIGO ANTERIOR:
-    const contenido = t.substring(1).trim();
-    return {
-      tipo: 'tarea',
-      icono: '⚡',
-      colorClase: 'text-sky-400 font-semibold',
-      formateado: `[PENDIENTE] . ${contenido}`
-    };
-    */
 
     // 🟢 SOPORTE EXTRAER TIEMPO EN TAREAS (.) CON ';'
     const contenidoCompleto = t.substring(1).trim();
@@ -123,26 +110,7 @@ const parsearLineaTerminal = (texto) => {
       hora: horaExtraida
     };
   } else if (t.startsWith('#')) {
-    /* 🔴 CÓDIGO ANTERIOR:
-    const contenidoCompleto = t.substring(1).trim();
-    let limpio = contenidoCompleto;
-    let horaExtraida = "";
-
-    if (contenidoCompleto.includes(';')) {
-      const partes = contenidoCompleto.split(';');
-      limpio = partes[0].trim();
-      horaExtraida = partes[1].trim();
-    }
-
-    return {
-      tipo: 'evento',
-      icono: '📅',
-      colorClase: 'text-fuchsia-400 font-bold',
-      formateado: `[EVENTO] # ${limpio} ${horaExtraida ? `[Hora: ${horaExtraida}]` : ''}`,
-      hora: horaExtraida
-    };
-    */
-
+   
     // 🟢 NUEVO PARSER ESTRUCTURADO DE EVENTOS FUTURELOG (# evento;28jul;10:00;lugar)
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
@@ -320,17 +288,6 @@ export default function Bullet({ refreshTrigger }) {
         } 
         // 🟢 CORRECCIÓN EVENTO: ESCRIBE DIRECTO A LA PESTAÑA REUNIONES (FUTURELOG)
         else if (analisis.tipo === 'evento') {
-          /* 🔴 CÓDIGO ANTERIOR (Guardaba en Pendientes):
-          await database.guardarDatos('guardarTarea', {
-            datos: {
-              tarea: comandoCrudo,
-              status: 'Bullet',
-              fecha: fechaFormateada,
-              tipo: 'BulletJournal'
-            }
-          });
-          */
-
           // 🟢 NUEVA IMPLEMENTACIÓN (Llama a guardarReunion -> Pestaña Reuniones en Sheets)
           const payloadReunion = {
             comite: analisis.comite.toUpperCase(),
@@ -448,21 +405,6 @@ export default function Bullet({ refreshTrigger }) {
           <span className="font-black tracking-widest text-[9px] text-zinc-500">CORE://RAPID_LOG</span>
         </div>
 
-        {/* 🔴 CÓDIGO ANTERIOR:
-        <div className="flex items-center gap-3 text-[9px] text-zinc-650">
-          <span><b className="text-emerald-400">$</b> Finanzas</span>
-          <span><b className="text-zinc-400">-</b> Nota</span>
-          <span><b className="text-sky-400">.</b> Tarea</span>
-          <span><b className="text-fuchsia-400">#</b> Evento</span>
-          <span><b className="text-yellow-300">!</b> Idea</span>
-          <span className="text-zinc-800">|</span>
-          <span className="flex items-center gap-1 text-[8px] text-zinc-650">
-            <Database className="w-2.5 h-2.5 text-emerald-600" />
-            SYNCED
-          </span>
-        </div>
-        */}
-
         {/* 🟢 NUEVA SECCIÓN DE BOTONES DE FILTRO (INCLUYE OPCIÓN [TODOS] Y [BULLET]) */}
         <div className="flex items-center gap-2 text-[9px] flex-wrap">
           <button
@@ -475,18 +417,7 @@ export default function Bullet({ refreshTrigger }) {
           >
             [TODOS]
           </button>
-          {/*
-          <button
-            onClick={() => setFiltroTipo('plano')}
-            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-              filtroTipo === 'plano'
-                ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
-                : 'text-zinc-500 hover:text-amber-300'
-            }`}
-          >
-            <b className="text-amber-300">›</b> Bullet
-          </button>
-*/}
+
           <button
             onClick={() => setFiltroTipo('finanzas')}
             className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
@@ -508,18 +439,6 @@ export default function Bullet({ refreshTrigger }) {
           >
             <b className="text-zinc-400">-</b> Nota
           </button>
-{/*
-          <button
-            onClick={() => setFiltroTipo('tarea')}
-            className={`px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-              filtroTipo === 'tarea'
-                ? 'bg-sky-950/80 text-sky-400 border border-sky-800'
-                : 'text-zinc-500 hover:text-sky-400'
-            }`}
-          >
-            <b className="text-sky-400">.</b> Tarea
-          </button>
-*/}
 
           <button
             onClick={() => setFiltroTipo('evento')}
@@ -541,15 +460,7 @@ export default function Bullet({ refreshTrigger }) {
             }`}
           >
             <b className="text-yellow-300">!</b> Idea
-          </button>
-{/*
-          <span className="text-zinc-800 hidden sm:inline">|</span>
-
-          <span className="flex items-center gap-1 text-[8px] text-zinc-650 ml-auto sm:ml-0">
-            <Database className="w-2.5 h-2.5 text-emerald-600" />
-            SYNCED
-          </span>
-*/}          
+          </button>     
         </div>
       </div>
 

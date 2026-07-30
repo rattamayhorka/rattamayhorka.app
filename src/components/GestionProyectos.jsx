@@ -85,7 +85,6 @@ function NodoGrupoExpandible(props) {
       <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-all duration-150 ease-out">
         <div className="bg-zinc-950 border border-zinc-800 rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 backdrop-blur-md pointer-events-auto">
           
-          {/* AGREGADO: Selector de Colores en el menú */}
           <div className="flex items-center gap-1">
             {OPCIONES_COLOR_GRUPO.map((c) => (
               <button
@@ -607,15 +606,6 @@ export function GestionProyectosContenido() {
           <button onClick={handleCrearContenedorGrupo} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer">
             <Layers className="w-3.5 h-3.5 mr-1.5 text-purple-400" /> Crear Grupo
           </button>
-          {/*
-          <button onClick={handleCrearNuevaMetaDirecta} className="bg-zinc-100 hover:bg-zinc-200 text-zinc-950 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center transition-all cursor-pointer shadow-sm">
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Nueva Nota
-          </button>
-          
-          <button onClick={() => cargarMapa()} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 p-1.5 rounded-lg transition-all border border-zinc-800 cursor-pointer" title="Cargar desde API">
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-          */}
         </div>
       </div>
 

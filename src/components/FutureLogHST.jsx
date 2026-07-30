@@ -230,26 +230,6 @@ export default function Reuniones() {
                   {items.map((item, idx) => {
                     const esCasa = (item.Tipo || 'Trabajo').toString().toUpperCase() === 'CASA';
 
-                    /* CÓDIGO ANTERIOR:
-                    <div 
-                      key={idx} 
-                      onClick={() => abrirConfirmacionEliminar(item)}
-                      className="bg-zinc-900/40 border border-zinc-800 p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group hover:border-red-900/60 transition-all duration-200"
-                    >
-                      <div>
-                        <div className="flex justify-between items-center gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black text-sky-400 uppercase italic bg-sky-950/40 px-2 py-0.5 rounded border border-sky-900/30 w-fit flex items-center gap-1">
-                              <Clock className="w-2.5 h-2.5" /> {item.Hora}
-                            </span>
-                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ...`}>
-                              {item.Tipo || 'Trabajo'}
-                            </span>
-                          </div>
-                          <Trash2 className="..." />
-                        </div>
-                    */
-
                     // MODIFICACIÓN: Color de fondo y borde adaptado al tipo (Casa: Emerald / Trabajo: Zinc-Slate)
                     const estiloTarjeta = esCasa
                       ? "bg-emerald-950/20 border-emerald-900/50 hover:border-emerald-700/80"

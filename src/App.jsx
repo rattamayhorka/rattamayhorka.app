@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Kanban from './components/Kanban';
 import Bullet from './components/Bullet';
-//import Gases from './components/Gases';
 import Compromisos from './components/CompromisosHST';
 import Compras from './components/Compras';
 import FutureLogHST from './components/FutureLogHST';
@@ -285,19 +284,6 @@ export default function App() {
               <span className="hidden xl:inline px-1">Compras</span>
             </button>
             
-            {/*
-            <button 
-              onClick={() => cambiarSeccion('gases')} 
-              title="Control de Gases"
-              className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'gases' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`}
-            >
-              <Activity className="w-4 h-4 flex-shrink-0 xl:hidden" />
-              <span className="hidden xl:inline px-1">Control de Gases</span>
-            </button>
-            */} 
-
             {/* Sección Familia */}
             <div className="hidden xl:block text-[11px] font-black text-amber-400 uppercase tracking-widest px-3 mb-1 mt-6">
               Familia
@@ -368,7 +354,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-[#94a3b8] tracking-widest mt-1">
-            rattamayhorka v0.10.2 "links y filtros bullet"
+            rattamayhorka b.0.10.2 "nu branch"
           </div>
         </div>
       </div>
@@ -392,11 +378,7 @@ export default function App() {
           {seccionActiva === 'bullet' && (
             <Bullet key={refreshKeys['bullet'] || 0} />
           )}
-          {/*
-          {seccionActiva === 'gases' && (
-            <Gases key={refreshKeys['gases'] || 0} />
-          )}
-          */}
+
           {seccionActiva === 'compromisos' && (
             <Compromisos key={refreshKeys['compromisos'] || 0} />
           )}

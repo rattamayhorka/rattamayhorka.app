@@ -177,16 +177,6 @@ export default function RegistroRapido() {
       } 
       // 🟢 3. EVENTOS (#) -> PESTAÑA REUNIONES (FUTURE LOG)
       else if (texto.trim().startsWith('#')) {
-        /* 🔴 CÓDIGO ANTERIOR (Guardaba en Pendientes):
-        const payloadGenerico = {
-          tarea: texto.trim(),
-          status: "Bullet",
-          fecha: fechaFormateada,
-          tipo: "BulletJournal"
-        };
-        await database.guardarDatos('guardarTarea', { datos: payloadGenerico });
-        */
-
         const payloadReunion = {
           comite: deteccion.comite.toUpperCase(),
           fecha: deteccion.fechaFormateada,
@@ -304,7 +294,6 @@ export default function RegistroRapido() {
               <ArrowLeft className="w-3 h-3" /> Volver al Panel Principal
             </a>
           </div>
-
         </div>
       </div>
     </div>
