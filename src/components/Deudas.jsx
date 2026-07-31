@@ -101,18 +101,16 @@ export default function Deudas({ refreshTrigger }) {
   };
 
   if (cargando) {
-    return <p className="text-xs font-black uppercase tracking-wider text-slate-500 animate-pulse text-left p-4">Actualizando...</p>;
+    return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left p-4">Actualizando...</p>;
   }
 
-  //const deudasVigentes = deudas.filter(d => d.Status?.toUpperCase() !== 'LIQUIDADO');
-  
   // Filtramos ÚNICAMENTE las deudas cuyas descripciones coincidan exactamente con TDCV o TDCE
-const deudasPermitidas = ['TDCV', 'TDCE'];
+  const deudasPermitidas = ['TDCV', 'TDCE'];
 
-const deudasVigentes = deudas.filter(d => {
-  const descripcion = (d.Descripcion || '').toString().trim().toUpperCase();
-  return deudasPermitidas.includes(descripcion);
-});
+  const deudasVigentes = deudas.filter(d => {
+    const descripcion = (d.Descripcion || '').toString().trim().toUpperCase();
+    return deudasPermitidas.includes(descripcion);
+  });
 
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
 
@@ -222,16 +220,16 @@ const deudasVigentes = deudas.filter(d => {
       const abonoEfectuado = dataNode.montoPagoReal || 0;
 
       return (
-        <div className="bg-[#0f172a] border border-[#334155] p-3 rounded-xl shadow-xl font-mono text-left space-y-1">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{dataNode.name}</p>
+        <div className="bg-theme-bg border border-theme-border p-3 rounded-xl shadow-xl font-mono text-left space-y-1">
+          <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-wider">{dataNode.name}</p>
           <div className="text-xs">
-            <span className="text-zinc-400 font-medium">Balance: </span>
-            <span className="text-slate-100 font-bold">{formatearMonedaCompleta(balanceActual)}</span>
+            <span className="text-theme-text/70 font-medium">Balance: </span>
+            <span className="text-theme-text font-bold">{formatearMonedaCompleta(balanceActual)}</span>
           </div>
           {abonoEfectuado > 0 && (
-            <div className="text-xs border-t border-zinc-800/80 pt-1 mt-1">
-              <span className="text-emerald-400 font-medium">Pago Detectado: </span>
-              <span className="text-emerald-400 font-black">+{formatearMonedaCompleta(abonoEfectuado)}</span>
+            <div className="text-xs border-t border-theme-border/40 pt-1 mt-1">
+              <span className="text-theme-trabajo font-medium">Pago Detectado: </span>
+              <span className="text-theme-trabajo font-black">+{formatearMonedaCompleta(abonoEfectuado)}</span>
             </div>
           )}
         </div>
@@ -247,51 +245,51 @@ const deudasVigentes = deudas.filter(d => {
 
   const getBadgePersonaStyle = (persona) => {
     switch (persona) {
-      case 'VICTORIA': return 'bg-pink-500/10 text-pink-400 border-pink-500/30';
-      case 'PAKAL': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
-      case 'CASA': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-      default: return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
+      case 'VICTORIA': return 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/30';
+      case 'PAKAL': return 'bg-theme-accent/10 text-theme-accent border-theme-accent/30';
+      case 'CASA': return 'bg-theme-casa/10 text-theme-casa border-theme-casa/30';
+      default: return 'bg-theme-border/20 text-theme-text border-theme-border/40';
     }
   };
 
   return (
-    <div className="space-y-8 text-left p-4 bg-[#0f172a] text-zinc-200 font-sans min-h-screen">
+    <div className="space-y-8 text-left p-4 bg-theme-bg text-theme-text font-mono min-h-screen">
       
       {/* HEADER */}
-      <div className="border-b border-zinc-800 pb-5 flex justify-between items-end">
+      <div className="border-b border-theme-border/40 pb-5 flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-black tracking-tighter uppercase italic text-slate-50 flex items-center gap-2">
-            <Landmark className="text-emerald-400 w-6 h-6 stroke-[2.5]" /> Dashboard de Tendencias
+          <h2 className="text-2xl font-black tracking-tighter uppercase italic text-theme-text flex items-center gap-2">
+            <Landmark className="text-theme-accent w-6 h-6 stroke-[2.5]" /> Dashboard de Tendencias
           </h2>
-          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
+          <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1">
             Historial de abonos reales vs estimación discontinua de amortización
           </p>
         </div>
         
-        <button onClick={() => sincronizarDatos(false)} className="bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl text-zinc-400 cursor-pointer hover:text-slate-50 transition-all">
+        <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* CUADROS CONSOLIDADOS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 border-l-4 border-l-rose-500 shadow-2xl backdrop-blur-md">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Capital Total de Pasivos Activos</span>
-          <div className="text-3xl sm:text-4xl font-black text-slate-100 tabular-nums tracking-tight mt-1 font-mono">
+        <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 border-l-4 border-l-theme-casa shadow-2xl backdrop-blur-md">
+          <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">Capital Total de Pasivos Activos</span>
+          <div className="text-3xl sm:text-4xl font-black text-theme-text tabular-nums tracking-tight mt-1 font-mono">
             ${totalDeudaActual.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-rose-400 font-bold uppercase tracking-tight">
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-theme-casa font-bold uppercase tracking-tight">
             <TrendingDown className="w-3.5 h-3.5" /> Portafolio de deuda viva analizado
           </div>
         </div>
 
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 border-l-4 border-l-emerald-500 shadow-2xl backdrop-blur-md">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">Fondo de Ahorro Acumulado</span>
-          <div className="text-3xl sm:text-4xl font-black text-emerald-400 tabular-nums tracking-tight mt-1 font-mono">
+        <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 border-l-4 border-l-theme-trabajo shadow-2xl backdrop-blur-md">
+          <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">Fondo de Ahorro Acumulado</span>
+          <div className="text-3xl sm:text-4xl font-black text-theme-trabajo tabular-nums tracking-tight mt-1 font-mono">
             ${totalAhorrado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-emerald-400 font-bold uppercase tracking-tight">
-            <PiggyBank className="w-3.5 h-3.5 text-emerald-400" /> Registros vinculados al Rubro AHORRO
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] text-theme-trabajo font-bold uppercase tracking-tight">
+            <PiggyBank className="w-3.5 h-3.5 text-theme-trabajo" /> Registros vinculados al Rubro AHORRO
           </div>
         </div>
       </div>
@@ -302,39 +300,40 @@ const deudasVigentes = deudas.filter(d => {
           const datosGrafica = generarDatosGrafica(deuda);
           
           return (
-            <div key={index} className="bg-[#1e293b]/40 border border-[#334155]/70 rounded-2xl p-5 space-y-4 shadow-xl">
-              <div className="flex justify-between items-start border-b border-zinc-800 pb-3">
+            <div key={index} className="bg-theme-bg border border-theme-border rounded-2xl p-5 space-y-4 shadow-xl">
+              <div className="flex justify-between items-start border-b border-theme-border/40 pb-3">
                 <div>
-                  <span className="text-[9px] font-black bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800 text-emerald-400 uppercase font-mono tracking-wider">
+                  <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
                     {deuda.Tarjeta}
                   </span>
-                  <h3 className="text-lg font-black text-slate-100 uppercase tracking-tight mt-1">
+                  <h3 className="text-lg font-black text-theme-text uppercase tracking-tight mt-1">
                     {deuda.Descripcion}
                   </h3>
                 </div>
                 <div className="text-right font-mono">
-                  <span className="text-[9px] text-zinc-500 block uppercase font-bold">Saldo Actual</span>
-                  <span className="text-lg font-black text-rose-400">
+                  <span className="text-[9px] text-theme-text/50 block uppercase font-bold">Saldo Actual</span>
+                  <span className="text-lg font-black text-theme-casa">
                     ${limpiarMonto(deuda.Deuda_Total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
 
-              <div className="h-64 w-full bg-zinc-950/80 p-2 rounded-xl border border-zinc-900 overflow-hidden relative">
+              <div className="h-64 w-full bg-theme-bg p-2 rounded-xl border border-theme-border/60 overflow-hidden relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={datosGrafica} margin={{ top: 15, right: 15, left: -15, bottom: 5 }}>
                     <defs>
                       <linearGradient id={`colorReal-${index}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0}/>
+                        <stop offset="5%" stopColor="var(--color-theme-accent)" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="var(--color-theme-accent)" stopOpacity={0.0}/>
                       </linearGradient>
                     </defs>
                     
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-theme-border)" opacity={0.3} vertical={false} />
                     
                     <XAxis 
                       dataKey="name" 
-                      stroke="#475569" 
+                      stroke="var(--color-theme-text)" 
+                      opacity={0.6}
                       fontSize={9} 
                       fontWeight="bold"
                       tickLine={false} 
@@ -342,7 +341,8 @@ const deudasVigentes = deudas.filter(d => {
                     />
                     
                     <YAxis 
-                      stroke="#475569" 
+                      stroke="var(--color-theme-text)" 
+                      opacity={0.6}
                       fontSize={10} 
                       fontWeight="bold"
                       tickLine={false} 
@@ -354,19 +354,20 @@ const deudasVigentes = deudas.filter(d => {
                     <Area
                       type="monotone"
                       dataKey="Historial Real"
-                      stroke="#3b82f6"
+                      stroke="var(--color-theme-accent)"
                       strokeWidth={3}
                       fillOpacity={1}
                       fill={`url(#colorReal-${index})`}
                       connectNulls={false}
-                      dot={{ r: 5, fill: '#10b981', stroke: '#0f172a', strokeWidth: 1.5 }}
-                      activeDot={{ r: 7, fill: '#34d399' }}
+                      dot={{ r: 5, fill: 'var(--color-theme-trabajo)', stroke: 'var(--color-theme-bg)', strokeWidth: 1.5 }}
+                      activeDot={{ r: 7, fill: 'var(--color-theme-trabajo)' }}
                     />
 
                     <Line
                       type="monotone"
                       dataKey="Proyección Proporcionada"
-                      stroke="#64748b"
+                      stroke="var(--color-theme-text)"
+                      opacity={0.4}
                       strokeWidth={2.5}
                       strokeDasharray="6 6"
                       dot={false}
@@ -378,12 +379,12 @@ const deudasVigentes = deudas.filter(d => {
 
               <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-wider pt-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 bg-[#10b981] rounded-full block border border-[#0f172a]"></span>
-                  <span className="text-zinc-400">Puntos de Pago Realizados</span>
+                  <span className="w-2.5 h-2.5 bg-theme-trabajo rounded-full block border border-theme-bg"></span>
+                  <span className="text-theme-text/70">Puntos de Pago Realizados</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-0.5 border-b-2 border-dashed border-slate-500 block"></span>
-                  <span className="text-zinc-500">Proyección Estimada</span>
+                  <span className="w-3 h-0.5 border-b-2 border-dashed border-theme-text/50 block"></span>
+                  <span className="text-theme-text/50">Proyección Estimada</span>
                 </div>
               </div>
             </div>
@@ -394,21 +395,21 @@ const deudasVigentes = deudas.filter(d => {
       {/* ========================================================================= */}
       {/* 🛡️ MODULO INTEGRADO: NEEDS VS WANTS */}
       {/* ========================================================================= */}
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 space-y-6 shadow-2xl backdrop-blur-md">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800 pb-4 gap-3">
+      <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 space-y-6 shadow-2xl backdrop-blur-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-theme-border/40 pb-4 gap-3">
           <div>
-            <h3 className="text-lg font-black uppercase italic tracking-tighter text-slate-50 flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-amber-400" /> Needs vs Wants
+            <h3 className="text-lg font-black uppercase italic tracking-tighter text-theme-text flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-theme-accent" /> Needs vs Wants
             </h3>
-            <p className="text-[10px] font-bold text-zinc-500 uppercase mt-0.5">Priorización de Compras Futuras</p>
+            <p className="text-[10px] font-bold text-theme-text/60 uppercase mt-0.5">Priorización de Compras Futuras</p>
           </div>
 
-          <div className="flex items-center gap-2 bg-zinc-950/80 p-1 border border-zinc-800 rounded-xl">
-            <span className="text-[9px] font-black uppercase text-zinc-500 pl-2">Ver:</span>
+          <div className="flex items-center gap-2 bg-theme-bg p-1 border border-theme-border rounded-xl">
+            <span className="text-[9px] font-black uppercase text-theme-text/60 pl-2">Ver:</span>
             <select
               value={filtroPersona}
               onChange={(e) => setFiltroPersona(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-slate-200 rounded px-2 py-1 outline-none cursor-pointer uppercase"
+              className="bg-theme-bg border border-theme-border text-[10px] font-bold text-theme-text rounded px-2 py-1 outline-none cursor-pointer uppercase"
             >
               <option value="TODOS">TODOS</option>
               <option value="ENRIQUE">ENRIQUE</option>
@@ -421,33 +422,33 @@ const deudasVigentes = deudas.filter(d => {
 
         {/* METRICAS TOTALES */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-xl border-t-2 border-t-red-500">
-            <span className="text-[9px] font-black uppercase tracking-wider text-red-400 flex items-center gap-1">
+          <div className="bg-theme-bg border border-theme-border p-4 rounded-xl border-t-2 border-t-theme-casa">
+            <span className="text-[9px] font-black uppercase tracking-wider text-theme-casa flex items-center gap-1">
               🔴 Necesidades (Needs)
             </span>
-            <div className="text-2xl font-black text-slate-100 font-mono mt-1 tabular-nums">
+            <div className="text-2xl font-black text-theme-text font-mono mt-1 tabular-nums">
               ${totalNeeds.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
           </div>
 
-          <div className="bg-zinc-950/60 border border-zinc-800 p-4 rounded-xl border-t-2 border-t-purple-500">
-            <span className="text-[9px] font-black uppercase tracking-wider text-purple-400 flex items-center gap-1">
-              <Heart className="w-3.5 h-3.5 text-purple-400" /> Deseos / Gustos (Wants)
+          <div className="bg-theme-bg border border-theme-border p-4 rounded-xl border-t-2 border-t-theme-trabajo">
+            <span className="text-[9px] font-black uppercase tracking-wider text-theme-trabajo flex items-center gap-1">
+              <Heart className="w-3.5 h-3.5 text-theme-trabajo" /> Deseos / Gustos (Wants)
             </span>
-            <div className="text-2xl font-black text-slate-100 font-mono mt-1 tabular-nums">
+            <div className="text-2xl font-black text-theme-text font-mono mt-1 tabular-nums">
               ${totalWants.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
           </div>
         </div>
 
         {/* FORMULARIO DE CAPTURA */}
-        <form onSubmit={agregarItemNW} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+        <form onSubmit={agregarItemNW} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-theme-bg p-3 rounded-xl border border-theme-border">
           <input
             type="text"
             placeholder="CONCEPTO (EJ. REFACCIONES)"
             value={formNW.concepto}
             onChange={(e) => setFormNW(prev => ({ ...prev, concepto: e.target.value }))}
-            className="sm:col-span-4 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-xs font-bold text-slate-100 outline-none focus:border-amber-400 uppercase"
+            className="sm:col-span-4 bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-bold text-theme-text outline-none focus:border-theme-accent uppercase"
           />
           <input
             type="number"
@@ -455,12 +456,12 @@ const deudasVigentes = deudas.filter(d => {
             placeholder="MONTO ($)"
             value={formNW.monto}
             onChange={(e) => setFormNW(prev => ({ ...prev, monto: e.target.value }))}
-            className="sm:col-span-3 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-xs font-bold text-slate-100 outline-none focus:border-amber-400 tabular-nums"
+            className="sm:col-span-3 bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-bold text-theme-text outline-none focus:border-theme-accent tabular-nums"
           />
           <select
             value={formNW.asignado}
             onChange={(e) => setFormNW(prev => ({ ...prev, asignado: e.target.value }))}
-            className="sm:col-span-2 bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-[10px] font-black text-slate-100 outline-none cursor-pointer uppercase"
+            className="sm:col-span-2 bg-theme-bg border border-theme-border rounded-lg p-2 text-[10px] font-black text-theme-text outline-none cursor-pointer uppercase"
           >
             <option value="ENRIQUE">ENRIQUE</option>
             <option value="VICTORIA">VICTORIA</option>
@@ -471,7 +472,7 @@ const deudasVigentes = deudas.filter(d => {
             <select
               value={formNW.tipo}
               onChange={(e) => setFormNW(prev => ({ ...prev, tipo: e.target.value }))}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-2 text-[10px] font-black text-slate-100 outline-none cursor-pointer"
+              className="w-full bg-theme-bg border border-theme-border rounded-lg p-2 text-[10px] font-black text-theme-text outline-none cursor-pointer"
             >
               <option value="NEED">NEED 🔴</option>
               <option value="WANT">WANT 🟣</option>
@@ -479,7 +480,7 @@ const deudasVigentes = deudas.filter(d => {
             <button
               type="submit"
               disabled={guardandoNW}
-              className="bg-amber-400 hover:bg-amber-500 text-zinc-950 px-3 py-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+              className="bg-theme-accent hover:opacity-90 text-theme-bg px-3 py-2 rounded-lg text-xs font-black uppercase transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
             </button>
@@ -493,8 +494,8 @@ const deudasVigentes = deudas.filter(d => {
               key={item.id}
               className={`flex justify-between items-center p-3 rounded-xl border transition-all ${
                 item.completado
-                  ? 'bg-zinc-950/40 border-zinc-900 text-zinc-600 line-through'
-                  : 'bg-zinc-950 border-zinc-800 text-slate-200'
+                  ? 'bg-theme-bg/40 border-theme-border/40 text-theme-text/40 line-through'
+                  : 'bg-theme-bg border-theme-border text-theme-text'
               }`}
             >
               <div className="flex items-center gap-3">
@@ -502,17 +503,17 @@ const deudasVigentes = deudas.filter(d => {
                   type="button"
                   onClick={() => toggleStatusNW(item)}
                   disabled={guardandoNW}
-                  className="cursor-pointer bg-transparent border-none p-0 text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                  className="cursor-pointer bg-transparent border-none p-0 text-theme-text/50 hover:text-theme-trabajo disabled:opacity-50"
                 >
-                  <CheckCircle2 className={`w-4 h-4 ${item.completado ? 'text-emerald-400' : ''}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${item.completado ? 'text-theme-trabajo' : ''}`} />
                 </button>
                 <div>
                   <span className="text-xs font-black uppercase tracking-tight block">{item.concepto}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${
                       item.tipo === 'NEED' 
-                        ? 'bg-red-500/10 text-red-400 border-red-500/20' 
-                        : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        ? 'bg-theme-casa/10 text-theme-casa border-theme-casa/30' 
+                        : 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/30'
                     }`}>
                       {item.tipo}
                     </span>
@@ -531,14 +532,14 @@ const deudasVigentes = deudas.filter(d => {
                   type="button"
                   onClick={() => eliminarItemNW(item.concepto)}
                   disabled={guardandoNW}
-                  className="text-zinc-600 hover:text-red-400 transition-colors cursor-pointer bg-transparent border-none p-0 disabled:opacity-50"
+                  className="text-theme-text/40 hover:text-theme-casa transition-colors cursor-pointer bg-transparent border-none p-0 disabled:opacity-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           )) : (
-            <p className="text-center text-zinc-600 font-bold uppercase text-[10px] py-6">Sin prioridades registradas</p>
+            <p className="text-center text-theme-text/50 font-bold uppercase text-[10px] py-6">Sin prioridades registradas</p>
           )}
         </div>
       </div>

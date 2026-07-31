@@ -1,5 +1,97 @@
 @import "tailwindcss";
 
+/* 1. TOKYO NIGHT (ACTIVO) */
+:root {
+  --color-theme-bg: #1a1b26;
+  --color-theme-text: #a9b1d6;
+  --color-theme-border: #24283b;
+  --color-theme-accent: #7aa2f7;
+  --color-theme-trabajo: #7dcfff;
+  --color-theme-casa: #f7768e;
+}
+
+/* 2. DRACULA TONE */
+/* :root {
+  --color-theme-bg: #282a36;
+  --color-theme-text: #f8f8f2;
+  --color-theme-border: #44475a;
+  --color-theme-accent: #bd93f9;
+  --color-theme-trabajo: #50fa7b;
+  --color-theme-casa: #ff79c6;
+} */
+
+/* 3. MONOKAI PRO */
+/* :root {
+  --color-theme-bg: #2d2a2e;
+  --color-theme-text: #fcfcfa;
+  --color-theme-border: #403e41;
+  --color-theme-accent: #78dce8;
+  --color-theme-trabajo: #a9dc76;
+  --color-theme-casa: #ff6188;
+} */
+
+/* 4. ONE DARK PRO */
+/* :root {
+  --color-theme-bg: #21252b;
+  --color-theme-text: #abb2bf;
+  --color-theme-border: #353b45;
+  --color-theme-accent: #61afef;
+  --color-theme-trabajo: #98c379;
+  --color-theme-casa: #e06c75;
+} */
+
+/* 5. CYBERPUNK SYNTHWAVE */
+/* :root {
+  --color-theme-bg: #160f29;
+  --color-theme-text: #f4f4f5;
+  --color-theme-border: #3b1d5a;
+  --color-theme-accent: #00f0ff;
+  --color-theme-trabajo: #39ff14;
+  --color-theme-casa: #ff007f;
+} */
+
+/* 6. NORD DARK */
+/* :root {
+  --color-theme-bg: #2e3440;
+  --color-theme-text: #eceff4;
+  --color-theme-border: #4c566a;
+  --color-theme-accent: #88c0d0;
+  --color-theme-trabajo: #a3be8c;
+  --color-theme-casa: #bf616a;
+} */
+
+/* 7. RETRO AMBER TERMINAL */
+/* :root {
+  --color-theme-bg: #1c1917;
+  --color-theme-text: #f5f5f4;
+  --color-theme-border: #44403c;
+  --color-theme-accent: #f59e0b;
+  --color-theme-trabajo: #eab308;
+  --color-theme-casa: #f97316;
+} */
+
+/* 8. MATRIX GREEN TERMINAL */
+/* :root {
+  --color-theme-bg: #020b02;
+  --color-theme-text: #00ff66;
+  --color-theme-border: #00ff66;
+  --color-theme-accent: #00cc52;
+  --color-theme-trabajo: #70ffb3;
+  --color-theme-casa: #ccff00;
+} */
+
+/* REGISTRO EN TAILWIND CSS v4 */
+@theme {
+  --color-theme-bg: var(--color-theme-bg);
+  --color-theme-text: var(--color-theme-text);
+  --color-theme-border: var(--color-theme-border);
+  --color-theme-accent: var(--color-theme-accent);
+  --color-theme-trabajo: var(--color-theme-trabajo);
+  --color-theme-casa: var(--color-theme-casa);
+}
+
 body {
-  @apply bg-zinc-950 text-slate-100 font-sans overflow-hidden h-screen;
+  background-color: var(--color-theme-bg);
+  color: var(--color-theme-text);
+  @apply font-mono overflow-hidden h-screen;
 }

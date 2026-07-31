@@ -19,20 +19,21 @@ import { Plus, Activity, CheckCircle2, RefreshCw, Layers, Trash2, FileText } fro
 // =========================================================
 // STYLES & THEME CONSTANTS (Obsidian Minimalist Aesthetic)
 // =========================================================
-const connectionLineStyle = { stroke: '#4b5563', strokeWidth: 1.5 };
+const connectionLineStyle = { stroke: 'var(--color-theme-border)', strokeWidth: 1.5 };
+
 const defaultEdgeOptions = {
   animated: false, 
-  style: { stroke: '#52525b', strokeWidth: 2 }, 
+  style: { stroke: 'var(--color-theme-border)', strokeWidth: 2 }, 
 };
 
 // AGREGADO: Configuración de paletas de color para los grupos
 const OPCIONES_COLOR_GRUPO = [
-  { id: 'purple', bg: 'bg-[#161619]', border: 'border-purple-500/80', dot: 'bg-purple-500', text: 'text-purple-400' },
-  { id: 'blue',   bg: 'bg-[#121824]', border: 'border-blue-500/80',   dot: 'bg-blue-500',   text: 'text-blue-400' },
-  { id: 'emerald',bg: 'bg-[#101c17]', border: 'border-emerald-500/80',dot: 'bg-emerald-500',text: 'text-emerald-400' },
-  { id: 'amber',  bg: 'bg-[#1f1a12]', border: 'border-amber-500/80',  dot: 'bg-amber-500',  text: 'text-amber-400' },
-  { id: 'rose',   bg: 'bg-[#1f1215]', border: 'border-rose-500/80',   dot: 'bg-rose-500',   text: 'text-rose-400' },
-  { id: 'zinc',   bg: 'bg-[#161619]', border: 'border-zinc-700',      dot: 'bg-zinc-500',   text: 'text-zinc-400' },
+  { id: 'purple', bg: 'bg-theme-bg', border: 'border-theme-trabajo/80', dot: 'bg-theme-trabajo', text: 'text-theme-trabajo' },
+  { id: 'blue',   bg: 'bg-theme-bg', border: 'border-theme-accent/80',  dot: 'bg-theme-accent',  text: 'text-theme-accent' },
+  { id: 'emerald',bg: 'bg-theme-bg', border: 'border-theme-trabajo/80',dot: 'bg-theme-trabajo',text: 'text-theme-trabajo' },
+  { id: 'amber',  bg: 'bg-theme-bg', border: 'border-theme-casa/80',   dot: 'bg-theme-casa',   text: 'text-theme-casa' },
+  { id: 'rose',   bg: 'bg-theme-bg', border: 'border-theme-casa/80',   dot: 'bg-theme-casa',   text: 'text-theme-casa' },
+  { id: 'zinc',   bg: 'bg-theme-bg', border: 'border-theme-border',    dot: 'bg-theme-text/50',text: 'text-theme-text/70' },
 ];
 
 // =========================================================
@@ -45,16 +46,16 @@ function NodoGrupoExpandible(props) {
   const colorActual = OPCIONES_COLOR_GRUPO.find(c => c.id === data.color) || OPCIONES_COLOR_GRUPO[0];
 
   return (
-    <div className={`w-full h-full border-[3px] rounded-2xl p-4 font-sans text-left relative min-w-[200px] min-h-[150px] transition-all duration-200 group/groupnode ${colorActual.bg} ${
-      selected ? 'border-solid ring-1 ring-white/20 ' + colorActual.border : colorActual.border + ' hover:brightness-125'
+    <div className={`w-full h-full border-[3px] rounded-2xl p-4 font-mono text-left relative min-w-[200px] min-h-[150px] transition-all duration-200 group/groupnode ${colorActual.bg} ${
+      selected ? 'border-solid ring-1 ring-theme-text/20 ' + colorActual.border : colorActual.border + ' hover:brightness-125'
     }`}>  
       <NodeResizer 
-        color="#a855f7" 
+        color="var(--color-theme-accent)" 
         minWidth={200} 
         minHeight={150} 
         isVisible={selected} 
-        lineClassName="border-purple-500/30"
-        handleClassName="!w-3 !h-3 !bg-zinc-900 !border !border-purple-500 !rounded-sm"
+        lineClassName="border-theme-accent/30"
+        handleClassName="!w-3 !h-3 !bg-theme-bg !border !border-theme-accent !rounded-sm"
         onResizeEnd={(event, params) => {
           const evt = new CustomEvent('grupo-resize', { 
             detail: { id: id, width: params.width, height: params.height } 
@@ -64,26 +65,26 @@ function NodoGrupoExpandible(props) {
       />
 
       <div className="opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-200">
-        <Handle type="target" position={Position.Top} id="g-t-in" className="w-2 h-2 !bg-zinc-600 border-none z-50" />
-        <Handle type="source" position={Position.Top} id="g-t-out" className="w-1.5 h-1.5 !bg-purple-500 border-none z-50" />
-        <Handle type="target" position={Position.Bottom} id="g-b-in" className="w-2 h-2 !bg-zinc-600 border-none z-50" />
-        <Handle type="source" position={Position.Bottom} id="g-b-out" className="w-1.5 h-1.5 !bg-purple-500 border-none z-50" />
-        <Handle type="target" position={Position.Left} id="g-l-in" className="w-2 h-2 !bg-zinc-600 border-none z-50" />
-        <Handle type="source" position={Position.Left} id="g-l-out" className="w-1.5 h-1.5 !bg-purple-500 border-none z-50" />
-        <Handle type="target" position={Position.Right} id="g-r-in" className="w-2 h-2 !bg-zinc-600 border-none z-50" />
-        <Handle type="source" position={Position.Right} id="g-r-out" className="w-1.5 h-1.5 !bg-purple-500 border-none z-50" />
+        <Handle type="target" position={Position.Top} id="g-t-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Top} id="g-t-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Bottom} id="g-b-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Bottom} id="g-b-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Left} id="g-l-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Left} id="g-l-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Right} id="g-r-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Right} id="g-r-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
       </div>
 
       <div className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50">
         <Layers className={`w-4 h-4 ${colorActual.text}`} />
-        <span className="text-[12px] font-semibold tracking-wider text-zinc-100 uppercase bg-zinc-950/80 px-2 py-0.5 rounded border border-zinc-900 shadow-md">
+        <span className="text-[12px] font-semibold tracking-wider text-theme-text uppercase bg-theme-bg/80 px-2 py-0.5 rounded border border-theme-border shadow-md">
           {data.label}
         </span>
       </div>
 
       {/* MENÚ FLOTANTE DE MENÚ / ACCIONES DEL GRUPO */}
       <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-all duration-150 ease-out">
-        <div className="bg-zinc-950 border border-zinc-800 rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 backdrop-blur-md pointer-events-auto">
+        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 backdrop-blur-md pointer-events-auto">
           
           <div className="flex items-center gap-1">
             {OPCIONES_COLOR_GRUPO.map((c) => (
@@ -91,18 +92,17 @@ function NodoGrupoExpandible(props) {
                 key={c.id}
                 onClick={() => data.onCambiarColorGrupo && data.onCambiarColorGrupo(id, c.id)}
                 className={`w-3 h-3 rounded-full ${c.dot} transition-transform hover:scale-125 cursor-pointer ${
-                  (data.color || 'purple') === c.id ? 'ring-2 ring-white scale-110' : 'opacity-60 hover:opacity-100'
+                  (data.color || 'purple') === c.id ? 'ring-2 ring-theme-text scale-110' : 'opacity-60 hover:opacity-100'
                 }`}
                 title={`Color ${c.id}`}
               />
             ))}
           </div>
-
-          <div className="w-[1px] h-3 bg-zinc-800" />
+          <div className="w-[1px] h-3 bg-theme-border/60" />
 
           <button 
             onClick={() => data.onEliminarNodo(id)} 
-            className="text-zinc-400 hover:text-red-400 p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
+            className="text-theme-text/60 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
           >
             <Trash2 className="w-3 h-3" />
             <span className="text-[10px] font-normal">Eliminar</span>
@@ -120,19 +120,19 @@ function NodoGrupoExpandible(props) {
 function NodoMetaAutonomo(props) {
   const { id, data, selected } = props;
   
-  let statusColor = 'border-zinc-800 bg-zinc-800 text-zinc-100';
+  let statusColor = 'border-theme-border bg-theme-bg text-theme-text';
   
   if (data.status === 'En Progreso') {
-    statusColor = 'border-amber-500/30 bg-amber-900 text-amber-50';
+    statusColor = 'border-theme-accent/50 bg-theme-bg text-theme-accent';
   }
   if (data.status === 'Completado') {
-    statusColor = 'border-emerald-500/20 bg-emerald-900 text-emerald-50';
+    statusColor = 'border-theme-trabajo/50 bg-theme-bg text-theme-trabajo';
   }
 
-  const handleClass = "w-1.5 h-1.5 !bg-zinc-500 !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
+  const handleClass = "w-1.5 h-1.5 !bg-theme-border !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
 
   return (
-    <div className={`border rounded-lg p-3 w-56 shadow-2xl font-sans text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-1 ring-zinc-400 border-zinc-400 shadow-zinc-950/50' : ''}`}>
+    <div className={`border rounded-lg p-3 w-56 shadow-2xl font-mono text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-1 ring-theme-text border-theme-text shadow-2xl' : ''}`}>
       <Handle type="target" position={Position.Top} id="t" className={`${handleClass} z-[60]`} />
       <Handle type="source" position={Position.Top} id="t-o" className={`${handleClass} z-[60]`} />
       
@@ -154,18 +154,18 @@ function NodoMetaAutonomo(props) {
           }
         }}
       >
-        <p className={`font-normal text-[13px] leading-snug tracking-wide break-words text-zinc-200 ${data.status === 'Completado' ? 'line-through opacity-50' : ''}`}>
+        <p className={`font-normal text-[13px] leading-snug tracking-wide break-words text-theme-text ${data.status === 'Completado' ? 'line-through opacity-50' : ''}`}>
           {data.label}
         </p>
       </div>
 
       <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-[50] nodrag pointer-events-none opacity-0 group-hover/node:opacity-100 transition-all duration-150 ease-out">
-        <div className="bg-zinc-950 border border-zinc-800 rounded-md shadow-2xl px-2 py-1 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto">
-          <button onClick={() => data.onCambiarEstado(id, 'Por Hacer')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Por Hacer' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}>Nota</button>
-          <button onClick={() => data.onCambiarEstado(id, 'En Progreso')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'En Progreso' ? 'bg-amber-950/60 text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Progreso</button>
-          <button onClick={() => data.onCambiarEstado(id, 'Completado')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Completado' ? 'bg-emerald-950/60 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}>Listo</button>
-          <div className="w-[1px] h-3 bg-zinc-800" />
-          <button onClick={() => data.onEliminarNodo(id)} className="text-zinc-500 hover:text-red-400 p-0.5 rounded transition-colors cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2 py-1 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto">
+          <button onClick={() => data.onCambiarEstado(id, 'Por Hacer')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Por Hacer' ? 'bg-theme-border text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}>Nota</button>
+          <button onClick={() => data.onCambiarEstado(id, 'En Progreso')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'En Progreso' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}>Progreso</button>
+          <button onClick={() => data.onCambiarEstado(id, 'Completado')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Completado' ? 'bg-theme-trabajo text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}>Listo</button>
+          <div className="w-[1px] h-3 bg-theme-border/60" />
+          <button onClick={() => data.onEliminarNodo(id)} className="text-theme-text/50 hover:text-theme-casa p-0.5 rounded transition-colors cursor-pointer"><Trash2 className="w-3 h-3" /></button>
         </div>
       </div>
     </div>
@@ -596,20 +596,20 @@ export function GestionProyectosContenido() {
   }, [screenToFlowPosition, handleCrearNuevaMetaDirecta]);
 
   return (
-    <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-4 text-left font-sans bg-zinc-950 p-4 text-zinc-200">
-      <div className="flex justify-between items-center border-b border-zinc-900 pb-3">
+    <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-4 text-left font-mono bg-theme-bg p-4 text-theme-text">
+      <div className="flex justify-between items-center border-b border-theme-border/40 pb-3">
         <div>
-          <h2 className="text-xl font-medium text-zinc-100 tracking-tight">Gráfico de Proyectos</h2>
-          <p className="text-[11px] text-zinc-500 tracking-wide mt-0.5">Mapa de Proyectos</p>
+          <h2 className="text-xl font-medium text-theme-accent tracking-tight">Gráfico de Proyectos</h2>
+          <p className="text-[11px] text-theme-text/50 tracking-wide mt-0.5">Mapa de Proyectos</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={handleCrearContenedorGrupo} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer">
-            <Layers className="w-3.5 h-3.5 mr-1.5 text-purple-400" /> Crear Grupo
+          <button onClick={handleCrearContenedorGrupo} className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer">
+            <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Crear Grupo
           </button>
         </div>
       </div>
 
-      <div className="flex-1 w-full bg-[#121214] rounded-xl border border-zinc-900 relative overflow-hidden" ref={flowWrapper}>
+      <div className="flex-1 w-full bg-theme-bg rounded-xl border border-theme-border relative overflow-hidden" ref={flowWrapper}>
         <ReactFlow 
           nodes={nodes} 
           edges={edges} 
@@ -628,8 +628,8 @@ export function GestionProyectosContenido() {
           nodeExtent={[[-2500, -2500], [2500, 2500]]}
           className="z-10"
         >
-          <Background color="#222225" gap={20} size={1} />
-          <Controls className="!bg-zinc-900 !border-zinc-800 !shadow-2xl opacity-60 hover:opacity-100 transition-opacity" />
+          <Background color="var(--color-theme-border)" gap={20} size={1} />
+          <Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-60 hover:opacity-100 transition-opacity" />
         </ReactFlow>
       </div>
     </div>

@@ -276,7 +276,6 @@ export default function ReunionesCasa() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

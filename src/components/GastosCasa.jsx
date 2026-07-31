@@ -240,7 +240,8 @@ export default function Finanzas({ refreshTrigger }) {
   const listadoRubros = Object.keys(mapaRubrosAMacro);
 
   if (cargando) {
-    return <p className="text-xs font-black uppercase tracking-wider text-slate-500 animate-pulse text-left p-4">Actualizando...</p>;
+    /* return <p className="text-xs font-black uppercase tracking-wider text-slate-500 animate-pulse text-left p-4">Actualizando...</p>; */
+    return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left p-4">Actualizando...</p>;
   }
 
   // =========================================================================
@@ -394,16 +395,22 @@ export default function Finanzas({ refreshTrigger }) {
   const transaccionesPaginadas = [...transaccionesParaTabla].reverse().slice(indicePrimerItem, indiceUltimoItem);
 
   return (
-    <div className="space-y-6 text-left p-2 bg-zinc-950 text-zinc-200 font-sans min-h-screen">
+    /* <div className="space-y-6 text-left p-2 bg-zinc-950 text-zinc-200 font-sans min-h-screen"> */
+    <div className="space-y-6 text-left p-2 bg-theme-bg text-theme-text font-mono min-h-screen">
       
       {/* HEADER */}
-      <div className="border-b border-zinc-900 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      {/* <div className="border-b border-zinc-900 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4"> */}
+      <div className="border-b border-theme-border/40 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-2xl font-black tracking-tighter uppercase italic text-slate-50 flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-emerald-400 stroke-[2.5]" /> Búnker Financiero
+          {/* <h2 className="text-2xl font-black tracking-tighter uppercase italic text-slate-50 flex items-center gap-2"> */}
+          <h2 className="text-2xl font-black tracking-tighter uppercase italic text-theme-text flex items-center gap-2">
+            {/* <ShieldCheck className="w-6 h-6 text-emerald-400 stroke-[2.5]" /> Búnker Financiero */}
+            <ShieldCheck className="w-6 h-6 text-theme-accent stroke-[2.5]" /> Búnker Financiero
           </h2>
-          <div className="mt-2 flex items-center gap-2 bg-zinc-900/80 p-1.5 border border-zinc-800 rounded-xl">
-            <span className="text-[9px] font-black uppercase text-zinc-500 pl-2">Corte:</span>
+          {/* <div className="mt-2 flex items-center gap-2 bg-zinc-900/80 p-1.5 border border-zinc-800 rounded-xl"> */}
+          <div className="mt-2 flex items-center gap-2 bg-theme-bg p-1.5 border border-theme-border rounded-xl">
+            {/* <span className="text-[9px] font-black uppercase text-zinc-500 pl-2">Corte:</span> */}
+            <span className="text-[9px] font-black uppercase text-theme-text/50 pl-2">Corte:</span>
             <select 
               value={periodoSeleccionado}
               onChange={(e) => { 
@@ -411,7 +418,8 @@ export default function Finanzas({ refreshTrigger }) {
                 setPaginaActual(1);
                 setMacroFiltroSeleccionado(null);
               }}
-              className="bg-zinc-950 border border-zinc-800 text-xs font-bold text-slate-200 rounded px-2.5 py-1 focus:outline-none focus:border-emerald-500 cursor-pointer"
+              /* className="bg-zinc-950 border border-zinc-800 text-xs font-bold text-slate-200 rounded px-2.5 py-1 focus:outline-none focus:border-emerald-500 cursor-pointer" */
+              className="bg-theme-bg border border-theme-border text-xs font-bold text-theme-text rounded px-2.5 py-1 focus:outline-none focus:border-theme-accent cursor-pointer"
             >
               {generarOpcionesDeQuincenas().map(opcion => (
                 <option key={opcion.id} value={opcion.id}>
@@ -425,13 +433,16 @@ export default function Finanzas({ refreshTrigger }) {
         <div className="flex gap-2 w-full md:w-auto">
           <button 
             onClick={() => setModalSaldos(true)} 
-            className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center transition-all cursor-pointer"
+            /* className="bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center transition-all cursor-pointer" */
+            className="bg-theme-bg hover:opacity-80 text-theme-text/70 border border-theme-border px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center transition-all cursor-pointer"
           >
-            <Wallet className="w-3.5 h-3.5 mr-1.5 text-zinc-500" /> Ajustar Canales Fijos
+            {/* <Wallet className="w-3.5 h-3.5 mr-1.5 text-zinc-500" /> Ajustar Canales Fijos */}
+            <Wallet className="w-3.5 h-3.5 mr-1.5 text-theme-text/50" /> Ajustar Canales Fijos
           </button>
           <button 
             onClick={() => setModalRegistro(true)} 
-            className="bg-emerald-400 hover:bg-emerald-500 text-zinc-950 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
+            /* className="bg-emerald-400 hover:bg-emerald-500 text-zinc-950 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer" */
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Registrar Movimiento
           </button>
@@ -440,13 +451,18 @@ export default function Finanzas({ refreshTrigger }) {
 
       {/* PROGRESS BAR */}
       {periodoSeleccionado === obtenerQuincenaActualId() && (
-        <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
+        /* <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4"> */
+        <div className="bg-theme-bg border border-theme-border/60 rounded-xl p-4">
           <div className="flex justify-between text-[9px] font-black uppercase tracking-wider mb-2">
-            <span className="text-zinc-400">Progreso Temporal del Periodo</span>
-            <span className="text-emerald-400">Día {progresoQuincena.actual} de {progresoQuincena.total} ({Math.round(progresoQuincena.pct)}%)</span>
+            {/* <span className="text-zinc-400">Progreso Temporal del Periodo</span> */}
+            <span className="text-theme-text/60">Progreso Temporal del Periodo</span>
+            {/* <span className="text-emerald-400">Día {progresoQuincena.actual} de {progresoQuincena.total} ({Math.round(progresoQuincena.pct)}%)</span> */}
+            <span className="text-theme-accent">Día {progresoQuincena.actual} de {progresoQuincena.total} ({Math.round(progresoQuincena.pct)}%)</span>
           </div>
-          <div className="w-full bg-zinc-950 border border-zinc-800 h-2 rounded-full overflow-hidden">
-            <div className="bg-emerald-400 h-full transition-all" style={{ width: `${progresoQuincena.pct}%` }}></div>
+          {/* <div className="w-full bg-zinc-950 border border-zinc-800 h-2 rounded-full overflow-hidden"> */}
+          <div className="w-full bg-theme-bg border border-theme-border h-2 rounded-full overflow-hidden">
+            {/* <div className="bg-emerald-400 h-full transition-all" style={{ width: `${progresoQuincena.pct}%` }}></div> */}
+            <div className="bg-theme-accent h-full transition-all" style={{ width: `${progresoQuincena.pct}%` }}></div>
           </div>
         </div>
       )}
@@ -455,47 +471,63 @@ export default function Finanzas({ refreshTrigger }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* CONTROL DE INGRESOS */}
-        <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-emerald-500">
-          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Ingresos Obtenidos Q.</span>
+        {/* <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-emerald-500"> */}
+        <div className="bg-theme-bg border border-theme-border rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-theme-trabajo">
+          {/* <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Ingresos Obtenidos Q.</span> */}
+          <span className="text-[9px] font-black uppercase tracking-wider text-theme-trabajo">Ingresos Obtenidos Q.</span>
           <div className="mt-2 space-y-1">
-            <div className="text-xl font-black text-emerald-400 tabular-nums">
+            {/* <div className="text-xl font-black text-emerald-400 tabular-nums"> */}
+            <div className="text-xl font-black text-theme-trabajo tabular-nums">
               ${ingresosTotalesFlujo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
-            <div className="pt-1.5 border-t border-zinc-800/60 space-y-0.5 text-[9px] uppercase font-bold text-zinc-400">
+            {/* <div className="pt-1.5 border-t border-zinc-800/60 space-y-0.5 text-[9px] uppercase font-bold text-zinc-400"> */}
+            <div className="pt-1.5 border-t border-theme-border/40 space-y-0.5 text-[9px] uppercase font-bold text-theme-text/70">
               <div className="flex justify-between">
-                <span className="text-zinc-500 font-semibold">💼 Sueldo Base:</span>
-                <span className="text-slate-200 font-mono">${ingresosSueldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                {/* <span className="text-zinc-500 font-semibold">💼 Sueldo Base:</span> */}
+                <span className="text-theme-text/50 font-semibold">💼 Sueldo Base:</span>
+                {/* <span className="text-slate-200 font-mono">${ingresosSueldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> */}
+                <span className="text-theme-text font-mono">${ingresosSueldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-zinc-500 font-semibold">📦 15na anterior:</span>
-                <span className="text-emerald-500 font-mono">${ingresosSobrante.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                {/* <span className="text-zinc-500 font-semibold">📦 15na anterior:</span> */}
+                <span className="text-theme-text/50 font-semibold">📦 15na anterior:</span>
+                {/* <span className="text-emerald-500 font-mono">${ingresosSobrante.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> */}
+                <span className="text-theme-trabajo font-mono">${ingresosSobrante.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
               {/* AGREGADO: Fila en tarjeta para reflejar el ingreso de Regalo */}
               <div className="flex justify-between">
-                <span className="text-zinc-500 font-semibold">🎁 Extras:</span>
-                <span className="text-emerald-400 font-mono">${ingresosRegalo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                {/* <span className="text-zinc-500 font-semibold">🎁 Extras:</span> */}
+                <span className="text-theme-text/50 font-semibold">🎁 Extras:</span>
+                {/* <span className="text-emerald-400 font-mono">${ingresosRegalo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> */}
+                <span className="text-theme-trabajo font-mono">${ingresosRegalo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* DETECTOR DE GASTOS OLVIDADOS */}
-        <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all ${totalGastosFaltantesGlobal > 10 ? 'bg-red-950/20 border-red-900/60 border-t-2 border-t-red-500 animate-pulse' : 'bg-zinc-900/40 border-zinc-800'}`}>
-          <span className={`text-[9px] font-black uppercase tracking-wider ${totalGastosFaltantesGlobal > 10 ? 'text-red-400' : 'text-zinc-500'}`}>
+        {/* <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all ${totalGastosFaltantesGlobal > 10 ? 'bg-red-950/20 border-red-900/60 border-t-2 border-t-red-500 animate-pulse' : 'bg-zinc-900/40 border-zinc-800'}`}> */}
+        <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all ${totalGastosFaltantesGlobal > 10 ? 'bg-theme-casa/10 border-theme-casa/60 border-t-2 border-t-theme-casa animate-pulse' : 'bg-theme-bg border-theme-border'}`}>
+          {/* <span className={`text-[9px] font-black uppercase tracking-wider ${totalGastosFaltantesGlobal > 10 ? 'text-red-400' : 'text-zinc-500'}`}> */}
+          <span className={`text-[9px] font-black uppercase tracking-wider ${totalGastosFaltantesGlobal > 10 ? 'text-theme-casa' : 'text-theme-text/50'}`}>
             {totalGastosFaltantesGlobal > 10 ? '⚠️ Gastos Sin Registrar' : 'Cuentas Cuadradas'}
           </span>
           <div className="mt-2 space-y-1">
-            <div className={`text-xl font-black tabular-nums ${totalGastosFaltantesGlobal > 10 ? 'text-red-400' : 'text-zinc-400'}`}>
+            {/* <div className={`text-xl font-black tabular-nums ${totalGastosFaltantesGlobal > 10 ? 'text-red-400' : 'text-zinc-400'}`}> */}
+            <div className={`text-xl font-black tabular-nums ${totalGastosFaltantesGlobal > 10 ? 'text-theme-casa' : 'text-theme-text/70'}`}>
               ${totalGastosFaltantesGlobal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
             {cuentasDescuadradas.length > 0 ? (
-              <div className="pt-2 border-t border-zinc-800/60 space-y-1">
+              /* <div className="pt-2 border-t border-zinc-800/60 space-y-1"> */
+              <div className="pt-2 border-t border-theme-border/40 space-y-1">
                 {cuentasDescuadradas.map(c => {
                   const esGasto = c.tipo === "gasto";
                   return (
                     <div key={c.nombre} className="text-[10px] font-black uppercase flex justify-between items-center tracking-tight py-0.5">
-                      <span className="text-zinc-400">{c.nombre}</span>
-                      <span className={`font-mono font-bold ${esGasto ? 'text-red-400' : 'text-emerald-400'}`}>
+                      {/* <span className="text-zinc-400">{c.nombre}</span> */}
+                      <span className="text-theme-text/70">{c.nombre}</span>
+                      {/* <span className={`font-mono font-bold ${esGasto ? 'text-red-400' : 'text-emerald-400'}`}> */}
+                      <span className={`font-mono font-bold ${esGasto ? 'text-theme-casa' : 'text-theme-trabajo'}`}>
                         $ {c.montoFaltante.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -503,33 +535,51 @@ export default function Finanzas({ refreshTrigger }) {
                 })}
               </div>
             ) : (
-              <p className="text-[8px] text-zinc-500 uppercase font-bold tracking-tight">Realidad física coincide con flujo</p>
+              /* <p className="text-[8px] text-zinc-500 uppercase font-bold tracking-tight">Realidad física coincide con flujo</p> */
+              <p className="text-[8px] text-theme-text/50 uppercase font-bold tracking-tight">Realidad física coincide con flujo</p>
             )}
           </div>
         </div>
 
         {/* NUEVA TARJETA CON SOPORTE PARA EXCESO Y REPARTO FALTANTE */}
-        <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all duration-300 ${
+        {/* <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all duration-300 ${
           presupuestoExcedido 
             ? 'bg-red-950/30 border-red-500 border-t-4 border-t-red-500 animate-pulse' 
             : presupuestoFaltante
               ? 'bg-emerald-950/20 border-emerald-500/50 border-t-4 border-t-emerald-500'
               : 'bg-zinc-900/40 border-zinc-800'
+        }`}> */}
+        <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all duration-300 ${
+          presupuestoExcedido 
+            ? 'bg-theme-casa/10 border-theme-casa border-t-4 border-t-theme-casa animate-pulse' 
+            : presupuestoFaltante
+              ? 'bg-theme-trabajo/10 border-theme-trabajo/50 border-t-4 border-t-theme-trabajo'
+              : 'bg-theme-bg border-theme-border'
         }`}>
-          <span className={`text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
+          {/* <span className={`text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
             presupuestoExcedido ? 'text-red-400' : 'text-emerald-400'
+          }`}> */}
+          <span className={`text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${
+            presupuestoExcedido ? 'text-theme-casa' : 'text-theme-trabajo'
           }`}>
-            <Flame className={`w-3 h-3 ${presupuestoExcedido ? 'text-red-400' : 'text-emerald-400'}`} /> 
+            {/* <Flame className={`w-3 h-3 ${presupuestoExcedido ? 'text-red-400' : 'text-emerald-400'}`} />  */}
+            <Flame className={`w-3 h-3 ${presupuestoExcedido ? 'text-theme-casa' : 'text-theme-trabajo'}`} /> 
             {presupuestoExcedido ? '🚨 Presupuesto Excedido' : 'Caja de Seguridad Libre'}
           </span>
           <div className="mt-2">
-            <div className={`text-xl font-black tabular-nums ${
+            {/* <div className={`text-xl font-black tabular-nums ${
               presupuestoExcedido || bolsaDisponibleFlujoLibre < 0 ? 'text-red-400' : 'text-emerald-400'
+            }`}> */}
+            <div className={`text-xl font-black tabular-nums ${
+              presupuestoExcedido || bolsaDisponibleFlujoLibre < 0 ? 'text-theme-casa' : 'text-theme-trabajo'
             }`}>
               ${bolsaDisponibleFlujoLibre.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
-            <p className={`text-[8px] mt-1 uppercase font-bold tracking-tight ${
+            {/* <p className={`text-[8px] mt-1 uppercase font-bold tracking-tight ${
               presupuestoExcedido ? 'text-red-300/80' : presupuestoFaltante ? 'text-emerald-300/80' : 'text-zinc-500'
+            }`}> */}
+            <p className={`text-[8px] mt-1 uppercase font-bold tracking-tight ${
+              presupuestoExcedido ? 'text-theme-casa/80' : presupuestoFaltante ? 'text-theme-trabajo/80' : 'text-theme-text/50'
             }`}>
               {presupuestoExcedido && 
                 `Te excedes por: $${Math.abs(diferenciaPresupuesto).toFixed(2)} en presupuesto`
@@ -545,19 +595,25 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
 
         {/* TOTAL REAL BÚNKER */}
-        <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-emerald-400">
-          <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Total Búnker Real Bancos/Efectivo</span>
+        {/* <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-emerald-400"> */}
+        <div className="bg-theme-bg border border-theme-border rounded-xl p-4 flex flex-col justify-between border-l-4 border-l-theme-accent">
+          {/* <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400">Total Búnker Real Bancos/Efectivo</span> */}
+          <span className="text-[9px] font-black uppercase tracking-wider text-theme-accent">Total Búnker Real Bancos/Efectivo</span>
           <div className="mt-2 space-y-1">
-            <div className="text-xl font-black text-emerald-400 tabular-nums">
+            {/* <div className="text-xl font-black text-emerald-400 tabular-nums"> */}
+            <div className="text-xl font-black text-theme-accent tabular-nums">
               ${efectivoFisicoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </div>
-            <div className="pt-1.5 border-t border-zinc-800/60 space-y-0.5 text-[9px] uppercase font-bold text-zinc-400 max-h-[60px] overflow-y-auto custom-scrollbar">
+            {/* <div className="pt-1.5 border-t border-zinc-800/60 space-y-0.5 text-[9px] uppercase font-bold text-zinc-400 max-h-[60px] overflow-y-auto custom-scrollbar"> */}
+            <div className="pt-1.5 border-t border-theme-border/40 space-y-0.5 text-[9px] uppercase font-bold text-theme-text/70 max-h-[60px] overflow-y-auto custom-scrollbar">
               {listaMetodos
                 .filter(metodo => (saldosCuentas[metodo] || 0) > 0)
                 .map(metodo => (
                   <div key={metodo} className="flex justify-between">
-                    <span className="text-zinc-500 font-semibold truncate max-w-[110px]">{metodo}:</span>
-                    <span className="text-slate-200 font-mono">${(saldosCuentas[metodo] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                    {/* <span className="text-zinc-500 font-semibold truncate max-w-[110px]">{metodo}:</span> */}
+                    <span className="text-theme-text/50 font-semibold truncate max-w-[110px]">{metodo}:</span>
+                    {/* <span className="text-slate-200 font-mono">${(saldosCuentas[metodo] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> */}
+                    <span className="text-theme-text font-mono">${(saldosCuentas[metodo] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
                 ))}
             </div>
@@ -568,8 +624,10 @@ export default function Finanzas({ refreshTrigger }) {
       {/* GRID SECCIONES TRASERAS */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-1 space-y-4">
-          <h3 className="text-sm font-black text-slate-50 uppercase italic tracking-tighter">Métricas de Ritmo Quincenal</h3>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 max-h-[600px] overflow-y-auto space-y-3 custom-scrollbar">
+          {/* <h3 className="text-sm font-black text-slate-50 uppercase italic tracking-tighter">Métricas de Ritmo Quincenal</h3> */}
+          <h3 className="text-sm font-black text-theme-text uppercase italic tracking-tighter">Métricas de Ritmo Quincenal</h3>
+          {/* <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 max-h-[600px] overflow-y-auto space-y-3 custom-scrollbar"> */}
+          <div className="bg-theme-bg border border-theme-border rounded-xl p-4 max-h-[600px] overflow-y-auto space-y-3 custom-scrollbar">
             {Object.keys(macroEstructura)
               .filter(macro => macroEstructura[macro].gastado > 0 || macroEstructura[macro].asignado > 0)
               .map(macro => {
@@ -582,28 +640,36 @@ export default function Finanzas({ refreshTrigger }) {
                 const gastoIdealProporcional = (item.asignado / 100) * progresoQuincena.pct;
                 const vaAdelantadoAlDia = item.gastado > gastoIdealProporcional && (item.gastado - gastoIdealProporcional) > 40;
 
-                let colorBarra = "bg-emerald-400";
+                /* let colorBarra = "bg-emerald-400"; */
+                let colorBarra = "bg-theme-trabajo";
                 let statusBadgeText = "Estable";
-                let badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                /* let badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"; */
+                let badgeStyle = "bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/20";
 
                 if (sobregirado) {
-                  colorBarra = "bg-red-500";
+                  /* colorBarra = "bg-red-500"; */
+                  colorBarra = "bg-theme-casa";
                   statusBadgeText = "Sobregiro";
-                  badgeStyle = "bg-red-500/20 text-red-400 border-red-500/30";
+                  /* badgeStyle = "bg-red-500/20 text-red-400 border-red-500/30"; */
+                  badgeStyle = "bg-theme-casa/20 text-theme-casa border-theme-casa/30";
                 } else if (vaAdelantadoAlDia && periodoSeleccionado === obtenerQuincenaActualId()) {
-                  colorBarra = "bg-orange-400";
+                  /* colorBarra = "bg-orange-400"; */
+                  colorBarra = "bg-theme-accent";
                   statusBadgeText = "Gasto Rápido";
-                  badgeStyle = "bg-orange-500/20 text-orange-400 border-orange-500/30";
+                  /* badgeStyle = "bg-orange-500/20 text-orange-400 border-orange-500/30"; */
+                  badgeStyle = "bg-theme-accent/20 text-theme-accent border-theme-accent/30";
                 } else if (porcentajeBarra > 85) {
-                  colorBarra = "bg-amber-500";
+                  /* colorBarra = "bg-amber-500"; */
+                  colorBarra = "bg-theme-accent";
                   statusBadgeText = "Límite Crítico";
-                  badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+                  /* badgeStyle = "bg-amber-500/20 text-amber-400 border-amber-500/30"; */
+                  badgeStyle = "bg-theme-accent/20 text-theme-accent border-theme-accent/30";
                 }
 
                 const esMacroFiltrada = macroFiltroSeleccionado === macro;
 
                 return (
-                  <div 
+                  /* <div 
                     key={macro} 
                     className={`rounded border overflow-hidden transition-all duration-200 bg-zinc-950 ${
                       esMacroFiltrada 
@@ -612,25 +678,39 @@ export default function Finanzas({ refreshTrigger }) {
                           ? 'border-red-900/60' 
                           : 'border-zinc-800'
                     }`}
+                  > */
+                  <div 
+                    key={macro} 
+                    className={`rounded border overflow-hidden transition-all duration-200 bg-theme-bg ${
+                      esMacroFiltrada 
+                        ? 'border-theme-accent shadow-md' 
+                        : sobregirado 
+                          ? 'border-theme-casa/60' 
+                          : 'border-theme-border'
+                    }`}
                   > 
                     <div 
                       onClick={() => {
                         setMacroFiltroSeleccionado(macroFiltroSeleccionado === macro ? null : macro);
                         setPaginaActual(1);
                       }}
-                      className="p-3 flex justify-between items-start select-none cursor-pointer hover:bg-zinc-900/50"
+                      /* className="p-3 flex justify-between items-start select-none cursor-pointer hover:bg-zinc-900/50" */
+                      className="p-3 flex justify-between items-start select-none cursor-pointer hover:bg-theme-border/10"
                     >
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-1.5">
                           <button 
                             type="button" 
                             onClick={(e) => { e.stopPropagation(); toggleMacro(macro); }} 
-                            className="p-1 hover:bg-zinc-800 rounded cursor-pointer bg-transparent border-none"
+                            /* className="p-1 hover:bg-zinc-800 rounded cursor-pointer bg-transparent border-none" */
+                            className="p-1 hover:bg-theme-border/20 rounded cursor-pointer bg-transparent border-none"
                           >
-                            {estaAbierto ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />}
+                            {/* {estaAbierto ? <ChevronDown className="w-3.5 h-3.5 text-emerald-400" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />} */}
+                            {estaAbierto ? <ChevronDown className="w-3.5 h-3.5 text-theme-accent" /> : <ChevronRight className="w-3.5 h-3.5 text-theme-text/50" />}
                           </button>
 
-                          <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${esMacroFiltrada ? 'text-emerald-400' : 'text-slate-200'}`}>
+                          {/* <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${esMacroFiltrada ? 'text-emerald-400' : 'text-slate-200'}`}> */}
+                          <span className={`text-[10px] font-black uppercase tracking-tight transition-colors ${esMacroFiltrada ? 'text-theme-accent' : 'text-theme-text'}`}>
                             {macro}
                           </span>
 
@@ -638,29 +718,36 @@ export default function Finanzas({ refreshTrigger }) {
                             {statusBadgeText}
                           </span>
                         </div>
-                        <div className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider pl-7">Tope Q: ${item.asignado.toFixed(2)}</div>
+                        {/* <div className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider pl-7">Tope Q: ${item.asignado.toFixed(2)}</div> */}
+                        <div className="text-[8px] font-bold text-theme-text/50 uppercase tracking-wider pl-7">Tope Q: ${item.asignado.toFixed(2)}</div>
                       </div>
                       
                       <div className="text-right">
-                        <div className="text-xs font-black text-slate-50 tabular-nums">${item.gastado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
-                        <div className={`text-[9px] uppercase tracking-tighter ${sobregirado ? 'text-red-400 font-bold' : 'text-zinc-500'}`}>
+                        {/* <div className="text-xs font-black text-slate-50 tabular-nums">${item.gastado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div> */}
+                        <div className="text-xs font-black text-theme-text tabular-nums">${item.gastado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</div>
+                        {/* <div className={`text-[9px] uppercase tracking-tighter ${sobregirado ? 'text-red-400 font-bold' : 'text-zinc-500'}`}> */}
+                        <div className={`text-[9px] uppercase tracking-tighter ${sobregirado ? 'text-theme-casa font-bold' : 'text-theme-text/50'}`}>
                           {sobregirado ? `Exceso: ` : `Disp: `}${Math.abs(disponible).toFixed(2)}
                         </div>
                       </div>
                     </div>
 
                     <div className="px-3 pb-3">
-                      <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800/40">
+                      {/* <div className="w-full bg-zinc-900 rounded-full h-1.5 overflow-hidden border border-zinc-800/40"> */}
+                      <div className="w-full bg-theme-bg rounded-full h-1.5 overflow-hidden border border-theme-border/40">
                         <div className={`${colorBarra} h-full transition-all duration-500`} style={{ width: `${Math.min(porcentajeBarra, 100)}%` }}></div>
                       </div>
                     </div>
 
                     {estaAbierto && Object.keys(item.rubros).length > 0 && (
-                      <div className="bg-zinc-900/40 border-t border-zinc-900 px-3 py-2 space-y-2 text-[9px] uppercase font-bold text-zinc-400">
+                      /* <div className="bg-zinc-900/40 border-t border-zinc-900 px-3 py-2 space-y-2 text-[9px] uppercase font-bold text-zinc-400"> */
+                      <div className="bg-theme-bg border-t border-theme-border/40 px-3 py-2 space-y-2 text-[9px] uppercase font-bold text-theme-text/70">
                         {Object.keys(item.rubros).map(sub => (
-                          <div key={sub} className="flex justify-between items-center pl-4 border-l border-zinc-800 py-0.5">
+                          /* <div key={sub} className="flex justify-between items-center pl-4 border-l border-zinc-800 py-0.5"> */
+                          <div key={sub} className="flex justify-between items-center pl-4 border-l border-theme-border py-0.5">
                             <span>{sub}</span>
-                            <span className="text-slate-300 tabular-nums">${item.rubros[sub].toFixed(2)}</span>
+                            {/* <span className="text-slate-300 tabular-nums">${item.rubros[sub].toFixed(2)}</span> */}
+                            <span className="text-theme-text tabular-nums">${item.rubros[sub].toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
@@ -672,38 +759,48 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
 
         <div className="xl:col-span-2 space-y-4">
-          <h3 className="text-sm font-black text-slate-50 uppercase italic tracking-tighter">Huella de Transacciones de este Periodo</h3>
-          <div className="bg-zinc-900 shadow-2xl rounded-xl overflow-hidden border border-zinc-800">
+          {/* <h3 className="text-sm font-black text-slate-50 uppercase italic tracking-tighter">Huella de Transacciones de este Periodo</h3> */}
+          <h3 className="text-sm font-black text-theme-text uppercase italic tracking-tighter">Huella de Transacciones de este Periodo</h3>
+          {/* <div className="bg-zinc-900 shadow-2xl rounded-xl overflow-hidden border border-zinc-800"> */}
+          <div className="bg-theme-bg shadow-2xl rounded-xl overflow-hidden border border-theme-border">
             <div className="overflow-x-auto">
-              <div className="flex justify-between items-center bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-wider">
+              {/* <div className="flex justify-between items-center bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-wider"> */}
+              <div className="flex justify-between items-center bg-theme-bg border border-theme-border rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-wider">
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-zinc-500 italic">Mostrando {transaccionesFiltradasYProcesadas.length > 0 ? indicePrimerItem + 1 : 0}-{Math.min(indiceUltimoItem, transaccionesFiltradasYProcesadas.length)} de {transaccionesFiltradasYProcesadas.length} registros</span>
+                  {/* <span className="text-zinc-500 italic">Mostrando {transaccionesFiltradasYProcesadas.length > 0 ? indicePrimerItem + 1 : 0}-{Math.min(indiceUltimoItem, transaccionesFiltradasYProcesadas.length)} de {transaccionesFiltradasYProcesadas.length} registros</span> */}
+                  <span className="text-theme-text/50 italic">Mostrando {transaccionesFiltradasYProcesadas.length > 0 ? indicePrimerItem + 1 : 0}-{Math.min(indiceUltimoItem, transaccionesFiltradasYProcesadas.length)} de {transaccionesFiltradasYProcesadas.length} registros</span>
                 
-                {macroFiltroSeleccionado && (
-                  <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-md text-[8px] font-black tracking-wide w-fit">
-                    <span>FILTRADO POR: {macroFiltroSeleccionado}</span>
-                    <button 
-                      type="button" 
-                      onClick={() => setMacroFiltroSeleccionado(null)} 
-                      className="text-emerald-500 hover:text-emerald-300 font-sans text-[10px] pl-1 font-bold cursor-pointer bg-transparent border-none"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </div>
+                  {macroFiltroSeleccionado && (
+                    /* <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-md text-[8px] font-black tracking-wide w-fit"> */
+                    <div className="flex items-center gap-1.5 bg-theme-accent/10 border border-theme-accent/30 text-theme-accent px-2 py-0.5 rounded-md text-[8px] font-black tracking-wide w-fit">
+                      <span>FILTRADO POR: {macroFiltroSeleccionado}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setMacroFiltroSeleccionado(null)} 
+                        /* className="text-emerald-500 hover:text-emerald-300 font-sans text-[10px] pl-1 font-bold cursor-pointer bg-transparent border-none" */
+                        className="text-theme-accent hover:opacity-80 font-sans text-[10px] pl-1 font-bold cursor-pointer bg-transparent border-none"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-4">
-                  <span className="text-zinc-400">Pág. <span className="text-slate-100 tabular-nums">{paginaActual}</span> de <span className="text-slate-100 tabular-nums">{totalPaginas}</span></span>
+                  {/* <span className="text-zinc-400">Pág. <span className="text-slate-100 tabular-nums">{paginaActual}</span> de <span className="text-slate-100 tabular-nums">{totalPaginas}</span></span> */}
+                  <span className="text-theme-text/60">Pág. <span className="text-theme-text tabular-nums">{paginaActual}</span> de <span className="text-theme-text tabular-nums">{totalPaginas}</span></span>
                   <div className="flex gap-1">
-                    <button type="button" disabled={paginaActual === 1} onClick={() => setPaginaActual(prev => prev - 1)} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 disabled:opacity-30 border border-zinc-800 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer">&lt; Ant</button>
-                    <button type="button" disabled={paginaActual === totalPaginas} onClick={() => setPaginaActual(prev => prev + 1)} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 disabled:opacity-30 border border-zinc-800 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer">Sig &gt;</button>
+                    {/* <button type="button" disabled={paginaActual === 1} onClick={() => setPaginaActual(prev => prev - 1)} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 disabled:opacity-30 border border-zinc-800 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer">&lt; Ant</button> */}
+                    <button type="button" disabled={paginaActual === 1} onClick={() => setPaginaActual(prev => prev - 1)} className="bg-theme-bg hover:opacity-80 text-theme-text disabled:opacity-30 border border-theme-border px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer">&lt; Ant</button>
+                    {/* <button type="button" disabled={paginaActual === totalPaginas} onClick={() => setPaginaActual(prev => prev + 1)} className="bg-zinc-900 hover:bg-zinc-800 text-zinc-300 disabled:opacity-30 border border-zinc-800 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer">Sig &gt;</button> */}
+                    <button type="button" disabled={paginaActual === totalPaginas} onClick={() => setPaginaActual(prev => prev + 1)} className="bg-theme-bg hover:opacity-80 text-theme-text disabled:opacity-30 border border-theme-border px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer">Sig &gt;</button>
                   </div>
                 </div>
               </div>
 
               <table className="w-full">
-                <thead className="bg-zinc-950 text-zinc-400 text-[9px] uppercase tracking-widest font-black border-b border-zinc-800">
+                {/* <thead className="bg-zinc-950 text-zinc-400 text-[9px] uppercase tracking-widest font-black border-b border-zinc-800"> */}
+                <thead className="bg-theme-bg text-theme-text/60 text-[9px] uppercase tracking-widest font-black border-b border-theme-border">
                   <tr>
                     <th className="p-4 text-left">Detalle / Fecha</th>
                     <th className="p-4 text-left">Categoría Macro</th>
@@ -711,7 +808,8 @@ export default function Finanzas({ refreshTrigger }) {
                     <th className="p-4 text-right">Importe</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800 text-left">
+                {/* <tbody className="divide-y divide-zinc-800 text-left"> */}
+                <tbody className="divide-y divide-theme-border/40 text-left">
                   {transaccionesPaginadas.length > 0 ? transaccionesPaginadas.map((t, idx) => {
                     const rubro = t.rubroFinal;
                     const macro = t.macroFinal;
@@ -722,23 +820,30 @@ export default function Finanzas({ refreshTrigger }) {
                     const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO";
 
                     return (
-                      <tr key={idx} className="hover:bg-zinc-800/40 transition-colors">
+                      /* <tr key={idx} className="hover:bg-zinc-800/40 transition-colors"> */
+                      <tr key={idx} className="hover:bg-theme-border/10 transition-colors">
                         <td className="p-4">
-                          <div className="text-xs font-black text-slate-100 uppercase tracking-tight leading-tight">{t.Descripción || t.descripcion}</div>
-                          <div className="text-[8px] font-bold text-zinc-600 font-mono mt-0.5">{t.Fecha || t.fecha}</div>
+                          {/* <div className="text-xs font-black text-slate-100 uppercase tracking-tight leading-tight">{t.Descripción || t.descripcion}</div> */}
+                          <div className="text-xs font-black text-theme-text uppercase tracking-tight leading-tight">{t.Descripción || t.descripcion}</div>
+                          {/* <div className="text-[8px] font-bold text-zinc-600 font-mono mt-0.5">{t.Fecha || t.fecha}</div> */}
+                          <div className="text-[8px] font-bold text-theme-text/40 font-mono mt-0.5">{t.Fecha || t.fecha}</div>
                         </td>
-                        <td className="p-4 text-transform: uppercase text-[10px] font-black text-zinc-300 tracking-tight">{esIngresoPuro ? "INGRESOS" : macro}</td>
+                        {/* <td className="p-4 text-transform: uppercase text-[10px] font-black text-zinc-300 tracking-tight">{esIngresoPuro ? "INGRESOS" : macro}</td> */}
+                        <td className="p-4 text-transform: uppercase text-[10px] font-black text-theme-text/80 tracking-tight">{esIngresoPuro ? "INGRESOS" : macro}</td>
                         <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase bg-zinc-950 border border-zinc-800 italic ${esIngresoPuro ? 'text-emerald-400 border-emerald-500/30' : esDeuda ? 'text-blue-400' : 'text-red-400'}`}>{rubro}</span>
+                          {/* <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase bg-zinc-950 border border-zinc-800 italic ${esIngresoPuro ? 'text-emerald-400 border-emerald-500/30' : esDeuda ? 'text-blue-400' : 'text-red-400'}`}>{rubro}</span> */}
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase bg-theme-bg border border-theme-border italic ${esIngresoPuro ? 'text-theme-trabajo border-theme-trabajo/30' : esDeuda ? 'text-theme-accent' : 'text-theme-casa'}`}>{rubro}</span>
                         </td>
-                        <td className={`p-4 text-right text-xs font-black tabular-nums ${esIngresoPuro ? 'text-emerald-400' : esDeuda ? 'text-blue-400' : 'text-red-400'}`}>
+                        {/* <td className={`p-4 text-right text-xs font-black tabular-nums ${esIngresoPuro ? 'text-emerald-400' : esDeuda ? 'text-blue-400' : 'text-red-400'}`}> */}
+                        <td className={`p-4 text-right text-xs font-black tabular-nums ${esIngresoPuro ? 'text-theme-trabajo' : esDeuda ? 'text-theme-accent' : 'text-theme-casa'}`}>
                           {esIngresoPuro ? '+$' : esDeuda ? '-$' : '-$'}{t.montoAbsoluto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     );
                   }) : (
                     <tr>
-                      <td colSpan="4" className="p-10 text-center text-zinc-600 font-bold uppercase text-xs">Cero registros vinculados en esta quincena</td>
+                      {/* <td colSpan="4" className="p-10 text-center text-zinc-600 font-bold uppercase text-xs">Cero registros vinculados en esta quincena</td> */}
+                      <td colSpan="4" className="p-10 text-center text-theme-text/40 font-bold uppercase text-xs">Cero registros vinculados en esta quincena</td>
                     </tr>
                   )}
                 </tbody>
@@ -751,27 +856,33 @@ export default function Finanzas({ refreshTrigger }) {
       {/* MODAL REGISTRO */}
       {modalRegistro && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border border-zinc-800 border-t-4 border-t-emerald-400">
-            <div className="bg-zinc-950 p-4 text-slate-50 font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-zinc-800">
+          {/* <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border border-zinc-800 border-t-4 border-t-emerald-400"> */}
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border border-theme-border border-t-4 border-t-theme-accent">
+            {/* <div className="bg-zinc-950 p-4 text-slate-50 font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-zinc-800"> */}
+            <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-theme-border">
               Inyectar Registro Financiero
-              <button onClick={() => setModalRegistro(false)} className="cursor-pointer text-zinc-500 hover:text-slate-300"><X className="w-4 h-4" /></button>
+              {/* <button onClick={() => setModalRegistro(false)} className="cursor-pointer text-zinc-500 hover:text-slate-300"><X className="w-4 h-4" /></button> */}
+              <button onClick={() => setModalRegistro(false)} className="cursor-pointer text-theme-text/50 hover:text-theme-text"><X className="w-4 h-4" /></button>
             </div>
             
             <form onSubmit={ejecutarGuardar} className="p-6 space-y-4">
               <div>
-                <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1.5">Naturaleza del Flujo</label>
+                {/* <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1.5">Naturaleza del Flujo</label> */}
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1.5">Naturaleza del Flujo</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setForm(prev => ({ ...prev, tipo: 'GASTO', rubro: listadoRubros[0] || "", descripcion: "" }))}
-                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${form.tipo === 'GASTO' ? 'bg-red-500/10 text-red-400 border-red-500' : 'bg-zinc-950 text-zinc-500 border-zinc-800'}`}
+                    /* className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${form.tipo === 'GASTO' ? 'bg-red-500/10 text-red-400 border-red-500' : 'bg-zinc-950 text-zinc-500 border-zinc-800'}`} */
+                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${form.tipo === 'GASTO' ? 'bg-theme-casa/10 text-theme-casa border-theme-casa' : 'bg-theme-bg text-theme-text/50 border-theme-border'}`}
                   >
                     🔴 Gasto Corriente
                   </button>
                   <button
                     type="button"
                     onClick={() => setForm(prev => ({ ...prev, tipo: 'INGRESO', rubro: 'SUELDO', descripcion: 'NÓMINA QUINCENAL' }))}
-                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${form.tipo === 'INGRESO' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500' : 'bg-zinc-950 text-zinc-500 border-zinc-800'}`}
+                    /* className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${form.tipo === 'INGRESO' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500' : 'bg-zinc-950 text-zinc-500 border-zinc-800'}`} */
+                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${form.tipo === 'INGRESO' ? 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo' : 'bg-theme-bg text-theme-text/50 border-theme-border'}`}
                   >
                     🟢 Ingreso Liquido
                   </button>
@@ -779,17 +890,22 @@ export default function Finanzas({ refreshTrigger }) {
               </div>
 
               <div>
-                <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Concepto / Descripción</label>
-                <input type="text" required placeholder="Ej. SUPER DE LA SEMANA" value={form.descripcion} onChange={(e) => setForm(prev => ({...prev, descripcion: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs font-bold text-slate-50 uppercase outline-none focus:border-emerald-400" />
+                {/* <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Concepto / Descripción</label> */}
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Concepto / Descripción</label>
+                {/* <input type="text" required placeholder="Ej. SUPER DE LA SEMANA" value={form.descripcion} onChange={(e) => setForm(prev => ({...prev, descripcion: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs font-bold text-slate-50 uppercase outline-none focus:border-emerald-400" /> */}
+                <input type="text" required placeholder="Ej. SUPER DE LA SEMANA" value={form.descripcion} onChange={(e) => setForm(prev => ({...prev, descripcion: e.target.value}))} className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent" />
               </div>
               <div>
-                <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Importe ($)</label>
-                <input type="number" step="0.01" required placeholder="0.00" value={form.importe} onChange={(e) => setForm(prev => ({...prev, importe: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 tabular-nums" />
+                {/* <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Importe ($)</label> */}
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Importe ($)</label>
+                {/* <input type="number" step="0.01" required placeholder="0.00" value={form.importe} onChange={(e) => setForm(prev => ({...prev, importe: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 tabular-nums" /> */}
+                <input type="number" step="0.01" required placeholder="0.00" value={form.importe} onChange={(e) => setForm(prev => ({...prev, importe: e.target.value}))} className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent tabular-nums" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Sub-Rubro</label>
+                  {/* <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Sub-Rubro</label> */}
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Sub-Rubro</label>
                   {form.tipo === 'INGRESO' ? (
                     <select 
                       value={form.rubro} 
@@ -803,7 +919,8 @@ export default function Finanzas({ refreshTrigger }) {
                           descripcion: val === "SOBRANTE" ? "SOBRANTE PERIODO ANTERIOR" : val === "REGALO" ? "REGALO RECIBIDO" : "NÓMINA QUINCENAL"
                         }));
                       }}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-black text-emerald-400 uppercase outline-none cursor-pointer"
+                      /* className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-black text-emerald-400 uppercase outline-none cursor-pointer" */
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-black text-theme-trabajo uppercase outline-none cursor-pointer"
                     >
                       <option value="SUELDO">💼 SUELDO</option>
                       <option value="SOBRANTE">📦 SOBRANTE</option>
@@ -811,19 +928,23 @@ export default function Finanzas({ refreshTrigger }) {
                       <option value="REGALO">🎁 REGALO</option>
                     </select>
                   ) : (
-                    <select value={form.rubro} onChange={(e) => setForm(prev => ({...prev, rubro: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 cursor-pointer">
+                    /* <select value={form.rubro} onChange={(e) => setForm(prev => ({...prev, rubro: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 cursor-pointer"> */
+                    <select value={form.rubro} onChange={(e) => setForm(prev => ({...prev, rubro: e.target.value}))} className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer">
                       {listadoRubros.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   )}
                 </div>
                 <div>
-                  <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Canal de Destino/Origen</label>
-                  <select value={form.metodo_pago} onChange={(e) => setForm(prev => ({...prev, metodo_pago: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 cursor-pointer">
+                  {/* <label className="block text-[9px] font-black uppercase text-zinc-400 mb-1">Canal de Destino/Origen</label> */}
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Canal de Destino/Origen</label>
+                  {/* <select value={form.metodo_pago} onChange={(e) => setForm(prev => ({...prev, metodo_pago: e.target.value}))} className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-[11px] font-bold text-slate-50 uppercase outline-none focus:border-emerald-400 cursor-pointer"> */}
+                  <select value={form.metodo_pago} onChange={(e) => setForm(prev => ({...prev, metodo_pago: e.target.value}))} className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer">
                     {listaMetodos.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
-              <button type="submit" disabled={guardando} className="w-full bg-emerald-400 hover:bg-emerald-500 text-zinc-950 py-3 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-2">
+              {/* <button type="submit" disabled={guardando} className="w-full bg-emerald-400 hover:bg-emerald-500 text-zinc-950 py-3 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-2"> */}
+              <button type="submit" disabled={guardando} className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-2">
                 {guardando ? 'Sincronizando con Google Sheets...' : 'Ejecutar Transacción'}
               </button>
             </form>
@@ -834,19 +955,25 @@ export default function Finanzas({ refreshTrigger }) {
       {/* MODAL AJUSTAR SALDOS */}
       {modalSaldos && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border border-zinc-800 border-t-4 border-t-zinc-400">
-            <div className="bg-zinc-950 p-4 text-slate-50 font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-zinc-800">
+          {/* <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border border-zinc-800 border-t-4 border-t-zinc-400"> */}
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border border-theme-border border-t-4 border-t-theme-accent">
+            {/* <div className="bg-zinc-950 p-4 text-slate-50 font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-zinc-800"> */}
+            <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-theme-border">
               Corte y Liquidación de Saldos
-              <button onClick={() => setModalSaldos(false)} className="cursor-pointer text-zinc-500 hover:text-slate-300"><X className="w-4 h-4" /></button>
+              {/* <button onClick={() => setModalSaldos(false)} className="cursor-pointer text-zinc-500 hover:text-slate-300"><X className="w-4 h-4" /></button> */}
+              <button onClick={() => setModalSaldos(false)} className="cursor-pointer text-theme-text/50 hover:text-theme-text"><X className="w-4 h-4" /></button>
             </div>
             
             <form onSubmit={ejecutarActualizarSaldos} className="p-6 space-y-4 max-h-[450px] overflow-y-auto custom-scrollbar">
-              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Modifica los fondos corrientes de tu columna C de la hoja:</p>
+              {/* <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Modifica los fondos corrientes de tu columna C de la hoja:</p> */}
+              <p className="text-[9px] font-bold text-theme-text/50 uppercase tracking-wider mb-2">Modifica los fondos corrientes de tu columna C de la hoja:</p>
               
               <div className="space-y-3">
                 {Object.keys(saldosCuentas).map(metodo => (
-                  <div key={metodo} className="flex justify-between items-center bg-zinc-950 p-2 rounded-lg border border-zinc-900">
-                    <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tight">{metodo}</label>
+                  /* <div key={metodo} className="flex justify-between items-center bg-zinc-950 p-2 rounded-lg border border-zinc-900"> */
+                  <div key={metodo} className="flex justify-between items-center bg-theme-bg p-2 rounded-lg border border-theme-border">
+                    {/* <label className="text-[10px] font-black uppercase text-zinc-400 tracking-tight">{metodo}</label> */}
+                    <label className="text-[10px] font-black uppercase text-theme-text/60 tracking-tight">{metodo}</label>
                     <input 
                       type="number" 
                       step="0.01" 
@@ -855,13 +982,15 @@ export default function Finanzas({ refreshTrigger }) {
                         const val = parseFloat(e.target.value) || 0;
                         setSaldosCuentas(prev => ({ ...prev, [metodo]: val }));
                       }} 
-                      className="w-28 bg-zinc-900 border border-zinc-800 rounded p-1 text-right text-xs font-bold text-slate-50 outline-none focus:border-zinc-500 tabular-nums" 
+                      /* className="w-28 bg-zinc-900 border border-zinc-800 rounded p-1 text-right text-xs font-bold text-slate-50 outline-none focus:border-zinc-500 tabular-nums" */
+                      className="w-28 bg-theme-bg border border-theme-border rounded p-1 text-right text-xs font-bold text-theme-text outline-none focus:border-theme-accent tabular-nums" 
                     />
                   </div>
                 ))}
               </div>
 
-              <button type="submit" disabled={guardando} className="w-full bg-zinc-200 hover:bg-zinc-100 text-zinc-950 py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-4">
+              {/* <button type="submit" disabled={guardando} className="w-full bg-zinc-200 hover:bg-zinc-100 text-zinc-950 py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-4"> */}
+              <button type="submit" disabled={guardando} className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-4">
                 {guardando ? 'Sincronizando Columnas C y D...' : 'Inyectar Cambios a Sheets'}
               </button>
             </form>

@@ -49,16 +49,16 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
   const totalDiasLinea = bloquesTimeline.reduce((acc, b) => acc + b.duracionDias, 0);
 
   return (
-    <div className="bg-zinc-950 p-6 rounded-2xl border border-zinc-900/80 mb-6 shadow-inner text-left">
+    <div className="bg-theme-bg p-6 rounded-2xl border border-theme-border/80 mb-6 shadow-inner text-left">
       <div className="flex items-center gap-2 mb-8">
-        <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-        <h3 className="text-xs font-black uppercase text-zinc-400 tracking-wider italic">
+        <div className="w-2 h-2 rounded-full bg-theme-accent shadow-sm" />
+        <h3 className="text-xs font-black uppercase text-theme-text/60 tracking-wider italic">
           Timeline
         </h3>
       </div>
 
       {/* Contenedor de Desplazamiento Horizontal */}
-      <div className="overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+      <div className="overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-theme-border scrollbar-track-transparent">
         {/* Forzamos un ancho mínimo amplio para que se aprecien las proporciones de los días */}
         <div className="min-w-[1100px] flex items-start relative py-4 px-2">
           
@@ -69,23 +69,23 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
             // Proporción del bloque respecto a la duración total del tiempo
             const anchoPorcentaje = (item.duracionDias / totalDiasLinea) * 100;
 
-            // Determinar colores basados en tu paleta de Comités y Urgencia
-            let colorBloque = "bg-blue-600/20 border-blue-500/45 text-blue-400 hover:bg-blue-600/30";
-            let colorTextoComite = "text-blue-500";
+            // Determinar colores basados en la paleta del tema dinámico
+            let colorBloque = "bg-theme-bg border-theme-border text-theme-accent hover:border-theme-accent";
+            let colorTextoComite = "text-theme-accent";
             
             const origen = (item.Tema || "").trim().toUpperCase();
             if (esVencido) {
-              colorBloque = "bg-rose-600/20 border-rose-500/40 text-rose-400 hover:bg-rose-600/30 animate-pulse";
-              colorTextoComite = "text-rose-500";
+              colorBloque = "bg-theme-casa/10 border-theme-casa text-theme-casa hover:bg-theme-casa/20 animate-pulse";
+              colorTextoComite = "text-theme-casa";
             } else if (origen.includes("TECNOVIGILANCIA")) {
-              colorBloque = "bg-cyan-600/20 border-cyan-500/40 text-cyan-400 hover:bg-cyan-600/30";
-              colorTextoComite = "text-cyan-500";
+              colorBloque = "bg-theme-accent/10 border-theme-accent/60 text-theme-accent hover:bg-theme-accent/20";
+              colorTextoComite = "text-theme-accent";
             } else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA")) {
-              colorBloque = "bg-purple-600/20 border-purple-500/40 text-purple-400 hover:bg-purple-600/30";
-              colorTextoComite = "text-purple-500";
+              colorBloque = "bg-theme-trabajo/10 border-theme-trabajo/60 text-theme-trabajo hover:bg-theme-trabajo/20";
+              colorTextoComite = "text-theme-trabajo";
             } else if (origen.includes("COMPRA")) {
-              colorBloque = "bg-amber-600/20 border-amber-500/40 text-amber-400 hover:bg-amber-600/30";
-              colorTextoComite = "text-amber-500";
+              colorBloque = "bg-theme-casa/10 border-theme-casa/60 text-theme-casa hover:bg-theme-casa/20";
+              colorTextoComite = "text-theme-casa";
             }
 
             return (
@@ -96,10 +96,10 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
               >
                 {/* 1. PARTE SUPERIOR: Fechas de Corte y Días Restantes */}
                 <div className="mb-3 px-2 flex flex-col items-center text-center">
-                  <span className="text-[9px] font-black text-zinc-350 tracking-tighter uppercase bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-md">
+                  <span className="text-[9px] font-black text-theme-text/80 tracking-tighter uppercase bg-theme-bg border border-theme-border px-2 py-0.5 rounded-md">
                     {item['Fecha compromiso']}
                   </span>
-                  <span className={`text-[8px] font-bold mt-1 uppercase tracking-tight ${esVencido ? 'text-rose-400' : 'text-zinc-500'}`}>
+                  <span className={`text-[8px] font-bold mt-1 uppercase tracking-tight ${esVencido ? 'text-theme-casa' : 'text-theme-text/50'}`}>
                     {esVencido ? `Vencido hace ${Math.abs(item.diasRestantes)}d` : `Faltan ${item.diasRestantes}d`}
                   </span>
                 </div>
@@ -115,7 +115,7 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                   
                   {/* Pequeño indicador de flujo en medio */}
                   {idx < bloquesTimeline.length - 1 && (
-                    <div className="absolute -right-1.5 top-1/2 transform -translate-y-1/2 text-zinc-700 font-bold text-xs z-20 pointer-events-none group-hover:text-zinc-500 transition-colors">
+                    <div className="absolute -right-1.5 top-1/2 transform -translate-y-1/2 text-theme-text/40 font-bold text-xs z-20 pointer-events-none group-hover:text-theme-text transition-colors">
                       ➔
                     </div>
                   )}
@@ -128,7 +128,7 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                   </span>
                   <p 
                     onClick={() => alHacerClickItem(item)}
-                    className="text-[10px] font-black uppercase text-zinc-300 leading-snug tracking-tight line-clamp-2 cursor-pointer hover:text-blue-400 transition-colors"
+                    className="text-[10px] font-black uppercase text-theme-text leading-snug tracking-tight line-clamp-2 cursor-pointer hover:text-theme-accent transition-colors"
                     title={textoLimpio}
                   >
                     {textoLimpio}
@@ -144,6 +144,7 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
     </div>
   );
 }
+
 export default function Proyectos() {
   const [acuerdos, setAcuerdos] = useState([]);
   const [acuerdosFiltrados, setAcuerdosFiltrados] = useState([]);
@@ -252,7 +253,7 @@ export default function Proyectos() {
   };
 
   if (cargando) {
-    return <p className="text-xs font-black uppercase tracking-wider text-slate-500 animate-pulse text-left">Actualizando...</p>;
+    return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left">Actualizando...</p>;
   }
 
   const totalCriticosGeneral = acuerdos.filter(item => {
@@ -265,24 +266,24 @@ export default function Proyectos() {
     <div className="space-y-6 text-left relative">
       
       {/* Encabezado */}
-      <div className="flex justify-between items-end border-b border-zinc-800 pb-4">
+      <div className="flex justify-between items-end border-b border-theme-border pb-4">
         <div>
-          <h2 className="text-2xl font-black text-blue-400 tracking-tighter uppercase italic">Seguimiento de Minutas</h2>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 italic">Dashboard de Acuerdos / Compromisos</p>
+          <h2 className="text-2xl font-black text-theme-accent tracking-tighter uppercase italic">Seguimiento de Minutas</h2>
+          <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">Dashboard de Acuerdos / Compromisos</p>
         </div>
-        <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase italic tracking-tighter text-white ${totalCriticosGeneral > 0 ? 'bg-rose-600 animate-pulse' : 'bg-emerald-600'}`}>
+        <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase italic tracking-tighter text-theme-bg ${totalCriticosGeneral > 0 ? 'bg-theme-casa animate-pulse' : 'bg-theme-trabajo'}`}>
           {totalCriticosGeneral} Pendientes Vencidos
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-2 bg-zinc-900/50 p-2 rounded-xl border border-zinc-800/40 items-center">
-        <span className="text-[9px] font-black uppercase text-zinc-500 px-2 flex items-center gap-1">
+      <div className="flex flex-wrap gap-2 bg-theme-bg p-2 rounded-xl border border-theme-border/40 items-center">
+        <span className="text-[9px] font-black uppercase text-theme-text/60 px-2 flex items-center gap-1">
           <Filter className="w-3 h-3" /> Filtrar:
         </span>
         <button
           onClick={() => setFiltroActivo('Todos')}
-          className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtroActivo === 'Todos' ? 'bg-blue-600 text-white shadow-md' : 'bg-zinc-900 text-zinc-400 hover:text-slate-200 border border-zinc-800'}`}
+          className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtroActivo === 'Todos' ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
         >
           Todos
         </button>
@@ -290,14 +291,14 @@ export default function Proyectos() {
           <button
             key={comite}
             onClick={() => setFiltroActivo(comite)}
-            className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtroActivo === comite ? 'bg-blue-600 text-white shadow-md' : 'bg-zinc-900 text-zinc-400 hover:text-slate-200 border border-zinc-800'}`}
+            className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtroActivo === comite ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
           >
             {comite.replace('COMITE DE ', '').replace('DEPARTAMENTO DE ', '').replace('UNIDAD DE ', '')}
           </button>
         ))}
       </div>
 
-      {/* INYECCIÓN DE LA NUEVA LÍNEA DE TIEMPO VISUAL */}
+      {/* INYECCIÓN DE LA LÍNEA DE TIEMPO VISUAL */}
       <GanttDashboard
         acuerdos={acuerdosFiltrados} 
         parseFecha={parseFecha} 
@@ -305,26 +306,26 @@ export default function Proyectos() {
         alHacerClickItem={abrirEdicion} 
       />
 
-      {/* Bloques del Dashboard (Tus tarjetas originales quedan abajo intactas) */}
+      {/* Bloques del Dashboard */}
       <div className="space-y-8">
-        <div className="bg-zinc-900/60 p-5 rounded-2xl border border-rose-950/30">
-          <h3 className="text-xs font-black uppercase text-rose-500 mb-4 flex items-center tracking-wider italic"><AlertTriangle class="w-4 h-4 mr-2" /> Acciones Críticas (Vencidas)</h3>
+        <div className="bg-theme-bg p-5 rounded-2xl border border-theme-casa/40">
+          <h3 className="text-xs font-black uppercase text-theme-casa mb-4 flex items-center tracking-wider italic"><AlertTriangle className="w-4 h-4 mr-2" /> Acciones Críticas (Vencidas)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {obtenerCriticos().length > 0 ? obtenerCriticos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={true} onClick={() => abrirEdicion(item)} />) : <p class="text-xs font-bold text-zinc-600 uppercase italic col-span-full p-2">Sin acuerdos vencidos en esta sección.</p>}
+            {obtenerCriticos().length > 0 ? obtenerCriticos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={true} onClick={() => abrirEdicion(item)} />) : <p className="text-xs font-bold text-theme-text/50 uppercase italic col-span-full p-2">Sin acuerdos vencidos en esta sección.</p>}
           </div>
         </div>
 
-        <div className="bg-zinc-900/60 p-5 rounded-2xl border border-zinc-800">
-          <h3 className="text-xs font-black uppercase text-blue-400 mb-4 flex items-center tracking-wider italic"><Calendar class="w-4 h-4 mr-2" /> Próximos Compromisos (En Curso)</h3>
+        <div className="bg-theme-bg p-5 rounded-2xl border border-theme-border">
+          <h3 className="text-xs font-black uppercase text-theme-accent mb-4 flex items-center tracking-wider italic"><Calendar className="w-4 h-4 mr-2" /> Próximos Compromisos (En Curso)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {obtenerProximos().length > 0 ? obtenerProximos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={false} onClick={() => abrirEdicion(item)} />) : <p class="text-xs font-bold text-zinc-600 uppercase italic col-span-full p-2">No hay compromisos futuros programados.</p>}
+            {obtenerProximos().length > 0 ? obtenerProximos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={false} onClick={() => abrirEdicion(item)} />) : <p className="text-xs font-bold text-theme-text/50 uppercase italic col-span-full p-2">No hay compromisos futuros programados.</p>}
           </div>
         </div>
 
-        <div className="bg-zinc-900/20 p-5 rounded-2xl border border-dashed border-zinc-800">
-          <h3 className="text-xs font-black uppercase text-zinc-600 mb-4 flex items-center tracking-wider italic"><CheckCircle2 class="w-4 h-4 mr-2" /> Historial de Acuerdos Concluidos</h3>
+        <div className="bg-theme-bg/50 p-5 rounded-2xl border border-dashed border-theme-border">
+          <h3 className="text-xs font-black uppercase text-theme-text/40 mb-4 flex items-center tracking-wider italic"><CheckCircle2 className="w-4 h-4 mr-2" /> Historial de Acuerdos Concluidos</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {obtenerHistorial().length > 0 ? obtenerHistorial().map((item, i) => <TarjetaAcuerdo key={i} item={item} esHecho={true} onClick={() => abrirEdicion(item)} />) : <p class="text-xs font-bold text-zinc-700 uppercase italic col-span-full p-2">Sin registros archivados.</p>}
+            {obtenerHistorial().length > 0 ? obtenerHistorial().map((item, i) => <TarjetaAcuerdo key={i} item={item} esHecho={true} onClick={() => abrirEdicion(item)} />) : <p className="text-xs font-bold text-theme-text/40 uppercase italic col-span-full p-2">Sin registros archivados.</p>}
           </div>
         </div>
       </div>
@@ -332,29 +333,29 @@ export default function Proyectos() {
       {/* MODAL INTERACTIVO DE EDICIÓN */}
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-blue-500">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-theme-accent">
             <form onSubmit={ejecutarActualizarEstatus} className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-black text-slate-200 uppercase tracking-tighter italic">Editar Compromiso</h4>
-                <button type="button" onClick={() => setMostrarModal(false)} className="text-slate-500 hover:text-slate-300 cursor-pointer"><X className="w-4 h-4" /></button>
+                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic">Editar Compromiso</h4>
+                <button type="button" onClick={() => setMostrarModal(false)} className="text-theme-text/50 hover:text-theme-text cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
 
               <div className="mb-4">
-                <label className="block text-[8px] font-black uppercase text-zinc-500 tracking-wider mb-1">Texto del Acuerdo / Añadir Nota Obsidian entre [ ]</label>
+                <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Texto del Acuerdo / Añadir Nota Obsidian entre [ ]</label>
                 <textarea 
                   value={textoAcuerdoEditado}
                   onChange={(e) => setTextoAcuerdoEditado(e.target.value)}
                   rows={3}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs font-bold text-slate-300 uppercase leading-snug outline-none focus:border-blue-600 resize-none font-sans"
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-xs font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none font-sans"
                   placeholder="Escribe el compromiso aquí... [nombre_nota_obsidian]"
                 />
               </div>
 
-              <label className="block text-[9px] font-black uppercase text-slate-500 mb-1">Estatus en Minuta</label>
+              <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Estatus en Minuta</label>
               <select 
                 value={nuevoStatus}
                 onChange={(e) => setNuevoStatus(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm font-bold uppercase outline-none text-slate-200 focus:border-blue-600 mb-6"
+                className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-sm font-bold uppercase outline-none text-theme-text focus:border-theme-accent mb-6"
               >
                 <option value="PENDIENTE">PENDIENTE</option>
                 <option value="HECHO">HECHO (Mover a Historial)</option>
@@ -362,11 +363,11 @@ export default function Proyectos() {
               </select>
 
               <div className="flex gap-2">
-                <button type="button" onClick={() => setMostrarModal(false)} className="flex-1 text-[10px] font-black uppercase text-slate-500 hover:text-slate-300 cursor-pointer">Cancelar</button>
+                <button type="button" onClick={() => setMostrarModal(false)} className="flex-1 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer">Cancelar</button>
                 <button 
                   type="submit" 
                   disabled={guardando}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
+                  className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   {guardando ? 'Sincronizando...' : 'Confirmar'}
                 </button>
@@ -380,13 +381,13 @@ export default function Proyectos() {
   );
 }
 
-// Subcomponente original TarjetaAcuerdo (Corregido class a className por consistencia en React)
+// Subcomponente TarjetaAcuerdo
 function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
-  let badgeColor = "bg-zinc-800 text-zinc-400 border-zinc-700";
+  let badgeColor = "bg-theme-bg text-theme-text/70 border-theme-border";
   const origen = (item.Tema || "").trim().toUpperCase();
-  if (origen.includes("TECNOVIGILANCIA")) badgeColor = "bg-blue-950/40 text-blue-400 border-blue-900/40";
-  else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA")) badgeColor = "bg-purple-950/40 text-purple-400 border-purple-900/40";
-  else if (origen.includes("COMPRA")) badgeColor = "bg-amber-950/40 text-amber-400 border-amber-900/40";
+  if (origen.includes("TECNOVIGILANCIA")) badgeColor = "bg-theme-accent/10 text-theme-accent border-theme-accent/40";
+  else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA")) badgeColor = "bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/40";
+  else if (origen.includes("COMPRA")) badgeColor = "bg-theme-casa/10 text-theme-casa border-theme-casa/40";
 
   const NOMBRE_VAULT = "Obsidian"; 
 
@@ -399,13 +400,13 @@ function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
     ? `obsidian://open?vault=${encodeURIComponent(NOMBRE_VAULT)}&file=${encodeURIComponent(nombreArchivoObsidian)}`
     : null;
 
-  let estiloFondoTarjeta = "border-zinc-800/80";
+  let estiloFondoTarjeta = "border-theme-border/80";
   if (esHecho) {
-    estiloFondoTarjeta = "opacity-30 saturate-50 border-zinc-800";
+    estiloFondoTarjeta = "opacity-40 saturate-50 border-theme-border";
   } else if (esVencido) {
-    estiloFondoTarjeta = "border-l-4 border-l-rose-500 border-rose-950/40 bg-rose-950/5";
+    estiloFondoTarjeta = "border-l-4 border-l-theme-casa border-theme-casa/40 bg-theme-casa/5";
   } else if (urlObsidian) {
-    estiloFondoTarjeta = "border-blue-500/50 bg-[#0c4a6e]/10 hover:border-blue-400 shadow-[0_0_15px_rgba(56,189,248,0.03)]";
+    estiloFondoTarjeta = "border-theme-accent/60 bg-theme-accent/5 hover:border-theme-accent shadow-md";
   }
 
   const manejarClickObsidian = (e) => {
@@ -415,7 +416,7 @@ function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
   return (
     <div 
       onClick={onClick}
-      className={`bg-zinc-900 border p-4 rounded-xl shadow-md flex flex-col justify-between group min-h-[140px] cursor-pointer hover:border-zinc-700 transition-all duration-300 ${estiloFondoTarjeta}`}
+      className={`bg-theme-bg border p-4 rounded-xl shadow-md flex flex-col justify-between group min-h-[140px] cursor-pointer hover:border-theme-border/80 transition-all duration-300 ${estiloFondoTarjeta}`}
     >
       <div>
         <div className="flex justify-between items-start mb-3 gap-2">
@@ -427,28 +428,28 @@ function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
                 href={urlObsidian} 
                 onClick={manejarClickObsidian}
                 title={`Abrir nota "${nombreArchivoObsidian}" en Obsidian`}
-                className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded border bg-[#0c4a6e] text-blue-400 border-blue-900/40 hover:bg-[#0ea5e9] hover:text-white transition-all duration-200"
+                className="flex items-center gap-1 text-[8px] font-black uppercase px-2 py-0.5 rounded border bg-theme-accent text-theme-bg border-theme-accent hover:opacity-80 transition-all duration-200"
               >
                 OBSIDIAN <ExternalLink className="w-2 h-2" />
               </a>
             )}
 
             <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${
-              esHecho ? 'bg-emerald-950/60 text-emerald-400 border-emerald-900/40' : (esVencido ? 'bg-rose-950 text-rose-400 border-rose-900/40' : 'bg-zinc-800 text-zinc-400 border-zinc-700')
+              esHecho ? 'bg-theme-trabajo/20 text-theme-trabajo border-theme-trabajo/40' : (esVencido ? 'bg-theme-casa/20 text-theme-casa border-theme-casa/40' : 'bg-theme-bg text-theme-text/60 border-theme-border')
             }`}>{item.Status}</span>
           </div>
         </div>
-        <p className="text-[11px] text-slate-200 font-medium leading-snug uppercase tracking-tight line-clamp-3 group-hover:line-clamp-none transition-all duration-300">
+        <p className="text-[11px] text-theme-text font-medium leading-snug uppercase tracking-tight line-clamp-3 group-hover:line-clamp-none transition-all duration-300">
           {textoLimpioParaMostrar}
         </p>
       </div>
       
-      <div className="flex justify-between items-center mt-4 pt-2 border-t border-zinc-800/60 text-zinc-500 font-bold text-[9px]">
-        <span className="italic text-slate-400 flex items-center gap-1">
-          <User className="w-3 h-3 text-zinc-600" /> {item.Responsable || 'BIOMÉDICA'}
+      <div className="flex justify-between items-center mt-4 pt-2 border-t border-theme-border/40 text-theme-text/60 font-bold text-[9px]">
+        <span className="italic text-theme-text/70 flex items-center gap-1">
+          <User className="w-3 h-3 text-theme-text/40" /> {item.Responsable || 'BIOMÉDICA'}
         </span>
-        <span className={`flex items-center gap-1 font-black ${esVencido ? 'text-rose-400' : 'text-slate-300'}`}>
-          <Calendar className="w-3 h-3 text-zinc-500" /> {item['Fecha compromiso']}
+        <span className={`flex items-center gap-1 font-black ${esVencido ? 'text-theme-casa' : 'text-theme-text'}`}>
+          <Calendar className="w-3 h-3 text-theme-text/50" /> {item['Fecha compromiso']}
         </span>
       </div>
     </div>
