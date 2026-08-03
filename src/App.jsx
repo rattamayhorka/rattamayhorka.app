@@ -9,7 +9,6 @@ import GestionProyectos from './components/GestionProyectos';
 import GastosCasa from './components/GastosCasa';
 import Deudas from './components/Deudas';
 
-// 🛠️ Agregamos los iconos necesarios para el menú compacto
 import {
   Lock,
   LogOut,
@@ -25,16 +24,39 @@ import {
   Database,
   KeyRound,
   Send,
-  CreditCard
+  CreditCard,
+  Palette // 🎨 Agregamos el ícono para el selector de tema
 } from 'lucide-react';
+
+const LISTA_TEMAS = [
+  { id: 'tokyo', nombre: 'Tokyo Night' },
+  { id: 'dracula', nombre: 'Dracula' },
+  { id: 'dracula.v2', nombre: 'Draculav2' },
+
+  { id: 'monokai', nombre: 'Monokai Pro' },
+  { id: 'onedark', nombre: 'One Dark Pro' },
+  { id: 'synthwave', nombre: 'Cyberpunk' },
+  { id: 'nord', nombre: 'Nord Dark' },
+  { id: 'amber', nombre: 'Retro Amber' },
+  { id: 'matrix', nombre: 'Matrix Green' }
+];
 
 export default function App() {
   const [seccionActiva, setSeccionActiva] = useState('kanban');
   const [autenticado, setAutenticado] = useState(false);
   const [refreshKeys, setRefreshKeys] = useState({});
 
-  // 🔐 NUEVOS ESTADOS PARA AUTENTICACIÓN POR TELEGRAM
-  const [pasoAuth, setPasoAuth] = useState(1); // 1: Solicitar código, 2: Verificar código
+  // 🎨 ESTADO Y PERSISTENCIA DE TEMAS
+  const [tema, setTema] = useState(() => {
+    return localStorage.getItem('theme_app') || 'tokyo';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', tema);
+    localStorage.setItem('theme_app', tema);
+  }, [tema]);
+
+  const [pasoAuth, setPasoAuth] = useState(1);
   const [codigoInput, setCodigoInput] = useState('');
   const [tempToken, setTempToken] = useState('');
   const [errorAuth, setErrorAuth] = useState('');
@@ -49,23 +71,20 @@ export default function App() {
     casa_gastos: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=361143608',
     deudas: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=2015874162',
     proyectos_grafo: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1108017808',
-    
-    // URL por defecto en caso de que la clave no exista
     default: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407'
   };
 
+  useEffect(() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      setAutenticado(true);
+      return;
+    }
 
-   useEffect(() => {
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        setAutenticado(true);
-        return;
-      }
-
-      const sesionValida = sessionStorage.getItem('sesion_biomedica_st');
-            if (sesionValida) {
-        setAutenticado(true);
-      }
-    }, []);
+    const sesionValida = sessionStorage.getItem('sesion_biomedica_st');
+    if (sesionValida) {
+      setAutenticado(true);
+    }
+  }, []);
 
   if (window.location.pathname === '/registro') {
     return <RegistroRapido />;
@@ -82,7 +101,6 @@ export default function App() {
     }
   };
 
-  // 🚀 SOLICITAR CÓDIGO AL BOT DE TELEGRAM (Llama a tu endpoint de Vercel)
   const solicitarCodigoTelegram = async () => {
     setCargando(true);
     setErrorAuth('');
@@ -103,7 +121,6 @@ export default function App() {
     }
   };
 
-  // 🔐 VERIFICAR CÓDIGO INGRESADO
   const manejarVerificacionCodigo = async (e) => {
     e.preventDefault();
     setCargando(true);
@@ -139,26 +156,19 @@ export default function App() {
     setPasoAuth(1);
   };
 
-  //VISTA DE LOGIN AJUSTADA AL NUEVO FLUJO 2FA TELEGRAM
   if (!autenticado) {
     return (
-      /* <div className="h-screen w-screen bg-[#0f172a] flex items-center justify-center p-4 font-sans text-[#f8fafc]"> */
       <div className="h-screen w-screen bg-theme-bg flex items-center justify-center p-4 font-mono text-theme-text">
-        {/* <div className="bg-[#1e293b] border border-[#334155] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-8 border-t-4 border-t-[#38bdf8]"> */}
         <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-center p-8 border-t-4 border-t-theme-accent">
-          {/* <div className="h-12 w-12 rounded-full bg-[#0c4a6e] border border-[#334155] flex items-center justify-center mx-auto mb-4 text-[#38bdf8]"> */}
           <div className="h-12 w-12 rounded-full bg-theme-bg border border-theme-border flex items-center justify-center mx-auto mb-4 text-theme-accent">
             {pasoAuth === 1 ? <Send className="w-5 h-5 animate-pulse" /> : <KeyRound className="w-5 h-5" />}
           </div>
-          {/* <h2 className="text-xl font-black uppercase italic tracking-tighter text-[#f8fafc] mb-1"> */}
           <h2 className="text-xl font-black uppercase italic tracking-tighter text-theme-text mb-1">
             {pasoAuth === 1 ? 'Mandar Token' : 'Verificación 2FA'}
           </h2>
-          {/* <p className="text-[10px] font-bold text-[#94a3b8] uppercase tracking-widest mb-6">rattamayhorka.app</p> */}
           <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mb-6">rattamayhorka.app</p>
           
           {errorAuth && (
-            /* <p className="text-[10px] font-black text-rose-400 uppercase italic text-center tracking-tight mb-4 bg-rose-950/30 p-2 rounded-xl border border-rose-900/30"> */
             <p className="text-[10px] font-black text-theme-casa uppercase italic text-center tracking-tight mb-4 bg-theme-casa/10 p-2 rounded-xl border border-theme-casa/30">
               {errorAuth}
             </p>
@@ -166,14 +176,12 @@ export default function App() {
 
           {pasoAuth === 1 ? (
             <div className="space-y-4">
-              {/* <p className="text-xs text-[#94a3b8] text-center leading-relaxed"> */}
               <p className="text-xs text-theme-text/60 text-center leading-relaxed">
                 Para acceder, solicita un token único de acceso que se enviará directamente a tu cuenta de Telegram vinculada.
               </p>
               <button 
                 onClick={solicitarCodigoTelegram}
                 disabled={cargando}
-                /* className="w-full bg-[#38bdf8] hover:bg-[#0ea5e9] text-slate-950 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all cursor-pointer mt-2 disabled:opacity-50" */
                 className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all cursor-pointer mt-2 disabled:opacity-50"
               >
                 {cargando ? 'Enviando...' : 'Solicitar Código por Telegram'}
@@ -182,7 +190,6 @@ export default function App() {
           ) : (
             <form onSubmit={manejarVerificacionCodigo} className="space-y-4 text-left">
               <div>
-                {/* <label className="block text-[9px] font-black uppercase text-[#94a3b8] mb-1.5 tracking-wider text-center"> */}
                 <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1.5 tracking-wider text-center">
                   Introduce el Token de 6 dígitos
                 </label>
@@ -193,14 +200,12 @@ export default function App() {
                   onChange={(e) => setCodigoInput(e.target.value)}
                   placeholder="000000" 
                   disabled={cargando}
-                  /* className="w-full bg-[#0f172a] border border-[#334155] rounded-xl p-3 text-lg text-center tracking-widest text-[#38bdf8] font-mono outline-none focus:border-[#38bdf8] transition-all" */
                   className="w-full bg-theme-bg border border-theme-border rounded-xl p-3 text-lg text-center tracking-widest text-theme-accent font-mono outline-none focus:border-theme-accent transition-all"
                 />
               </div>
               <button 
                 type="submit" 
                 disabled={cargando || codigoInput.length < 6}
-                /* className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all cursor-pointer mt-2 disabled:opacity-50" */
                 className="w-full bg-theme-trabajo hover:opacity-90 text-theme-bg py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all cursor-pointer mt-2 disabled:opacity-50"
               >
                 {cargando ? 'Verificando...' : 'Validar Acceso'}
@@ -208,7 +213,6 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setPasoAuth(1)}
-                /* className="w-full text-center text-[9px] font-bold uppercase text-[#94a3b8] hover:text-[#f8fafc] transition-all block mt-2" */
                 className="w-full text-center text-[9px] font-bold uppercase text-theme-text/60 hover:text-theme-text transition-all block mt-2"
               >
                 ← Volver a solicitar código
@@ -221,30 +225,18 @@ export default function App() {
   }
 
   return (
-    /* <div className="bg-[#0f172a] text-[#f8fafc] flex h-dvh overflow-hidden font-sans"> */
     <div className="bg-theme-bg text-theme-text flex h-dvh overflow-hidden font-mono">
-      
-      {/* MENÚ LATERAL RESPONSIVO CON SCROLL INTERNO PARA TABLETS */}
-      {/* <div className="w-16 xl:w-64 bg-[#1e293b] shadow-2xl border-r border-[#334155] flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200"> */}
       <div className="w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
         
-        {/* CONTENEDOR SUPERIOR CON SCROLL SOLO EN LOS BOTONES */}
         <div className="flex flex-col h-dvh overflow-hidden">
-          {/* Título adaptable (Fijo arriba) */}
-          {/* <div className="hidden xl:block p-6 font-black text-[#38bdf8] border-b border-[#334155] italic uppercase tracking-tighter text-xl flex-shrink-0"> */}
           <div className="hidden xl:block p-6 font-black text-theme-accent border-b border-theme-border italic uppercase tracking-tighter text-xl flex-shrink-0">
             Enfoque
           </div>
 
-          {/* 🛠️ NAV CON SCROLL INTERNO */}
           <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2 min-h-0 custom-scrollbar">
-            
             <button 
               onClick={() => cambiarSeccion('bullet')} 
               title="Bullet"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'bullet' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'bullet' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
@@ -256,9 +248,6 @@ export default function App() {
             <button 
               onClick={() => cambiarSeccion('kanban')} 
               title="Kanban Trabajo"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'kanban' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'kanban' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
@@ -270,9 +259,6 @@ export default function App() {
             <button 
               onClick={() => cambiarSeccion('futureloghst')} 
               title="Future LOG Trabajo"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'futureloghst' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'futureloghst' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
@@ -281,8 +267,6 @@ export default function App() {
               <span className="hidden xl:inline px-1">Future LOG</span>
             </button>
 
-            {/* Sección Trabajo */}
-            {/* <div className="hidden xl:block text-[11px] font-black text-[#38bdf8] uppercase tracking-widest px-3 mb-1 mt-6"> */}
             <div className="hidden xl:block text-[11px] font-black text-theme-trabajo uppercase tracking-widest px-3 mb-1 mt-6">
               Trabajo
             </div>
@@ -290,9 +274,6 @@ export default function App() {
             <button 
               onClick={() => cambiarSeccion('compromisos')} 
               title="Compromisos"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'compromisos' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'compromisos' ? 'bg-theme-trabajo text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
@@ -304,9 +285,6 @@ export default function App() {
             <button 
               onClick={() => cambiarSeccion('compras')} 
               title="Compras"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'compras' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'compras' ? 'bg-theme-trabajo text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
@@ -315,8 +293,6 @@ export default function App() {
               <span className="hidden xl:inline px-1">Compras</span>
             </button>
             
-            {/* Sección Familia */}
-            {/* <div className="hidden xl:block text-[11px] font-black text-amber-400 uppercase tracking-widest px-3 mb-1 mt-6"> */}
             <div className="hidden xl:block text-[11px] font-black text-theme-casa uppercase tracking-widest px-3 mb-1 mt-6">
               Familia
             </div>
@@ -324,11 +300,6 @@ export default function App() {
             <button 
               onClick={() => cambiarSeccion('casa_gastos')}  
               title="Finanzas"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'casa_gastos' 
-                  ? 'bg-amber-950/40 text-amber-400 border border-amber-900/40' 
-                  : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'casa_gastos' 
                   ? 'bg-theme-casa text-theme-bg border border-theme-casa' 
@@ -339,15 +310,9 @@ export default function App() {
               <span className="hidden xl:inline px-1">Finanzas</span>
             </button>
 
-            {/* 💳 NUEVO BOTÓN CONTROL DE DEUDAS */}
             <button  
               onClick={() => cambiarSeccion('deudas')}  
               title="Tarjeta y Deudas"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'deudas'  
-                  ? 'bg-blue-950/40 text-blue-400 border border-blue-900/40'  
-                  : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'deudas'  
                   ? 'bg-theme-casa text-theme-bg border border-theme-casa'  
@@ -361,9 +326,6 @@ export default function App() {
             <button  
               onClick={() => cambiarSeccion('proyectos_grafo')}  
               title="Mapa de Proyectos"
-              /* className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'proyectos_grafo' ? 'bg-[#0c4a6e] text-[#38bdf8]' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-[#f8fafc]'
-              }`} */
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'proyectos_grafo' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
@@ -375,42 +337,51 @@ export default function App() {
         </div>
 
         {/* 🛠️ SECCIÓN INFERIOR FIJA */}
-        {/* <div className="p-2 xl:p-4 border-t border-[#334155] bg-[#1e293b] flex flex-col items-center xl:items-stretch gap-2 flex-shrink-0"> */}
         <div className="p-2 xl:p-4 border-t border-theme-border bg-theme-bg flex flex-col items-center xl:items-stretch gap-2 flex-shrink-0">
           
+          {/* 🎨 SELECTOR DE TEMAS */}
+          <div className="w-full flex items-center gap-2 bg-theme-bg border border-theme-border rounded-xl p-2 text-[10px] font-bold uppercase text-theme-text/70">
+            <Palette className="w-4 h-4 text-theme-accent flex-shrink-0" title="Seleccionar tema" />
+            <select
+              value={tema}
+              onChange={(e) => setTema(e.target.value)}
+              className="hidden xl:block bg-transparent text-theme-text outline-none cursor-pointer w-full font-mono text-[10px] uppercase"
+            >
+              {LISTA_TEMAS.map(t => (
+                <option key={t.id} value={t.id} className="bg-theme-bg text-theme-text">
+                  {t.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <a 
             href={ENLACES_DATABASE[seccionActiva] || ENLACES_DATABASE.default} 
             target="_blank" 
             rel="noopener noreferrer"
             title={`Abrir hoja de ${seccionActiva} en Google Sheets`}
-            /* className="w-full bg-zinc-900/60 hover:bg-zinc-800/80 text-slate-400 hover:text-violet-400 font-black p-3 xl:px-4 xl:py-2.5 rounded-xl border border-zinc-800/80 transition-all text-[10px] uppercase tracking-widest flex items-center justify-center xl:justify-between shadow-md" */
             className="w-full bg-theme-bg hover:opacity-80 text-theme-text/70 hover:text-theme-accent font-black p-3 xl:px-4 xl:py-2.5 rounded-xl border border-theme-border transition-all text-[10px] uppercase tracking-widest flex items-center justify-center xl:justify-between shadow-md"
           >
             <Database className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
             <span className="hidden xl:inline">Base de Datos</span>
-            {/* <span className="hidden xl:inline text-zinc-600 text-xs">↗</span> */}
             <span className="hidden xl:inline text-theme-text/40 text-xs">↗</span>
           </a>
 
           <button 
             onClick={cerrarSesion}
             title="Salir del sistema"
-            /* className="w-full flex items-center justify-center gap-2 p-3 xl:p-2.5 text-[10px] font-black uppercase text-rose-400 bg-rose-950/20 border border-rose-900/30 rounded-xl hover:bg-rose-950/50 hover:text-rose-300 transition-all cursor-pointer tracking-wider" */
             className="w-full flex items-center justify-center gap-2 p-3 xl:p-2.5 text-[10px] font-black uppercase text-theme-casa bg-theme-casa/10 border border-theme-casa/30 rounded-xl hover:bg-theme-casa/20 transition-all cursor-pointer tracking-wider"
           >
             <LogOut className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
             <span className="hidden xl:inline">salir</span>
           </button>
           
-          {/* <div className="hidden xl:block text-center text-[9px] font-bold text-[#94a3b8] tracking-widest mt-1"> */}
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
             rattamayhorka b.0.10.3 "colors"
           </div>
         </div>
       </div>
 
-      {/* CONTENEDOR DE TRABAJO */}
-      {/* <main className="flex-1 overflow-y-auto p-4 xl:p-8 bg-[#0f172a]"> */}
       <main className="flex-1 overflow-y-auto p-4 xl:p-8 bg-theme-bg">
         <div id="contenedor-principal">
           {seccionActiva === 'kanban' && (
