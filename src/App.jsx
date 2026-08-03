@@ -28,31 +28,30 @@ import {
 } from 'lucide-react';
 
 const LISTA_TEMAS = [
-  { id: 'tokyo', nombre: 'Tokyo Night' },
-
   { id: 'dracula', nombre: 'Dracula' },
+  { id: 'tokyo', nombre: 'Tokyo Night' },
   { id: 'monokai', nombre: 'Monokai Pro' },
   { id: 'onedark', nombre: 'One Dark Pro' },
   { id: 'synthwave', nombre: 'Cyberpunk' },
   { id: 'nord', nombre: 'Nord Dark' },
   { id: 'catppuccin', nombre: 'Catppuccin' },
-  { id: 'gruvbox', nombre: 'gruvbox' },
-  { id: 'rose-pine', nombre: 'rose-pine' },
-  { id: 'solarized', nombre: 'solarized' },
+  { id: 'gruvbox', nombre: 'Gruvbox' },
+  { id: 'rose-pine', nombre: 'Rosé Pine' },
+  { id: 'solarized', nombre: 'Solarized' },
   { id: 'github-dark', nombre: 'Github Dark' },
   { id: 'amber', nombre: 'Retro Amber' },
   { id: 'matrix', nombre: 'Matrix Green' },
   // Claros
-  { id: 'github-light', nombre: 'Github Light' },
-  { id: 'catppuccin-latte', nombre: 'Catppuccin Latte' },
-  { id: 'solarized-light', nombre: 'Solarized Light' },
-  { id: 'gruvbox-light', nombre: 'Gruvbox Light' },
+  { id: 'tokyo-day', nombre: 'Tokyo Day' },
+  { id: 'monokai-light', nombre: 'Monokai Light' },
   { id: 'one-light', nombre: 'One Light' },
   { id: 'nord-light', nombre: 'Nord Light' },
+  { id: 'catppuccin-latte', nombre: 'Catppuccin Latte' },
+  { id: 'gruvbox-light', nombre: 'Gruvbox Light' },
   { id: 'rose-pine-dawn', nombre: 'Rosé Pine Dawn' },
-  { id: 'tokyo-day', nombre: 'Tokyo Day' },
-  { id: 'papercolor', nombre: 'Papercolor Light' },
-  { id: 'monokai-light', nombre: 'Monokai Light' }
+  { id: 'solarized-light', nombre: 'Solarized Light' },
+  { id: 'github-light', nombre: 'Github Light' },
+  { id: 'papercolor', nombre: 'Papercolor Light' }
 ];
 
 export default function App() {
@@ -386,7 +385,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka b.0.10.3 "colors"
+            rattamayhorka b 0.9.9 "color themes"
           </div>
         </div>
       </div>
