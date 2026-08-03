@@ -24,21 +24,35 @@ import {
   Database,
   KeyRound,
   Send,
-  CreditCard,
-  Palette // 🎨 Agregamos el ícono para el selector de tema
+  CreditCard
 } from 'lucide-react';
 
 const LISTA_TEMAS = [
   { id: 'tokyo', nombre: 'Tokyo Night' },
-  { id: 'dracula', nombre: 'Dracula' },
-  { id: 'dracula.v2', nombre: 'Draculav2' },
 
+  { id: 'dracula', nombre: 'Dracula' },
   { id: 'monokai', nombre: 'Monokai Pro' },
   { id: 'onedark', nombre: 'One Dark Pro' },
   { id: 'synthwave', nombre: 'Cyberpunk' },
   { id: 'nord', nombre: 'Nord Dark' },
+  { id: 'catppuccin', nombre: 'Catppuccin' },
+  { id: 'gruvbox', nombre: 'gruvbox' },
+  { id: 'rose-pine', nombre: 'rose-pine' },
+  { id: 'solarized', nombre: 'solarized' },
+  { id: 'github-dark', nombre: 'Github Dark' },
   { id: 'amber', nombre: 'Retro Amber' },
-  { id: 'matrix', nombre: 'Matrix Green' }
+  { id: 'matrix', nombre: 'Matrix Green' },
+  // Claros
+  { id: 'github-light', nombre: 'Github Light' },
+  { id: 'catppuccin-latte', nombre: 'Catppuccin Latte' },
+  { id: 'solarized-light', nombre: 'Solarized Light' },
+  { id: 'gruvbox-light', nombre: 'Gruvbox Light' },
+  { id: 'one-light', nombre: 'One Light' },
+  { id: 'nord-light', nombre: 'Nord Light' },
+  { id: 'rose-pine-dawn', nombre: 'Rosé Pine Dawn' },
+  { id: 'tokyo-day', nombre: 'Tokyo Day' },
+  { id: 'papercolor', nombre: 'Papercolor Light' },
+  { id: 'monokai-light', nombre: 'Monokai Light' }
 ];
 
 export default function App() {
@@ -55,6 +69,13 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', tema);
     localStorage.setItem('theme_app', tema);
   }, [tema]);
+
+  // 🔄 Cambiar al siguiente tema al hacer clic en "Enfoque"
+  const cambiarSiguienteTema = () => {
+    const indiceActual = LISTA_TEMAS.findIndex(t => t.id === tema);
+    const siguienteIndice = (indiceActual + 1) % LISTA_TEMAS.length;
+    setTema(LISTA_TEMAS[siguienteIndice].id);
+  };
 
   const [pasoAuth, setPasoAuth] = useState(1);
   const [codigoInput, setCodigoInput] = useState('');
@@ -229,9 +250,14 @@ export default function App() {
       <div className="w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
         
         <div className="flex flex-col h-dvh overflow-hidden">
-          <div className="hidden xl:block p-6 font-black text-theme-accent border-b border-theme-border italic uppercase tracking-tighter text-xl flex-shrink-0">
+          {/* 🏷️ TÍTULO CLIQUEABLE PARA CAMBIAR TEMA */}
+          <button 
+            onClick={cambiarSiguienteTema}
+            title={`Tema actual: ${LISTA_TEMAS.find(t => t.id === tema)?.nombre}. Clic para cambiar.`}
+            className="hidden xl:block p-6 font-black text-theme-accent border-b border-theme-border italic uppercase tracking-tighter text-xl flex-shrink-0 text-left hover:opacity-80 transition-opacity cursor-pointer select-none"
+          >
             Enfoque
-          </div>
+          </button>
 
           <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2 min-h-0 custom-scrollbar">
             <button 
@@ -310,7 +336,7 @@ export default function App() {
               <span className="hidden xl:inline px-1">Finanzas</span>
             </button>
 
-            <button  
+            <button   
               onClick={() => cambiarSeccion('deudas')}  
               title="Tarjeta y Deudas"
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
@@ -323,7 +349,7 @@ export default function App() {
               <span className="hidden xl:inline px-1">Control Deudas</span>
             </button>
 
-            <button  
+            <button   
               onClick={() => cambiarSeccion('proyectos_grafo')}  
               title="Mapa de Proyectos"
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
@@ -338,23 +364,6 @@ export default function App() {
 
         {/* 🛠️ SECCIÓN INFERIOR FIJA */}
         <div className="p-2 xl:p-4 border-t border-theme-border bg-theme-bg flex flex-col items-center xl:items-stretch gap-2 flex-shrink-0">
-          
-          {/* 🎨 SELECTOR DE TEMAS */}
-          <div className="w-full flex items-center gap-2 bg-theme-bg border border-theme-border rounded-xl p-2 text-[10px] font-bold uppercase text-theme-text/70">
-            <Palette className="w-4 h-4 text-theme-accent flex-shrink-0" title="Seleccionar tema" />
-            <select
-              value={tema}
-              onChange={(e) => setTema(e.target.value)}
-              className="hidden xl:block bg-transparent text-theme-text outline-none cursor-pointer w-full font-mono text-[10px] uppercase"
-            >
-              {LISTA_TEMAS.map(t => (
-                <option key={t.id} value={t.id} className="bg-theme-bg text-theme-text">
-                  {t.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <a 
             href={ENLACES_DATABASE[seccionActiva] || ENLACES_DATABASE.default} 
             target="_blank" 

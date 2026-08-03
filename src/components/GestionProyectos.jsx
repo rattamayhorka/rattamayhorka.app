@@ -23,7 +23,10 @@ const connectionLineStyle = { stroke: 'var(--color-theme-border)', strokeWidth: 
 
 const defaultEdgeOptions = {
   animated: false, 
-  style: { stroke: 'var(--color-theme-border)', strokeWidth: 2 }, 
+  style: { 
+    stroke: 'var(--color-theme-accent)', // Cambiamos border tenue por el color de acento resplandeciente
+    strokeWidth: 1.7,                      // Subimos de 2px a 3px para mayor visibilidad
+  }, 
 };
 
 // AGREGADO: Configuración de paletas de color para los grupos
@@ -120,13 +123,13 @@ function NodoGrupoExpandible(props) {
 function NodoMetaAutonomo(props) {
   const { id, data, selected } = props;
   
-  let statusColor = 'border-theme-border bg-theme-bg text-theme-text';
+  let statusColor = 'border-2 border-theme-border bg-theme-bg text-theme-text';
   
   if (data.status === 'En Progreso') {
-    statusColor = 'border-theme-accent/50 bg-theme-bg text-theme-accent';
+    statusColor = 'border-2 border-theme-accent/50 bg-theme-bg text-theme-accent';
   }
   if (data.status === 'Completado') {
-    statusColor = 'border-theme-trabajo/50 bg-theme-bg text-theme-trabajo';
+    statusColor = 'border-2 border-theme-trabajo/50 bg-theme-bg text-theme-trabajo';
   }
 
   const handleClass = "w-1.5 h-1.5 !bg-theme-border !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";

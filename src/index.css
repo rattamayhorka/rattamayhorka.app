@@ -1,34 +1,31 @@
 @import "tailwindcss";
 
-/* TEMA POR DEFECTO: TOKYO NIGHT */
 :root {
-  --color-theme-bg: #1a1b26;
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #a9b1d6;
-  --color-theme-border: #24283b;
+  --color-theme-border: #2ac3de33;
   --color-theme-accent: #7aa2f7;
   --color-theme-trabajo: #7dcfff;
   --color-theme-casa: #f7768e;
 }
 
-/* VARIACIONES DE TEMAS */
 [data-theme="tokyo"] {
-  --color-theme-bg: #1a1b26;
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #a9b1d6;
-  --color-theme-border: #24283b;
+  --color-theme-border: #2ac3de33;
   --color-theme-accent: #7aa2f7;
   --color-theme-trabajo: #7dcfff;
   --color-theme-casa: #f7768e;
 }
 
 [data-theme="dracula"] {
-  --color-theme-bg: #282a36; 
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #f8f8f2;
   --color-theme-border: #44475a;
   --color-theme-accent: #bd93f9;
   --color-theme-trabajo: #50fa7b;
   --color-theme-casa: #ff79c6;
 }
-
 
 [data-theme="dracula.v2"] {
   --color-theme-bg: #1b1c23;
@@ -39,63 +36,212 @@
   --color-theme-casa: #ff79c6;
 }
 
-
-
 [data-theme="monokai"] {
-  --color-theme-bg: #2d2a2e;
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #fcfcfa;
-  --color-theme-border: #403e41;
+  --color-theme-border: #3e3d32;
   --color-theme-accent: #78dce8;
   --color-theme-trabajo: #a9dc76;
   --color-theme-casa: #ff6188;
 }
 
 [data-theme="onedark"] {
-  --color-theme-bg: #21252b;
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #abb2bf;
-  --color-theme-border: #353b45;
+  --color-theme-border: #2c313a;
   --color-theme-accent: #61afef;
   --color-theme-trabajo: #98c379;
   --color-theme-casa: #e06c75;
 }
 
 [data-theme="synthwave"] {
-  --color-theme-bg: #160f29;
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #f4f4f5;
-  --color-theme-border: #3b1d5a;
+  --color-theme-border: #fe44504d;
   --color-theme-accent: #00f0ff;
   --color-theme-trabajo: #39ff14;
   --color-theme-casa: #ff007f;
 }
 
 [data-theme="nord"] {
-  --color-theme-bg: #2e3440;
-  --color-theme-text: #eceff4;
-  --color-theme-border: #4c566a;
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #e5e9f0;
+  --color-theme-border: #3b4252;
   --color-theme-accent: #88c0d0;
   --color-theme-trabajo: #a3be8c;
   --color-theme-casa: #bf616a;
 }
 
 [data-theme="amber"] {
-  --color-theme-bg: #1c1917;
-  --color-theme-text: #f5f5f4;
-  --color-theme-border: #44403c;
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #fef3c7;
+  --color-theme-border: #78350f66;
   --color-theme-accent: #f59e0b;
-  --color-theme-trabajo: #eab308;
+  --color-theme-trabajo: #fbbf24;
   --color-theme-casa: #f97316;
 }
 
 [data-theme="matrix"] {
-  --color-theme-bg: #020b02;
+  --color-theme-bg: #1b1c23;
   --color-theme-text: #00ff66;
-  --color-theme-border: #00ff66;
+  --color-theme-border: #00ff6633;
   --color-theme-accent: #00cc52;
   --color-theme-trabajo: #70ffb3;
-  --color-theme-casa: #ccff00;
+  --color-theme-casa: #a3ff00;
 }
 
-/* REGISTRO EN TAILWIND CSS v4 */
+[data-theme="catppuccin"] {
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #cdd6f4;
+  --color-theme-border: #313244;
+  --color-theme-accent: #cba6f7;
+  --color-theme-trabajo: #89b4fa;
+  --color-theme-casa: #f38ba8;
+}
+
+[data-theme="gruvbox"] {
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #ebdbb2;
+  --color-theme-border: #3c3836;
+  --color-theme-accent: #fe8019;
+  --color-theme-trabajo: #8ec07c;
+  --color-theme-casa: #fb4934;
+}
+
+[data-theme="rose-pine"] {
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #e0def4;
+  --color-theme-border: #2a283e;
+  --color-theme-accent: #c4a7e7;
+  --color-theme-trabajo: #9ccfd8;
+  --color-theme-casa: #eb6f92;
+}
+
+[data-theme="solarized"] {
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #839496;
+  --color-theme-border: #073642;
+  --color-theme-accent: #268bd2;
+  --color-theme-trabajo: #2aa198;
+  --color-theme-casa: #cb4b16;
+}
+
+[data-theme="github-dark"] {
+  --color-theme-bg: #1b1c23;
+  --color-theme-text: #e6edf3;
+  --color-theme-border: #30363d;
+  --color-theme-accent: #2f81f7;
+  --color-theme-trabajo: #3fb950;
+  --color-theme-casa: #f85149;
+}
+
+/* --- TEMAS CLAROS (LIGHT THEMES) --- */
+
+/* --- TEMAS CLAROS ALTO CONTRASTE (HIGH CONTRAST LIGHT) --- */
+
+/* 1. GitHub Light - Blanco puro con texto charcoal profundo */
+[data-theme="github-light"] {
+  --color-theme-bg: #ffffff;
+  --color-theme-text: #0f172a;
+  --color-theme-border: #94a3b8;
+  --color-theme-accent: #0284c7;
+  --color-theme-trabajo: #16a34a;
+  --color-theme-casa: #dc2626;
+}
+
+/* 2. Catppuccin Latte - Base crema clara con texto tinta azulada */
+[data-theme="catppuccin-latte"] {
+  --color-theme-bg: #f2f4f8;
+  --color-theme-text: #111827;
+  --color-theme-border: #9ca3af;
+  --color-theme-accent: #7c3aed;
+  --color-theme-trabajo: #2563eb;
+  --color-theme-casa: #e11d48;
+}
+
+/* 3. Solarized Light - Papiro cálido con texto azul marino muy oscuro */
+[data-theme="solarized-light"] {
+  --color-theme-bg: #fbf7ec;
+  --color-theme-text: #00212b;
+  --color-theme-border: #b58900;
+  --color-theme-accent: #006699;
+  --color-theme-trabajo: #007a78;
+  --color-theme-casa: #bd2c00;
+}
+
+/* 4. Gruvbox Light - Arena mate con café oscuro de alto contraste */
+[data-theme="gruvbox-light"] {
+  --color-theme-bg: #f2e5bc;
+  --color-theme-text: #1d2021;
+  --color-theme-border: #7c6f64;
+  --color-theme-accent: #af3a03;
+  --color-theme-trabajo: #427b58;
+  --color-theme-casa: #9d0006;
+}
+
+/* 5. One Light - Blanco humo con texto grafito directo */
+[data-theme="one-light"] {
+  --color-theme-bg: #f5f5f6;
+  --color-theme-text: #181a1f;
+  --color-theme-border: #8c92a4;
+  --color-theme-accent: #2f55d4;
+  --color-theme-trabajo: #2e7d32;
+  --color-theme-casa: #d32f2f;
+}
+
+/* 6. Nord Light - Nieve fría con texto tinta nórdica sólida */
+[data-theme="nord-light"] {
+  --color-theme-bg: #e5e9f0;
+  --color-theme-text: #181c24;
+  --color-theme-border: #64748b;
+  --color-theme-accent: #0284c7;
+  --color-theme-trabajo: #0f766e;
+  --color-theme-casa: #c0525b;
+}
+
+/* 7. Rosé Pine Dawn - Blanco rosado suave con texto tinta violeta oscura */
+[data-theme="rose-pine-dawn"] {
+  --color-theme-bg: #f4efe8;
+  --color-theme-text: #28234a;
+  --color-theme-border: #797593;
+  --color-theme-accent: #907aa9;
+  --color-theme-trabajo: #1d556e;
+  --color-theme-casa: #b4637a;
+}
+
+/* 8. Tokyo Day - Gris azulado limpio con texto azul noche intenso */
+[data-theme="tokyo-day"] {
+  --color-theme-bg: #e1e4ee;
+  --color-theme-text: #0f172a;
+  --color-theme-border: #64748b;
+  --color-theme-accent: #1d4ed8;
+  --color-theme-trabajo: #0284c7;
+  --color-theme-casa: #e11d48;
+}
+
+/* 9. Papercolor Light - Papel antiguo con texto negro carbón */
+[data-theme="papercolor"] {
+  --color-theme-bg: #e8e5d8;
+  --color-theme-text: #121212;
+  --color-theme-border: #5f5f5f;
+  --color-theme-accent: #005f87;
+  --color-theme-trabajo: #427b00;
+  --color-theme-casa: #af0000;
+}
+
+/* 10. Monokai Light - Blanco roto con contraste agresivo de texto */
+[data-theme="monokai-light"] {
+  --color-theme-bg: #f8f8f0;
+  --color-theme-text: #141411;
+  --color-theme-border: #75715e;
+  --color-theme-accent: #0097a7;
+  --color-theme-trabajo: #388e3c;
+  --color-theme-casa: #c2185b;
+}
+
+
+
+
 @theme {
   --color-theme-bg: var(--color-theme-bg);
   --color-theme-text: var(--color-theme-text);
