@@ -27,15 +27,6 @@
   --color-theme-casa: #ff79c6;
 }
 
-[data-theme="dracula.v2"] {
-  --color-theme-bg: #1b1c23;
-  --color-theme-text: #f8f8f2;
-  --color-theme-border: #44475a;
-  --color-theme-accent: #bd93f9;
-  --color-theme-trabajo: #50fa7b;
-  --color-theme-casa: #ff79c6;
-}
-
 [data-theme="monokai"] {
   --color-theme-bg: #1b1c23;
   --color-theme-text: #fcfcfa;
@@ -135,11 +126,6 @@
   --color-theme-casa: #f85149;
 }
 
-/* --- TEMAS CLAROS (LIGHT THEMES) --- */
-
-/* --- TEMAS CLAROS ALTO CONTRASTE (HIGH CONTRAST LIGHT) --- */
-
-/* 1. GitHub Light - Blanco puro con texto charcoal profundo */
 [data-theme="github-light"] {
   --color-theme-bg: #ffffff;
   --color-theme-text: #0f172a;
@@ -238,9 +224,6 @@
   --color-theme-trabajo: #388e3c;
   --color-theme-casa: #c2185b;
 }
-
-
-
 
 @theme {
   --color-theme-bg: var(--color-theme-bg);
