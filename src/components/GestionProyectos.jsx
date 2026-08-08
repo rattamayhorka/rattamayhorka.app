@@ -86,8 +86,8 @@ function NodoGrupoExpandible(props) {
       </div>
 
       {/* MENÚ FLOTANTE DE MENÚ / ACCIONES DEL GRUPO */}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-all duration-150 ease-out">
-        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 backdrop-blur-md pointer-events-auto">
+      <div className="absolute top-full left-4 pt-2 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-150">
+        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 pointer-events-auto antialiased [transform:translateZ(0)]">
           
           <div className="flex items-center gap-1">
             {OPCIONES_COLOR_GRUPO.map((c) => (
@@ -105,10 +105,10 @@ function NodoGrupoExpandible(props) {
 
           <button 
             onClick={() => data.onEliminarNodo(id)} 
-            className="text-theme-text/60 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer flex items-center gap-1"
+            className="text-theme-text/80 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer flex items-center gap-1 font-mono"
           >
-            <Trash2 className="w-3 h-3" />
-            <span className="text-[10px] font-normal">Eliminar</span>
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-[11px] font-medium leading-none select-none">Eliminar</span>
           </button>
         </div>
       </div>
@@ -625,10 +625,10 @@ export function GestionProyectosContenido() {
           connectionLineStyle={connectionLineStyle}
           fitView={nodes.length > 1}
           fitViewOptions={{ minZoom: 0.1, maxZoom: 1, padding: 0.2 }}
-          minZoom={0.2} 
+          minZoom={0.1} 
           maxZoom={2}
-          translateExtent={[[-2500, -2500], [2500, 2500]]}
-          nodeExtent={[[-2500, -2500], [2500, 2500]]}
+          translateExtent={[[-7500, -3000], [7500, 3000]]} // original 2500, 2500]
+          nodeExtent={[[-7500, -3000], [7500, 3000]]} // original 2500, 2500]
           className="z-10"
         >
           <Background color="var(--color-theme-border)" gap={20} size={1} />
