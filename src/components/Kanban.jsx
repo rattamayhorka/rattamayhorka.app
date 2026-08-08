@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { database } from '../api';
 import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter } from 'lucide-react';
 
@@ -162,14 +162,16 @@ export default function Kanban({ refreshTrigger }) {
   }, [tareas, filtoEntorno]);
 
   const manejarDragStart = (e, tareaTexto) => {
-    e.dataTransfer.setData('texto-tarea', tareaTexto);
+    if (e.dataTransfer) {
+      e.dataTransfer.setData('texto-tarea', tareaTexto);
+    }
   };
 
   // 🎯 NUEVO: MANEJO DE DROP CON REORDENAMIENTO Y REASIGNACIÓN DE PRIORIDADES
   const manejarDropContenedor = async (e, nuevoStatus, targetTareaTexto = null) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setTarjetaTargetId(null);
-    const tareaTexto = e.dataTransfer.getData('texto-tarea');
+    const tareaTexto = (e && e.dataTransfer) ? e.dataTransfer.getData('texto-tarea') : null;
     if (!tareaTexto) return;
 
     setTareas(prevTareas => {
@@ -396,13 +398,15 @@ export default function Kanban({ refreshTrigger }) {
           Casa ({tareas.filter(t => (t.Tipo || "").toLowerCase().trim() === 'casa').length})
         </button>
       </div>
-
+      
+      {/* BLOQUE NUEVO CON ATRIBUTOS DE DETECCIÓN TÁCTIL */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* COLUMNA: POR HACER */}
         <div 
+          data-status="Por Hacer"
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => manejarDropContenedor(e, 'Por Hacer')} 
-            className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
+          className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
         >
           <h3 className="text-xs font-black uppercase text-theme-text/80 mb-4 flex items-center tracking-wider italic"><Clock className="w-3.5 h-3.5 mr-2 text-theme-text/50" /> Por Hacer</h3>
           <div className="space-y-3">
@@ -414,6 +418,9 @@ export default function Kanban({ refreshTrigger }) {
                 onDragOverCard={(e) => manejarDragOverCard(e, task.Tarea)}
                 onDragLeaveCard={() => setTarjetaTargetId(null)}
                 onDropCard={(e) => manejarDropContenedor(e, 'Por Hacer', task.Tarea)}
+                onDropTouch={(tareaTexto, destinoStatus) => {
+                  manejarDropContenedor({ preventDefault: () => {}, dataTransfer: { getData: () => tareaTexto } }, destinoStatus);
+                }}
                 isTarget={tarjetaTargetId === task.Tarea}
                 onClick={() => abrirModalEdicion(task)} 
               />
@@ -423,9 +430,10 @@ export default function Kanban({ refreshTrigger }) {
 
         {/* COLUMNA: EN PROCESO */}
         <div 
+          data-status="En Proceso"
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => manejarDropContenedor(e, 'En Proceso')} 
-            className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
+          className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
         >
           <h3 className="text-xs font-black uppercase text-theme-accent mb-4 flex items-center tracking-wider italic"><Activity className="w-3.5 h-3.5 mr-2 text-theme-accent" /> En Proceso</h3>
           <div className="space-y-3">
@@ -437,6 +445,9 @@ export default function Kanban({ refreshTrigger }) {
                 onDragOverCard={(e) => manejarDragOverCard(e, task.Tarea)}
                 onDragLeaveCard={() => setTarjetaTargetId(null)}
                 onDropCard={(e) => manejarDropContenedor(e, 'En Proceso', task.Tarea)}
+                onDropTouch={(tareaTexto, destinoStatus) => {
+                  manejarDropContenedor({ preventDefault: () => {}, dataTransfer: { getData: () => tareaTexto } }, destinoStatus);
+                }}
                 isTarget={tarjetaTargetId === task.Tarea}
                 onClick={() => abrirModalEdicion(task)} 
               />
@@ -446,6 +457,7 @@ export default function Kanban({ refreshTrigger }) {
 
         {/* COLUMNA: HECHO */}
         <div 
+          data-status="Hecho"
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => manejarDropContenedor(e, 'Hecho')} 
           className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
@@ -460,6 +472,9 @@ export default function Kanban({ refreshTrigger }) {
                 onDragOverCard={(e) => manejarDragOverCard(e, task.Tarea)}
                 onDragLeaveCard={() => setTarjetaTargetId(null)}
                 onDropCard={(e) => manejarDropContenedor(e, 'Hecho', task.Tarea)}
+                onDropTouch={(tareaTexto, destinoStatus) => {
+                  manejarDropContenedor({ preventDefault: () => {}, dataTransfer: { getData: () => tareaTexto } }, destinoStatus);
+                }}
                 isTarget={tarjetaTargetId === task.Tarea}
                 onClick={() => abrirModalEdicion(task)} 
               />
@@ -608,9 +623,14 @@ export default function Kanban({ refreshTrigger }) {
 }
 
 // =========================================================================
-// 🎯 SUBCOMPONENTE TARJETA CON SOPORTE DE REORDENAMIENTO INTERNO
+// 🎯 SUBCOMPONENTE TARJETA OPTIMIZADO CON SOPORTE TÁCTIL GPU
 // =========================================================================
-function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCard, isTarget, onClick }) {
+function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCard, onDropTouch, isTarget, onClick }) {
+  const cardRef = useRef(null);
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const animFrameId = useRef(null);
+  const isDraggingTouch = useRef(false);
+
   const esTrabajo = (task.Tipo || "").toLowerCase().trim() === 'trabajo';
  
   const estiloEntornoTarjeta = esTrabajo 
@@ -619,16 +639,85 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
 
   const estiloIconoCalendario = esTrabajo ? "text-theme-trabajo" : "text-theme-casa";
 
+  // ⚡ EVENTOS TÁCTILES CON ACELERACIÓN POR GPU (TRANSFORM3D + REQUESTANIMATIONFRAME)
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    isDraggingTouch.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartPos.current.x;
+    const deltaY = touch.clientY - touchStartPos.current.y;
+
+    if (!isDraggingTouch.current && (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5)) {
+      isDraggingTouch.current = true;
+      if (cardRef.current) {
+        cardRef.current.style.zIndex = '9999';
+        cardRef.current.style.opacity = '0.85';
+        cardRef.current.style.willChange = 'transform';
+      }
+    }
+
+    if (isDraggingTouch.current && cardRef.current) {
+      if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
+
+      animFrameId.current = requestAnimationFrame(() => {
+        if (cardRef.current) {
+          cardRef.current.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0px)`;
+        }
+      });
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
+
+    if (isDraggingTouch.current) {
+      const touch = e.changedTouches[0];
+      const card = cardRef.current;
+
+      if (card) card.style.display = 'none';
+      const elementoBajoDedo = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (card) card.style.display = '';
+
+      if (card) {
+        card.style.transform = '';
+        card.style.zIndex = '';
+        card.style.opacity = '';
+        card.style.willChange = '';
+      }
+
+      if (elementoBajoDedo) {
+        const contenedorColumna = elementoBajoDedo.closest('[data-status]');
+        if (contenedorColumna) {
+          const destinoStatus = contenedorColumna.getAttribute('data-status');
+          if (destinoStatus && onDropTouch) {
+            onDropTouch(task.Tarea, destinoStatus);
+          }
+        }
+      }
+      isDraggingTouch.current = false;
+    }
+  };
+
   return (
     <div
+      ref={cardRef}
       draggable
+      style={{ touchAction: 'none' }}
       onDragStart={(e) => onDragStart(e, task.Tarea)}
       onDragOver={onDragOverCard}
       onDragLeave={onDragLeaveCard}
       onDrop={onDropCard}
-      onClick={onClick}
-      
-      className={`border p-3 rounded-xl shadow-md cursor-grab active:cursor-grabbing transition-all duration-200 group ${estiloEntornoTarjeta} ${
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={(e) => {
+        if (!isDraggingTouch.current) onClick(e);
+      }}
+      className={`border p-3 rounded-xl shadow-md cursor-grab active:cursor-grabbing transition-shadow duration-200 group ${estiloEntornoTarjeta} ${
         isTarget ? 'border-t-4 border-t-theme-accent bg-theme-accent/10' : ''
       }`}
     >
@@ -636,7 +725,7 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
         {task.Tarea || 'SIN DESCRIPCIÓN'}
       </p>
       
-     <div className="flex justify-between items-center mt-3 pt-1.5 border-t border-theme-border/20 text-theme-text/60 font-bold text-[8px] tracking-widest uppercase pointer-events-none">
+      <div className="flex justify-between items-center mt-3 pt-1.5 border-t border-theme-border/20 text-theme-text/60 font-bold text-[8px] tracking-widest uppercase pointer-events-none">
         <span className="flex items-center italic">
           <Calendar className={`w-2.5 h-2.5 mr-1 ${estiloIconoCalendario}`} />
           {task.Fecha || '---'}

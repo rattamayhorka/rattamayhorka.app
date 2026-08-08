@@ -95,11 +95,20 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const host = window.location.hostname;
+    
+    // Detecta localhost o rangos de IP privadas locales (192.168.x.x, 10.x.x.x, 172.16.x.x-172.31.x.x)
+    const esEntornoLocal = 
+      host === 'localhost' || 
+      host === '127.0.0.1' || 
+      /^192\.168\./.test(host) || 
+      /^10\./.test(host) || 
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+
+    if (esEntornoLocal) {
       setAutenticado(true);
       return;
     }
-
     const sesionValida = sessionStorage.getItem('sesion_biomedica_st');
     if (sesionValida) {
       setAutenticado(true);
@@ -385,7 +394,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v 0.9.99 "colorino"
+            rattamayhorka v 0.9.11 "touch"
           </div>
         </div>
       </div>
