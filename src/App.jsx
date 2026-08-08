@@ -385,7 +385,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka b 0.9.9 "color themes"
+            rattamayhorka v 0.9.99 "colorino"
           </div>
         </div>
       </div>
