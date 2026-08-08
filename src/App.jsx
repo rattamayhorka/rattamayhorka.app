@@ -8,6 +8,7 @@ import RegistroRapido from './components/RegistroRapido';
 import GestionProyectos from './components/GestionProyectos';
 import GastosCasa from './components/GastosCasa';
 import Deudas from './components/Deudas';
+import { database } from './api';
 
 import {
   Lock,
@@ -24,7 +25,14 @@ import {
   Database,
   KeyRound,
   Send,
-  CreditCard
+  CreditCard,
+  Terminal,
+  X,
+  ArrowRight,
+  Zap,
+  DollarSign as IconGasto,
+  Calendar as IconEvent,
+  HelpCircle
 } from 'lucide-react';
 
 const LISTA_TEMAS = [
@@ -41,7 +49,6 @@ const LISTA_TEMAS = [
   { id: 'github-dark', nombre: 'Github Dark' },
   { id: 'amber', nombre: 'Retro Amber' },
   { id: 'matrix', nombre: 'Matrix Green' },
-  // Claros
   { id: 'tokyo-day', nombre: 'Tokyo Day' },
   { id: 'monokai-light', nombre: 'Monokai Light' },
   { id: 'one-light', nombre: 'One Light' },
@@ -54,10 +61,128 @@ const LISTA_TEMAS = [
   { id: 'papercolor', nombre: 'Papercolor Light' }
 ];
 
+// 🧠 COMANDOS DE NAVEGACIÓN TIPO VIM (:h <seccion>)
+const COMANDOS_NAVEGACION = [
+  { cmd: 'kanban', alias: 'k', desc: 'Ir al Tablero Kanban', seccion: 'kanban', icono: Columns3 },
+  { cmd: 'bullet', alias: 'b', desc: 'Ir a Rapid Logging / Bitácora', seccion: 'bullet', icono: Wrench },
+  { cmd: 'finanzas', alias: 'f', desc: 'Ir a Gastos y Finanzas Casa', seccion: 'casa_gastos', icono: DollarSign },
+  { cmd: 'futurelog', alias: 'fl', desc: 'Ir a Future LOG Trabajo', seccion: 'futureloghst', icono: Calendar },
+  { cmd: 'compromisos', alias: 'comp', desc: 'Ir a Compromisos HST', seccion: 'compromisos', icono: FileText },
+  { cmd: 'compras', alias: 'shop', desc: 'Ir a Lista de Compras', seccion: 'compras', icono: ShoppingCart },
+  { cmd: 'deudas', alias: 'd', desc: 'Ir a Control de Deudas y Tarjetas', seccion: 'deudas', icono: CreditCard },
+  { cmd: 'proyectos', alias: 'mapa', desc: 'Ir al Mapa de Proyectos', seccion: 'proyectos_grafo', icono: Map }
+];
+
 export default function App() {
   const [seccionActiva, setSeccionActiva] = useState('kanban');
   const [autenticado, setAutenticado] = useState(false);
   const [refreshKeys, setRefreshKeys] = useState({});
+
+  // 🚀 ESTADO DEL COMMAND PROMPT FLOTANTE GLOBAL
+  const [mostrarPromptGlobal, setMostrarPromptGlobal] = useState(false);
+  const [comandoGlobal, setComandoGlobal] = useState('');
+  const [procesandoComando, setProcesandoComando] = useState(false);
+
+  // ⌨️ ESCUCHADOR GLOBAL PARA TECLA ":"
+  useEffect(() => {
+    const manejarTecladoGlobal = (e) => {
+      const el = document.activeElement;
+      const esCampoTexto = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+
+      if (esCampoTexto) return;
+
+      if (e.key === ':') {
+        e.preventDefault();
+        setMostrarPromptGlobal(true);
+      }
+
+      if (e.key === 'Escape') {
+        setMostrarPromptGlobal(false);
+        setComandoGlobal('');
+      }
+    };
+
+    window.addEventListener('keydown', manejarTecladoGlobal);
+    return () => window.removeEventListener('keydown', manejarTecladoGlobal);
+  }, []);
+
+  // 🎛️ EJECUTOR CON SINTAXIS VIM (:q PARA SALIR / :h PARA AYUDA/NAVEGACIÓN)
+  const ejecutarComandoGlobal = async (e) => {
+    e.preventDefault();
+    if (!comandoGlobal.trim() || procesandoComando) return;
+
+    setProcesandoComando(true);
+    const input = comandoGlobal.trim();
+    const cmdLower = input.toLowerCase();
+
+    // 🔴 1. SALIR (:q / :quit)
+    if (cmdLower === ':q' || cmdLower === 'q' || cmdLower === ':quit') {
+      setComandoGlobal('');
+      setMostrarPromptGlobal(false);
+      setProcesandoComando(false);
+      return;
+    }
+
+    // 🟢 2. NAVEGACIÓN Y AYUDA CON :h O :help
+    let comandoLimpio = cmdLower;
+    if (cmdLower.startsWith(':h ') || cmdLower.startsWith('h ')) {
+      comandoLimpio = cmdLower.replace(/^:?h\s+/, '').trim();
+    } else if (cmdLower.startsWith(':help ') || cmdLower.startsWith('help ')) {
+      comandoLimpio = cmdLower.replace(/^:?help\s+/, '').trim();
+    }
+
+    // Buscar si es un comando de sección
+    const navega = COMANDOS_NAVEGACION.find(c => c.cmd === comandoLimpio || c.alias === comandoLimpio);
+    if (navega) {
+      setSeccionActiva(navega.seccion);
+      setComandoGlobal('');
+      setMostrarPromptGlobal(false);
+      setProcesandoComando(false);
+      return;
+    }
+
+    // 🟢 3. CREACIÓN RÁPIDA DE BULLET (. / $ / # / ! / -)
+    const hoy = new Date();
+    const fechaFormateada = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
+
+    try {
+      if (input.startsWith('.')) {
+        const contenido = input.substring(1).trim();
+        await database.guardarDatos('guardarTarea', {
+          datos: { tarea: contenido, status: 'Por Hacer', fecha: fechaFormateada, tipo: 'Trabajo' }
+        });
+        setRefreshKeys(prev => ({ ...prev, kanban: (prev['kanban'] || 0) + 1 }));
+      } 
+      else if (input.startsWith('$')) {
+        const partes = input.substring(1).trim().split(';');
+        const concepto = partes[0] || 'Gasto Prompt';
+        const monto = parseFloat(partes[1]) || 0;
+        await database.guardarDatos('guardarTransaccion', {
+          fecha: fechaFormateada, importe: monto, descripcion: concepto.toUpperCase(), metodo_pago: 'Efectivo', rubro: ''
+        });
+        setRefreshKeys(prev => ({ ...prev, casa_gastos: (prev['casa_gastos'] || 0) + 1 }));
+      } 
+      else if (input.startsWith('#')) {
+        const partes = input.substring(1).trim().split(';');
+        await database.guardarDatos('guardarReunion', {
+          datos: { comite: (partes[0] || 'EVENTO').toUpperCase(), fecha: partes[1] || fechaFormateada, hora: partes[2] || '09:00', lugar: partes[3] || 'Pendiente', tipo: 'Trabajo' }
+        });
+        setRefreshKeys(prev => ({ ...prev, futureloghst: (prev['futureloghst'] || 0) + 1 }));
+      } 
+      else {
+        await database.guardarDatos('guardarTarea', {
+          datos: { tarea: input, status: 'Bullet', fecha: fechaFormateada, tipo: 'BulletJournal' }
+        });
+        setRefreshKeys(prev => ({ ...prev, bullet: (prev['bullet'] || 0) + 1 }));
+      }
+    } catch (err) {
+      console.error("Error ejecutando desde prompt:", err);
+    } finally {
+      setComandoGlobal('');
+      setMostrarPromptGlobal(false);
+      setProcesandoComando(false);
+    }
+  };
 
   // 🎨 ESTADO Y PERSISTENCIA DE TEMAS
   const [tema, setTema] = useState(() => {
@@ -69,7 +194,6 @@ export default function App() {
     localStorage.setItem('theme_app', tema);
   }, [tema]);
 
-  // 🔄 Cambiar al siguiente tema al hacer clic en "Enfoque"
   const cambiarSiguienteTema = () => {
     const indiceActual = LISTA_TEMAS.findIndex(t => t.id === tema);
     const siguienteIndice = (indiceActual + 1) % LISTA_TEMAS.length;
@@ -96,14 +220,7 @@ export default function App() {
 
   useEffect(() => {
     const host = window.location.hostname;
-    
-    // Detecta localhost o rangos de IP privadas locales (192.168.x.x, 10.x.x.x, 172.16.x.x-172.31.x.x)
-    const esEntornoLocal = 
-      host === 'localhost' || 
-      host === '127.0.0.1' || 
-      /^192\.168\./.test(host) || 
-      /^10\./.test(host) || 
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+    const esEntornoLocal = host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
 
     if (esEntornoLocal) {
       setAutenticado(true);
@@ -121,10 +238,7 @@ export default function App() {
 
   const cambiarSeccion = (seccion) => {
     if (seccionActiva === seccion) {
-      setRefreshKeys(prev => ({
-        ...prev,
-        [seccion]: (prev[seccion] || 0) + 1
-      }));
+      setRefreshKeys(prev => ({ ...prev, [seccion]: (prev[seccion] || 0) + 1 }));
     } else {
       setSeccionActiva(seccion);
     }
@@ -136,7 +250,6 @@ export default function App() {
     try {
       const res = await fetch('/api/send-code', { method: 'POST' });
       const data = await res.json();
-      
       if (data.success) {
         setTempToken(data.tempToken);
         setPasoAuth(2);
@@ -253,12 +366,16 @@ export default function App() {
     );
   }
 
+  // Filtrado de comandos para la lista interactiva
+  const textoLimpioParaFiltro = comandoGlobal.replace(/^:?h\s+/, '').replace(/^:?help\s+/, '').replace(/^:/, '').toLowerCase();
+  const comandosFiltrados = COMANDOS_NAVEGACION.filter(c => 
+    c.cmd.includes(textoLimpioParaFiltro) || c.alias.includes(textoLimpioParaFiltro)
+  );
+
   return (
     <div className="bg-theme-bg text-theme-text flex h-dvh overflow-hidden font-mono">
       <div className="w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
-        
         <div className="flex flex-col h-dvh overflow-hidden">
-          {/* 🏷️ TÍTULO CLIQUEABLE PARA CAMBIAR TEMA */}
           <button 
             onClick={cambiarSiguienteTema}
             title={`Tema actual: ${LISTA_TEMAS.find(t => t.id === tema)?.nombre}. Clic para cambiar.`}
@@ -370,7 +487,6 @@ export default function App() {
           </nav>
         </div>
 
-        {/* 🛠️ SECCIÓN INFERIOR FIJA */}
         <div className="p-2 xl:p-4 border-t border-theme-border bg-theme-bg flex flex-col items-center xl:items-stretch gap-2 flex-shrink-0">
           <a 
             href={ENLACES_DATABASE[seccionActiva] || ENLACES_DATABASE.default} 
@@ -394,7 +510,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v 0.9.11 "touch"
+            rattamayhorka v 0.9.13 "vim"
           </div>
         </div>
       </div>
@@ -402,17 +518,11 @@ export default function App() {
       <main className="flex-1 overflow-y-auto p-4 xl:p-8 bg-theme-bg">
         <div id="contenedor-principal">
           {seccionActiva === 'kanban' && (
-            <Kanban 
-              key={refreshKeys['kanban'] || 0} 
-              filtroTipo="Trabajo" 
-            />
+            <Kanban key={refreshKeys['kanban'] || 0} filtroTipo="Trabajo" />
           )}
 
           {seccionActiva === 'casa_pendientes' && (
-            <Kanban 
-              key={refreshKeys['casa_pendientes'] || 0} 
-              filtroTipo="Casa" 
-            />
+            <Kanban key={refreshKeys['casa_pendientes'] || 0} filtroTipo="Casa" />
           )}
           {seccionActiva === 'bullet' && (
             <Bullet key={refreshKeys['bullet'] || 0} />
@@ -438,6 +548,89 @@ export default function App() {
           )}  
         </div>
       </main>
+
+      {/* 🔮 VIM-STYLE COMMAND PROMPT (SINTAXIS :h / :q / ACCIONES BULLET) */}
+      {mostrarPromptGlobal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[9999] flex items-start justify-center pt-16 p-4">
+          <div className="bg-theme-bg border border-theme-accent/50 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden font-mono border-t-4 border-t-theme-accent animate-fadeIn">
+            <div className="p-3.5 bg-theme-bg border-b border-theme-border/40 flex items-center justify-between text-theme-accent text-[10px] font-black uppercase tracking-widest">
+              <span className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 animate-pulse" /> Vim Command Mode
+              </span>
+              <button 
+                onClick={() => { setMostrarPromptGlobal(false); setComandoGlobal(''); }}
+                className="text-theme-text/50 hover:text-theme-text cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={ejecutarComandoGlobal} className="p-4 flex items-center gap-3 border-b border-theme-border/30">
+              <span className="text-theme-accent font-black text-base select-none">:</span>
+              <input
+                type="text"
+                autoFocus
+                value={comandoGlobal}
+                onChange={(e) => setComandoGlobal(e.target.value)}
+                placeholder="Escribe :h <sección>, :q para salir, o . / $ / # para crear..."
+                className="w-full bg-transparent outline-none border-none text-theme-text text-sm font-bold placeholder-theme-text/30"
+              />
+              <button
+                type="submit"
+                disabled={!comandoGlobal.trim() || procesandoComando}
+                className="bg-theme-accent text-theme-bg p-2 rounded-xl disabled:opacity-30 cursor-pointer flex-shrink-0"
+              >
+                <ArrowRight className="w-4 h-4 stroke-[3]" />
+              </button>
+            </form>
+
+            {/* 📋 GUÍA RÁPIDA DE SINTAXIS */}
+            <div className="px-4 py-2 bg-theme-border/10 border-b border-theme-border/30 flex justify-between text-[9px] font-black uppercase text-theme-text/60 gap-2 flex-wrap">
+              <span className="flex items-center gap-1 text-theme-accent"><HelpCircle className="w-3 h-3" /> :h &lt;módulo&gt;</span>
+              <span className="flex items-center gap-1 text-theme-casa"><Zap className="w-3 h-3" /> . tarea</span>
+              <span className="flex items-center gap-1 text-theme-trabajo"><IconGasto className="w-3 h-3" /> $ gasto;monto</span>
+              <span className="flex items-center gap-1 text-theme-accent"><X className="w-3 h-3" /> :q (salir)</span>
+            </div>
+
+            {/* 🧭 SUGERENCIAS INTERACTIVAS AL ESCRIBIR :h */}
+            <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+              <div className="text-[8px] font-black text-theme-text/40 uppercase tracking-widest px-3 py-1">Escribe :h o selecciona para ir</div>
+              {comandosFiltrados.length === 0 ? (
+                <p className="text-[10px] italic text-theme-text/40 px-3 py-2">Presiona Enter para ejecutar la acción...</p>
+              ) : (
+                comandosFiltrados.map((item, idx) => {
+                  const IconoCmd = item.icono;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSeccionActiva(item.seccion);
+                        setMostrarPromptGlobal(false);
+                        setComandoGlobal('');
+                      }}
+                      className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-theme-border/30 text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <IconoCmd className="w-4 h-4 text-theme-accent" />
+                        <span className="text-xs font-bold text-theme-text uppercase">{item.desc}</span>
+                      </div>
+                      <span className="text-[9px] font-black text-theme-accent bg-theme-accent/10 px-2 py-0.5 rounded border border-theme-accent/30 group-hover:bg-theme-accent group-hover:text-theme-bg transition-all">
+                        :h {item.cmd} ({item.alias})
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="px-4 py-2 bg-theme-bg border-t border-theme-border/20 flex justify-between text-[8px] text-theme-text/40 uppercase font-black tracking-widest">
+              <span>[:q o ESC] Salir</span>
+              <span>[ENTER] Ejecutar</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
