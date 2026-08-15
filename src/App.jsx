@@ -32,7 +32,9 @@ import {
   Zap,
   DollarSign as IconGasto,
   Calendar as IconEvent,
-  HelpCircle
+  HelpCircle,
+  /* NUEVO: Se importa el ícono Palette para la versión móvil/compacta */
+  Palette
 } from 'lucide-react';
 
 const LISTA_TEMAS = [
@@ -376,12 +378,25 @@ export default function App() {
     <div className="bg-theme-bg text-theme-text flex h-dvh overflow-hidden font-mono">
       <div className="w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
         <div className="flex flex-col h-dvh overflow-hidden">
+          
+          {/* CÓDIGO ANTERIOR COMENTADO:
           <button 
             onClick={cambiarSiguienteTema}
             title={`Tema actual: ${LISTA_TEMAS.find(t => t.id === tema)?.nombre}. Clic para cambiar.`}
             className="hidden xl:block p-6 font-black text-theme-accent border-b border-theme-border italic uppercase tracking-tighter text-xl flex-shrink-0 text-left hover:opacity-80 transition-opacity cursor-pointer select-none"
           >
             Enfoque
+          </button>
+          */}
+
+          {/* NUEVO: Botón visible en pantallas chicas (con ícono Palette) y en pantallas grandes (con texto Enfoque) */}
+          <button 
+            onClick={cambiarSiguienteTema}
+            title={`Tema actual: ${LISTA_TEMAS.find(t => t.id === tema)?.nombre}. Clic para cambiar.`}
+            className="p-4 xl:p-6 font-black text-theme-accent border-b border-theme-border italic uppercase tracking-tighter text-xl flex-shrink-0 flex items-center justify-center xl:justify-start hover:opacity-80 transition-opacity cursor-pointer select-none"
+          >
+            <Palette className="w-5 h-5 flex-shrink-0 xl:hidden" />
+            <span className="hidden xl:inline">Enfoque</span>
           </button>
 
           <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2 min-h-0 custom-scrollbar">

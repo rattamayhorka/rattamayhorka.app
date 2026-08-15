@@ -29,14 +29,14 @@ const defaultEdgeOptions = {
   }, 
 };
 
-// AGREGADO: Configuración de paletas de color para los grupos
+// NUEVO: Configuración de paletas con clases diferenciadas y nombres descriptivos para los tooltips
 const OPCIONES_COLOR_GRUPO = [
-  { id: 'purple', bg: 'bg-theme-bg', border: 'border-theme-trabajo/80', dot: 'bg-theme-trabajo', text: 'text-theme-trabajo' },
-  { id: 'blue',   bg: 'bg-theme-bg', border: 'border-theme-accent/80',  dot: 'bg-theme-accent',  text: 'text-theme-accent' },
-  { id: 'emerald',bg: 'bg-theme-bg', border: 'border-theme-trabajo/80',dot: 'bg-theme-trabajo',text: 'text-theme-trabajo' },
-  { id: 'amber',  bg: 'bg-theme-bg', border: 'border-theme-casa/80',   dot: 'bg-theme-casa',   text: 'text-theme-casa' },
-  { id: 'rose',   bg: 'bg-theme-bg', border: 'border-theme-casa/80',   dot: 'bg-theme-casa',   text: 'text-theme-casa' },
-  { id: 'zinc',   bg: 'bg-theme-bg', border: 'border-theme-border',    dot: 'bg-theme-text/50',text: 'text-theme-text/70' },
+  { id: 'purple',  nombre: 'Morado',    bg: 'bg-theme-bg', border: 'border-purple-500/80',  dot: 'bg-purple-500',  text: 'text-purple-400' },
+  { id: 'blue',    nombre: 'Azul',      bg: 'bg-theme-bg', border: 'border-blue-500/80',    dot: 'bg-blue-500',    text: 'text-blue-400' },
+  { id: 'emerald', nombre: 'Esmeralda', bg: 'bg-theme-bg', border: 'border-emerald-500/80', dot: 'bg-emerald-500', text: 'text-emerald-400' },
+  { id: 'amber',   nombre: 'Ámbar',     bg: 'bg-theme-bg', border: 'border-amber-500/80',   dot: 'bg-amber-500',   text: 'text-amber-400' },
+  { id: 'rose',    nombre: 'Rosa',      bg: 'bg-theme-bg', border: 'border-rose-500/80',    dot: 'bg-rose-500',    text: 'text-rose-400' },
+  { id: 'zinc',    nombre: 'Gris',      bg: 'bg-theme-bg', border: 'border-zinc-500/60',    dot: 'bg-zinc-400',    text: 'text-zinc-400' },
 ];
 
 // =========================================================
@@ -97,7 +97,7 @@ function NodoGrupoExpandible(props) {
                 className={`w-3 h-3 rounded-full ${c.dot} transition-transform hover:scale-125 cursor-pointer ${
                   (data.color || 'purple') === c.id ? 'ring-2 ring-theme-text scale-110' : 'opacity-60 hover:opacity-100'
                 }`}
-                title={`Color ${c.id}`}
+                title={c.nombre || `Color ${c.id}`}
               />
             ))}
           </div>
