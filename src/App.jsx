@@ -525,7 +525,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v 0.9.15 "map size"
+            rattamayhorka v 0.9.16 "color map"
           </div>
         </div>
       </div>
