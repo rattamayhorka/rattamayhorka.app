@@ -1,18 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente Supabase seguro desde variables de entorno
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.VITE_SUPABASE_ANON_KEY
 );
 
-// Lectura estricta de variables de entorno de Telegram
 const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 async function enviarTelegram(mensaje) {
   if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.error('Faltan variables de entorno de Telegram (TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID).');
+    console.error('Faltan variables de entorno de Telegram.');
     return;
   }
 
@@ -30,22 +28,42 @@ async function enviarTelegram(mensaje) {
 
 export default async function handler(req, res) {
   try {
+    // 1. Obtener la hora y fecha exacta en la zona horaria de México
     const ahora = new Date();
-    // Ajuste de zona horaria México (UTC-6)
-    const tzOffset = -6 * 60;
-    const ahoraLocal = new Date(ahora.getTime() + (ahora.getTimezoneOffset() + tzOffset) * 60000);
+    const formatoMexico = new Intl.DateTimeFormat('es-MX', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).formatToParts(ahora);
 
-    const diaNum = String(ahoraLocal.getDate()).padStart(2, '0');
-    const mesNum = String(ahoraLocal.getMonth() + 1).padStart(2, '0');
-    const anioNum = ahoraLocal.getFullYear();
-    const fechaHoyStr = `${diaNum}/${mesNum}/${anioNum}`;
-    const diaDelMes = ahoraLocal.getDate();
-    const diaDeSemana = ahoraLocal.getDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
+    const partes = {};
+    formatoMexico.forEach(p => partes[p.type] = p.value);
 
-    const horaActualStr = ahoraLocal.toTimeString().substring(0, 5); // "HH:MM"
+    const diaNum = partes.day;
+    const mesNum = partes.month;
+    const anioNum = partes.year;
+    
+    // Soporte para ambos formatos de fecha
+    const fechaSlash = `${diaNum}/${mesNum}/${anioNum}`; // "29/08/2026"
+    const fechaDash = `${anioNum}-${mesNum}-${diaNum}`;  // "2026-08-29"
+
+    const diaDelMes = parseInt(diaNum, 10);
+    
+    // Calcular día de la semana en México (0=Dom, 1=Lun, ..., 6=Sáb)
+    const fechaObjLocal = new Date(`${anioNum}-${mesNum}-${diaNum}T12:00:00`);
+    const diaDeSemana = fechaObjLocal.getDay();
+
+    const horaActualStr = `${partes.hour}:${partes.minute}`;
+    const [hNow, mNow] = [parseInt(partes.hour, 10), parseInt(partes.minute, 10)];
     const MINUTOS_ANTICIPACION = 5;
 
-    // 1. REVISAR EVENTOS DE FUTURELOG (reuniones)
+    let notificacionesEnviadas = 0;
+
+    // 2. REVISAR EVENTOS DE FUTURELOG (reuniones)
     const { data: reuniones, error: errReuniones } = await supabase
       .from('reuniones')
       .select('*');
@@ -55,9 +73,13 @@ export default async function handler(req, res) {
         if (!r.hora) continue;
 
         let aplicaHoy = false;
+        const fechaEvento = (r.fecha || '').trim();
 
+        // Normalización y chequeo de recurrencia
         if (!r.tipo_recurrencia || r.tipo_recurrencia === 'unica') {
-          if (r.fecha === fechaHoyStr) aplicaHoy = true;
+          if (fechaEvento === fechaSlash || fechaEvento === fechaDash) {
+            aplicaHoy = true;
+          }
         } else if (r.tipo_recurrencia === 'mensual_dia') {
           if (parseInt(r.dia_mes, 10) === diaDelMes) aplicaHoy = true;
         } else if (r.tipo_recurrencia === 'mensual_rango') {
@@ -70,9 +92,9 @@ export default async function handler(req, res) {
 
         if (aplicaHoy) {
           const [hEvent, mEvent] = r.hora.split(':').map(Number);
-          const [hNow, mNow] = horaActualStr.split(':').map(Number);
           const diffMinutos = (hEvent * 60 + mEvent) - (hNow * 60 + mNow);
 
+          // Si el evento ocurre en los próximos 0 a 5 minutos
           if (diffMinutos >= 0 && diffMinutos <= MINUTOS_ANTICIPACION) {
             const msg = `🗓️ <b>Recordatorio de Evento (en ${diffMinutos} min):</b>\n\n` +
                         `📌 <b>${r.comite}</b>\n` +
@@ -81,12 +103,13 @@ export default async function handler(req, res) {
                         `🏷️ <b>Entorno:</b> ${r.tipo || 'Trabajo'}`;
 
             await enviarTelegram(msg);
+            notificacionesEnviadas++;
           }
         }
       }
     }
 
-    // 2. REVISAR TAREAS KANBAN CON HORA PROGRAMADA
+    // 3. REVISAR TAREAS KANBAN CON HORA PROGRAMADA
     const { data: tareas, error: errTareas } = await supabase
       .from('kanban')
       .select('*')
@@ -96,13 +119,12 @@ export default async function handler(req, res) {
     if (!errTareas && tareas) {
       for (const t of tareas) {
         if (t.tarea && t.tarea.includes(';')) {
-          const partes = t.tarea.split(';');
-          const textoTarea = partes[0].trim();
-          const horaTarea = partes[1].trim();
+          const partesT = t.tarea.split(';');
+          const textoTarea = partesT[0].trim();
+          const horaTarea = partesT[1].trim();
 
           if (horaTarea && horaTarea.includes(':')) {
             const [hTask, mTask] = horaTarea.split(':').map(Number);
-            const [hNow, mNow] = horaActualStr.split(':').map(Number);
             const diff = (hTask * 60 + mTask) - (hNow * 60 + mNow);
 
             if (diff >= 0 && diff <= MINUTOS_ANTICIPACION) {
@@ -111,13 +133,19 @@ export default async function handler(req, res) {
                           `⏰ <b>Hora:</b> ${horaTarea}`;
 
               await enviarTelegram(msg);
+              notificacionesEnviadas++;
             }
           }
         }
       }
     }
 
-    return res.status(200).json({ success: true, timestamp: ahoraLocal.toISOString() });
+    return res.status(200).json({ 
+      success: true, 
+      hora_mexico: horaActualStr,
+      fecha_mexico: fechaSlash,
+      notificaciones_enviadas: notificacionesEnviadas 
+    });
   } catch (error) {
     console.error('Error en cron de notificaciones:', error);
     return res.status(500).json({ error: error.message });
