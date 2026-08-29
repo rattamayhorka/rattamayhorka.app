@@ -524,7 +524,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka X 0.9.20 "Promptosaurio v2"
+            rattamayhorka v.1.0.2 "SQLero"
           </div>
         </div>
       </div>

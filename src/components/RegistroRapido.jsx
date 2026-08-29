@@ -45,23 +45,17 @@ const parsearFechaTexto = (strFecha) => {
 const determinarTipoEvento = (fechaObj, horaStr) => {
   const diaSemana = fechaObj.getDay(); // 0 = Domingo, 6 = Sábado
 
-  // 1. Sábado (6) o Domingo (0) -> Casa automáticamente
   if (diaSemana === 0 || diaSemana === 6) {
     return 'Casa';
   }
 
-  // 2. Lunes a Viernes -> Evaluar Horario (08:00 a 17:00 = Trabajo)
-  let horaNum = 9; // Valor por defecto
+  let horaNum = 9;
   if (horaStr && horaStr.includes(':')) {
     const partesHora = horaStr.split(':');
     horaNum = parseInt(partesHora[0], 10) + (parseInt(partesHora[1], 10) / 60);
   }
 
-  if (horaNum >= 8.0 && horaNum <= 17.0) {
-    return 'Trabajo';
-  } else {
-    return 'Casa';
-  }
+  return (horaNum >= 8.0 && horaNum <= 17.0) ? 'Trabajo' : 'Casa';
 };
 
 // =========================================================================
@@ -70,20 +64,28 @@ const determinarTipoEvento = (fechaObj, horaStr) => {
 const parsearSintaxis = (texto) => {
   const t = texto.trim();
 
-  // 🟢 FINANZAS ($)
+  // 🟢 FINANZAS ($): Soporta "$ comida;150", "$150 comida", "$ 300 uber"
   if (t.startsWith('$')) {
     let limpio = t.substring(1).trim();
+    let concepto = 'Gasto no especificado';
     let monto = '0.00';
-    if (limpio.includes(';')) {
-      const partes = limpio.split(';');
-      limpio = partes[0].trim();
+
+    if (limpio.includes(';') || limpio.includes(',')) {
+      const sep = limpio.includes(';') ? ';' : ',';
+      const partes = limpio.split(sep);
+      concepto = partes[0].trim();
       monto = partes[1]?.trim() || '0.00';
-    } else if (limpio.includes(',')) {
-      const partes = limpio.split(',');
-      limpio = partes[0].trim();
-      monto = partes[1]?.trim() || '0.00';
+    } else {
+      // Extrae el primer número que encuentre como monto
+      const matchMonto = limpio.match(/(\d+(\.\d+)?)/);
+      if (matchMonto) {
+        monto = matchMonto[0];
+        concepto = limpio.replace(matchMonto[0], '').trim() || 'Gasto';
+      } else {
+        concepto = limpio;
+      }
     }
-    return { tipo: 'FINANZAS', icono: '💸', color: 'text-emerald-400', concepto: limpio, monto };
+    return { tipo: 'FINANZAS', icono: '💸', color: 'text-emerald-400', concepto, monto };
   }
 
   // 🟢 NOTAS (-)
@@ -101,7 +103,7 @@ const parsearSintaxis = (texto) => {
     return { tipo: 'TAREA', icono: '⚡', color: 'text-sky-400', textoLimpio: limpio, hora: horaExtraida };
   }
 
-  // 🟢 EVENTOS / FUTURELOG (#) - PARSER ESTRUCTURADO: # comite;fecha;hora;lugar
+  // 🟢 EVENTOS / FUTURELOG (#) - PARSER: # comite;fecha;hora;lugar
   if (t.startsWith('#')) {
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
@@ -131,7 +133,7 @@ const parsearSintaxis = (texto) => {
     };
   }
 
-  // 🟢 DETECCIÓN DE IDEAS CON '!'
+  // 🟢 IDEAS (!)
   if (t.startsWith('!')) return { tipo: 'IDEA', icono: '💡', color: 'text-yellow-300 font-bold' };
 
   return { tipo: 'REGISTRO PLANO', icono: '›', color: 'text-amber-200/90' };
@@ -169,12 +171,8 @@ export default function RegistroRapido() {
           prioridad: 99
         };
 
-        // ==========================================
-        // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', { datos: payloadTarea });
-        // 🟢 NUEVO: Inserción directa en tabla 'kanban' de Supabase
         const { error } = await supabase.from('kanban').insert([payloadTarea]);
         if (error) throw error;
-        // ==========================================
       } 
       // 2. FINANZAS ($) -> TABLA TRANSACCIONES
       else if (texto.trim().startsWith('$')) {
@@ -182,16 +180,12 @@ export default function RegistroRapido() {
           fecha: fechaFormateada,
           importe: parseFloat(deteccion.monto) || 0,
           descripcion: deteccion.concepto.toUpperCase(),
-          metodo_pago: "Efectivo",
+          tarjeta: "Efectivo", // 🟢 CORREGIDO: En tu base de datos la columna es 'tarjeta' (no 'metodo_pago')
           rubro: "Extras"
         };
 
-        // ==========================================
-        // 🔴 ANTERIOR: database.guardarDatos('guardarTransaccion', payloadFinanzas);
-        // 🟢 NUEVO: Inserción directa en tabla 'transacciones' de Supabase
         const { error } = await supabase.from('transacciones').insert([payloadFinanzas]);
         if (error) throw error;
-        // ==========================================
       } 
       // 3. EVENTOS (#) -> TABLA REUNIONES (FUTURE LOG)
       else if (texto.trim().startsWith('#')) {
@@ -204,12 +198,8 @@ export default function RegistroRapido() {
           tipo: deteccion.tipoEvento
         };
 
-        // ==========================================
-        // 🔴 ANTERIOR: database.guardarDatos('guardarReunion', { datos: payloadReunion });
-        // 🟢 NUEVO: Inserción directa en tabla 'reuniones' de Supabase
         const { error } = await supabase.from('reuniones').insert([payloadReunion]);
         if (error) throw error;
-        // ==========================================
       } 
       // 4. NOTAS (-), IDEAS (!) O TEXTO PLANO -> TABLA KANBAN (STATUS: Bullet)
       else {
@@ -221,12 +211,8 @@ export default function RegistroRapido() {
           prioridad: 1
         };
 
-        // ==========================================
-        // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', { datos: payloadGenerico });
-        // 🟢 NUEVO: Inserción directa en tabla 'kanban' de Supabase
         const { error } = await supabase.from('kanban').insert([payloadGenerico]);
         if (error) throw error;
-        // ==========================================
       }
       
       setMensaje({ 
@@ -236,7 +222,7 @@ export default function RegistroRapido() {
       setTexto(''); 
     } catch (err) {
       console.error("Error al registrar en Supabase:", err);
-      setMensaje({ tipo: 'error', texto: 'ERR_NET_UNREACHABLE: No se pudo registrar' });
+      setMensaje({ tipo: 'error', texto: `ERROR: ${err.message || 'No se pudo registrar'}` });
     } finally {
       setGuardando(false);
     }
@@ -246,7 +232,7 @@ export default function RegistroRapido() {
     <div className="min-h-screen bg-black text-zinc-300 font-mono flex flex-col justify-center items-center p-4 select-none">
       <div className="w-full max-w-md bg-zinc-950 border border-zinc-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         
-        {/* 📊 BARRA DE ESTADO SUPERIOR TIPO TERMINAL */}
+        {/* BARRA DE ESTADO SUPERIOR */}
         <div className="bg-zinc-900/60 border-b border-zinc-900 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Terminal className="w-4 h-4 text-sky-400" />
@@ -259,7 +245,7 @@ export default function RegistroRapido() {
         </div>
 
         <div className="p-5 space-y-5">
-          {/* 💡 LEYENDA DE SINTAXIS RÁPIDA */}
+          {/* LEYENDA DE SINTAXIS */}
           <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
             <div className="text-emerald-400 bg-emerald-950/20 py-1 rounded"><b className="text-emerald-300">$</b> Gasto</div>
             <div className="text-zinc-400 bg-zinc-900/40 py-1 rounded"><b className="text-zinc-200">-</b> Nota</div>
@@ -269,7 +255,6 @@ export default function RegistroRapido() {
           </div>
 
           <form onSubmit={ejecutarGuardado} className="space-y-4">
-            {/* INPUT ESTILO PROMPT DE TERMINAL */}
             <div>
               <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-500 mb-1.5 px-1">
                 <span>COMANDO / INPUT</span>
@@ -297,7 +282,6 @@ export default function RegistroRapido() {
               </div>
             </div>
 
-            {/* BOTÓN SUBMIT DE TERMINAL */}
             <button 
               type="submit"
               disabled={guardando || !texto.trim()}
@@ -308,7 +292,6 @@ export default function RegistroRapido() {
             </button>
           </form>
 
-          {/* NOTIFICACIÓN TIPO CONSOLA */}
           {mensaje && (
             <div className={`p-3 rounded-xl flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-wider border ${
               mensaje.tipo === 'success' 
@@ -320,7 +303,6 @@ export default function RegistroRapido() {
             </div>
           )}
 
-          {/* NAVEGACIÓN PANEL COMPLETO */}
           <div className="text-center pt-2 border-t border-zinc-900">
             <a href="/" className="text-[9px] text-zinc-600 hover:text-sky-400 uppercase tracking-widest transition-colors font-bold inline-flex items-center gap-1.5">
               <ArrowLeft className="w-3 h-3" /> Volver al Panel Principal

@@ -1,14 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 // ==========================================
 // 🔴 ANTERIOR: API de Google Apps Script
-// import { database } from '../api'; // Usa tu API existente
+// import { database } from '../api';
 // 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
 // ==========================================
 import { Send, Terminal, Database, Loader2, Sparkles, Trash2, Edit2, X, Columns3 } from 'lucide-react';
 
 // =========================================================================
-// 🧠 ayudador: PARSER DE FECHA Y DÍA/HORA PARA CLASIFICACIÓN (CASA / TRABAJO)
+// 🧠 HELPER: PARSER DE FECHA Y DÍA/HORA PARA CLASIFICACIÓN (CASA / TRABAJO)
 // =========================================================================
 const MESES_MAP = {
   ene: 0, jan: 0, feb: 1, mar: 2, abr: 3, apr: 3, may: 4, jun: 5,
@@ -21,7 +21,6 @@ const parsearFechaTexto = (strFecha) => {
 
   const texto = strFecha.trim().toLowerCase();
   
-  // Si viene como DD/MM o DD/MM/YYYY
   if (texto.includes('/') || texto.includes('-')) {
     const partes = texto.split(/[\/\-]/);
     const dia = parseInt(partes[0], 10) || hoy.getDate();
@@ -30,7 +29,6 @@ const parsearFechaTexto = (strFecha) => {
     return new Date(año, mes, dia);
   }
 
-  // Si viene como "28jul" o "28-jul"
   const match = texto.match(/^(\d{1,2})\-?([a-z]{3})$/i);
   if (match) {
     const dia = parseInt(match[1], 10);
@@ -45,23 +43,17 @@ const parsearFechaTexto = (strFecha) => {
 const determinarTipoEvento = (fechaObj, horaStr) => {
   const diaSemana = fechaObj.getDay(); // 0 = Domingo, 6 = Sábado
 
-  // 1. Sábado (6) o Domingo (0) -> Casa automáticamente
   if (diaSemana === 0 || diaSemana === 6) {
     return 'Casa';
   }
 
-  // 2. Lunes a Viernes -> Evaluar Horario (08:00 a 17:00 = Trabajo)
-  let horaNum = 9; // Valor por defecto
+  let horaNum = 9;
   if (horaStr && horaStr.includes(':')) {
     const partesHora = horaStr.split(':');
     horaNum = parseInt(partesHora[0], 10) + (parseInt(partesHora[1], 10) / 60);
   }
 
-  if (horaNum >= 8.0 && horaNum <= 17.0) {
-    return 'Trabajo';
-  } else {
-    return 'Casa';
-  }
+  return (horaNum >= 8.0 && horaNum <= 17.0) ? 'Trabajo' : 'Casa';
 };
 
 // =========================================================================
@@ -72,18 +64,31 @@ const parsearLineaTerminal = (texto) => {
 
   if (t.startsWith('$')) {
     const sinSimbolo = t.substring(1).trim();
+    let concepto = 'Gasto';
+    let monto = '0.00';
 
-    // 🟢 SOPORTE PARA SEPARADOR CON ';' Y ','
-    const partes = sinSimbolo.includes(';') ? sinSimbolo.split(';') : sinSimbolo.split(',');
-    const concepto = partes[0] || 'Gasto sin concepto';
-    const monto = partes[1] ? `$${partes[1].trim()}` : '$0.00';
+    if (sinSimbolo.includes(';') || sinSimbolo.includes(',')) {
+      const sep = sinSimbolo.includes(';') ? ';' : ',';
+      const partes = sinSimbolo.split(sep);
+      concepto = partes[0].trim() || 'Gasto';
+      monto = partes[1]?.trim() || '0.00';
+    } else {
+      const matchMonto = sinSimbolo.match(/(\d+(\.\d+)?)/);
+      if (matchMonto) {
+        monto = matchMonto[0];
+        concepto = sinSimbolo.replace(matchMonto[0], '').trim() || 'Gasto';
+      } else {
+        concepto = sinSimbolo;
+      }
+    }
+
     return {
       tipo: 'finanzas',
       icono: '💸',
       colorClase: 'text-theme-casa font-mono font-bold',
-      formateado: `[FINANZAS] > ${concepto} : ${monto}`,
+      formateado: `[FINANZAS] > ${concepto} : $${monto}`,
       conceptoLimpio: concepto,
-      montoLimpio: partes[1] ? partes[1].trim() : '0.00'
+      montoLimpio: monto
     };
   } else if (t.startsWith('-')) {
     const contenido = t.substring(1).trim();
@@ -94,8 +99,6 @@ const parsearLineaTerminal = (texto) => {
       formateado: `[NOTA] >> ${contenido}`
     };
   } else if (t.startsWith('.')) {
-
-    // 🟢 SOPORTE EXTRAER TIEMPO EN TAREAS (.) CON ';'
     const contenidoCompleto = t.substring(1).trim();
     let limpio = contenidoCompleto;
     let horaExtraida = "";
@@ -115,8 +118,6 @@ const parsearLineaTerminal = (texto) => {
       hora: horaExtraida
     };
   } else if (t.startsWith('#')) {
-    
-    // 🟢 NUEVO PARSER ESTRUCTURADO DE EVENTOS FUTURELOG (# evento;28jul;10:00;lugar)
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
 
@@ -144,9 +145,7 @@ const parsearLineaTerminal = (texto) => {
       lugar: lugarTexto,
       tipoEvento: tipoCalculado
     };
-  } 
-  // 🟢 DETECCIÓN DE IDEAS CON '!'
-  else if (t.startsWith('!')) {
+  } else if (t.startsWith('!')) {
     const contenido = t.substring(1).trim();
     return {
       tipo: 'idea',
@@ -169,15 +168,11 @@ export default function Bullet({ refreshTrigger }) {
   const [nuevoComando, setNuevoComando] = useState('');
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
-
-  // 🟢 AGREGADO: ESTADO PARA FILTRAR EL HISTÓRICO DE LOGS
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
   
-  // ✏️ Estados para control de Edición In-Place
   const [modoEdicion, setModoEdicion] = useState(false);
   const [notaAEditar, setNotaAEditar] = useState(null);
 
-  // 🛠️ REPOSITORIO DE REF DE CONTENEDOR PARA SCROLL LOCAL EN TABLET
   const scrollContainerRef = useRef(null);
   const bottomTerminalRef = useRef(null);
   const textareaRef = useRef(null);
@@ -185,9 +180,6 @@ export default function Bullet({ refreshTrigger }) {
   const cargarHistoricoTerminal = async () => {
     setCargando(true);
     try {
-      // ==========================================
-      // 🔴 ANTERIOR: const data = await database.obtenerSeccion('pendientes');
-      // 🟢 NUEVO: Consulta directa en tabla 'kanban' de Supabase
       const { data, error } = await supabase
         .from('kanban')
         .select('*')
@@ -195,7 +187,6 @@ export default function Bullet({ refreshTrigger }) {
         .order('id', { ascending: true });
 
       if (error) throw error;
-      // ==========================================
       
       const logsFiltrados = (data || []).filter(item => {
         const statusLower = (item.status || item.Status || '').trim().toLowerCase();
@@ -237,14 +228,12 @@ export default function Bullet({ refreshTrigger }) {
     cargarHistoricoTerminal();
   }, [refreshTrigger]);
 
-  // 🛠️ SCROLL CONTENIDO EXCLUSIVAMENTE AL CONTENEDOR INTERNO
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
-  // 📐 Ajustar altura de la caja de texto dinámicamente al escribir
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -264,9 +253,6 @@ export default function Bullet({ refreshTrigger }) {
 
     try {
       if (modoEdicion && notaAEditar) {
-        // ==========================================
-        // 🔴 ANTERIOR: database.guardarDatos('modificarTarea', ...);
-        // 🟢 NUEVO: Actualización directa en Supabase
         const { error } = await supabase
           .from('kanban')
           .update({
@@ -278,7 +264,6 @@ export default function Bullet({ refreshTrigger }) {
           .eq('id', notaAEditar.rawId);
 
         if (error) throw error;
-        // ==========================================
         
         setLogs(prev => prev.map(item => 
           item.rawId === notaAEditar.rawId 
@@ -293,16 +278,30 @@ export default function Bullet({ refreshTrigger }) {
             fecha: fechaFormateada,
             importe: parseFloat(analisis.montoLimpio) || 0,
             descripcion: analisis.conceptoLimpio.toUpperCase(),
-            metodo_pago: "Efectivo",
+            tarjeta: "Efectivo", // 🟢 CORREGIDO: 'tarjeta' en lugar de 'metodo_pago'
             rubro: "Extras"
           };
 
-          // ==========================================
-          // 🔴 ANTERIOR: database.guardarDatos('guardarTransaccion', payloadFinanzas);
-          // 🟢 NUEVO: Inserción directa en tabla 'transacciones'
           const { error } = await supabase.from('transacciones').insert([payloadFinanzas]);
           if (error) throw error;
-          // ==========================================
+
+          // También guardamos una referencia visual en kanban para que el log quede registrado en la terminal
+          const { data: insertado } = await supabase.from('kanban').insert([{
+            tarea: comandoCrudo,
+            status: 'Bullet',
+            fecha: fechaFormateada,
+            tipo: 'BulletJournal',
+            prioridad: 1
+          }]).select().single();
+
+          const nuevoLog = {
+            id: insertado ? insertado.id : Date.now(),
+            rawId: insertado ? insertado.id : Date.now(),
+            textoOriginal: comandoCrudo,
+            fecha: fechaFormateada,
+            ...analisis
+          };
+          setLogs(prev => [...prev, nuevoLog]);
         } 
         // 🟢 TAREAS (.): ENVÍA A KANBAN
         else if (analisis.tipo === 'tarea') {
@@ -310,18 +309,24 @@ export default function Bullet({ refreshTrigger }) {
             ? `${analisis.textoLimpioSinPunto}; ${analisis.hora}` 
             : analisis.textoLimpioSinPunto;
 
-          // ==========================================
-          // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', ...);
-          // 🟢 NUEVO: Inserción directa en tabla 'kanban'
-          const { error } = await supabase.from('kanban').insert([{
+          const { data: insertado, error } = await supabase.from('kanban').insert([{
             tarea: cadenaSinPuntoConHora,
             status: 'Por Hacer',
             fecha: fechaFormateada,
             tipo: 'Trabajo',
             prioridad: 99
-          }]);
+          }]).select().single();
+
           if (error) throw error;
-          // ==========================================
+
+          const nuevoLog = {
+            id: insertado ? insertado.id : Date.now(),
+            rawId: insertado ? insertado.id : Date.now(),
+            textoOriginal: comandoCrudo,
+            fecha: fechaFormateada,
+            ...analisis
+          };
+          setLogs(prev => [...prev, nuevoLog]);
         } 
         // 🟢 EVENTOS (#): ESCRIBE DIRECTO A LA TABLA REUNIONES (FUTURELOG)
         else if (analisis.tipo === 'evento') {
@@ -334,18 +339,28 @@ export default function Bullet({ refreshTrigger }) {
             tipo: analisis.tipoEvento
           };
 
-          // ==========================================
-          // 🔴 ANTERIOR: database.guardarDatos('guardarReunion', { datos: payloadReunion });
-          // 🟢 NUEVO: Inserción directa en tabla 'reuniones'
           const { error } = await supabase.from('reuniones').insert([payloadReunion]);
           if (error) throw error;
-          // ==========================================
+
+          const { data: insertado } = await supabase.from('kanban').insert([{
+            tarea: comandoCrudo,
+            status: 'Bullet',
+            fecha: fechaFormateada,
+            tipo: 'BulletJournal',
+            prioridad: 1
+          }]).select().single();
+
+          const nuevoLog = {
+            id: insertado ? insertado.id : Date.now(),
+            rawId: insertado ? insertado.id : Date.now(),
+            textoOriginal: comandoCrudo,
+            fecha: fechaFormateada,
+            ...analisis
+          };
+          setLogs(prev => [...prev, nuevoLog]);
         } 
         else {
-          // 🔴 NOTAS (-) E IDEAS (!): SE GUARDAN COMO BULLET EN KANBAN
-          // ==========================================
-          // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', ...);
-          // 🟢 NUEVO: Inserción directa en tabla 'kanban'
+          // 🟢 NOTAS (-) E IDEAS (!): SE GUARDAN COMO BULLET EN KANBAN
           const { data: insertado, error } = await supabase.from('kanban').insert([{
             tarea: comandoCrudo,
             status: 'Bullet',
@@ -364,7 +379,6 @@ export default function Bullet({ refreshTrigger }) {
             ...analisis
           };
           setLogs(prev => [...prev, nuevoLogOptimo]);
-          // ==========================================
         }
       }
       setNuevoComando('');
@@ -375,7 +389,6 @@ export default function Bullet({ refreshTrigger }) {
     }
   };
 
-  // 📋 ENVIAR TAREA AL KANBAN
   const enviarAKanban = async (item) => {
     setLogs(prev => prev.filter(l => l.rawId !== item.rawId));
 
@@ -386,9 +399,6 @@ export default function Bullet({ refreshTrigger }) {
       ? `${item.textoLimpioSinPunto}; ${item.hora}`
       : item.textoLimpioSinPunto;
 
-    // ==========================================
-    // 🔴 ANTERIOR: database.guardarDatos('modificarTarea', ...);
-    // 🟢 NUEVO: Cambio de estatus a 'Por Hacer' en Supabase
     try {
       const { error } = await supabase
         .from('kanban')
@@ -404,7 +414,6 @@ export default function Bullet({ refreshTrigger }) {
     } catch (err) {
       console.error("Error al transferir al Kanban en Supabase:", err);
     }
-    // ==========================================
   };
 
   const eliminarNota = async (item) => {
@@ -412,9 +421,6 @@ export default function Bullet({ refreshTrigger }) {
     
     setLogs(prev => prev.filter(l => l.rawId !== item.rawId));
 
-    // ==========================================
-    // 🔴 ANTERIOR: database.guardarDatos('statusKanban', ...);
-    // 🟢 NUEVO: Borrado físico directo en Supabase
     try {
       const { error } = await supabase
         .from('kanban')
@@ -425,7 +431,6 @@ export default function Bullet({ refreshTrigger }) {
     } catch (err) {
       console.error("Error al eliminar en Supabase:", err);
     }
-    // ==========================================
   };
 
   const iniciarEdicion = (item) => {
@@ -448,7 +453,6 @@ export default function Bullet({ refreshTrigger }) {
     }
   };
 
-  // 🟢 FILTRADO ACTIVO DE LOGS SEGÚN LA SELECCIÓN
   const logsVisibles = logs.filter(log => {
     if (filtroTipo === 'TODOS') return true;
     return log.tipo === filtroTipo;
@@ -457,7 +461,7 @@ export default function Bullet({ refreshTrigger }) {
   return (
     <div className="flex flex-col h-[calc(100dvh-5rem)] md:h-[calc(100dvh-2rem)] xl:h-[calc(100dvh-4.5rem)] w-full bg-theme-bg font-mono text-xs text-theme-text rounded-2xl border border-theme-border overflow-hidden shadow-xl">
 
-      {/* 📊 BARRA DE ESTADO SUPERIOR CON FILTROS INTERACTIVOS */}
+      {/* 📊 BARRA DE ESTADO SUPERIOR CON FILTROS */}
       <div className="flex-shrink-0 bg-theme-bg border-b border-theme-border/40 select-none px-4 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-theme-accent" />
@@ -522,7 +526,7 @@ export default function Bullet({ refreshTrigger }) {
         </div>
       </div>
 
-      {/* 📺 SCREEN DE LOGS CON REF ASIGNADO PARA SCROLL INTERNO */}
+      {/* 📺 SCREEN DE LOGS */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto bg-theme-bg scrollbar-none px-4 py-4 space-y-2 min-h-0">
         {cargando ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-theme-text/40">
@@ -557,7 +561,6 @@ export default function Bullet({ refreshTrigger }) {
                     </div>
                   </div>
 
-                  {/* Controles del Hover */}
                   <div className="flex items-center gap-3 text-[8px] text-theme-text/50 font-mono select-none flex-shrink-0 self-end sm:self-auto">
                     <div className="opacity-100 xl:opacity-0 xl:group-hover:opacity-100 flex items-center gap-1.5 transition-all mr-1">
                       {item.tipo === 'tarea' && (
