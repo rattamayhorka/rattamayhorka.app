@@ -524,7 +524,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v 0.9.20 "Promptosaurio"
+            rattamayhorka v 0.9.20 "Promptosaurio v2"
           </div>
         </div>
       </div>
