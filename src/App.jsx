@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Kanban from './components/Kanban';
 import Bullet from './components/Bullet';
+import Prompts from './components/Prompts';
 import Compromisos from './components/CompromisosHST';
 import Compras from './components/Compras';
 import FutureLogHST from './components/FutureLogHST';
@@ -33,7 +34,7 @@ import {
   DollarSign as IconGasto,
   Calendar as IconEvent,
   HelpCircle,
-  /* NUEVO: Se importa el ícono Palette para la versión móvil/compacta */
+  Bot,
   Palette
 } from 'lucide-react';
 
@@ -378,18 +379,6 @@ export default function App() {
     <div className="bg-theme-bg text-theme-text flex h-dvh overflow-hidden font-mono">
       <div className="w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
         <div className="flex flex-col h-dvh overflow-hidden">
-          
-          {/* CÓDIGO ANTERIOR COMENTADO:
-          <button 
-            onClick={cambiarSiguienteTema}
-            title={`Tema actual: ${LISTA_TEMAS.find(t => t.id === tema)?.nombre}. Clic para cambiar.`}
-            className="hidden xl:block p-6 font-black text-theme-accent border-b border-theme-border italic uppercase tracking-tighter text-xl flex-shrink-0 text-left hover:opacity-80 transition-opacity cursor-pointer select-none"
-          >
-            Enfoque
-          </button>
-          */}
-
-          {/* NUEVO: Botón visible en pantallas chicas (con ícono Palette) y en pantallas grandes (con texto Enfoque) */}
           <button 
             onClick={cambiarSiguienteTema}
             title={`Tema actual: ${LISTA_TEMAS.find(t => t.id === tema)?.nombre}. Clic para cambiar.`}
@@ -407,8 +396,18 @@ export default function App() {
                 seccionActiva === 'bullet' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
             >
-              <Wrench className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
+              <Wrench className="w-4 h-4 flex-shrink-0 xl:hidden" />
               <span className="hidden xl:inline px-1">Bullet</span>
+            </button>
+            <button
+              onClick={() => cambiarSeccion('prompts')}
+              title="Prompts"
+              className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
+                seccionActiva === 'prompts' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
+              }`}
+            >
+              <Bot className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
+              <span className="hidden xl:inline px-1">Prompts</span>
             </button>
 
             <button 
@@ -418,12 +417,12 @@ export default function App() {
                 seccionActiva === 'kanban' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
               }`}
             >
-              <Columns3 className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
+              <Columns3 className="w-4 h-4 flex-shrink-0 xl:hidden" />
               <span className="hidden xl:inline px-1">Kanban</span>
             </button>
 
-            <button 
-              onClick={() => cambiarSeccion('futureloghst')} 
+            <button
+              onClick={() => cambiarSeccion('futureloghst')}
               title="Future LOG Trabajo"
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
                 seccionActiva === 'futureloghst' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
@@ -525,7 +524,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v 0.9.16 "color map"
+            rattamayhorka v 0.9.20 "Promptosaurio"
           </div>
         </div>
       </div>
@@ -541,6 +540,10 @@ export default function App() {
           )}
           {seccionActiva === 'bullet' && (
             <Bullet key={refreshKeys['bullet'] || 0} />
+          )}
+          
+          {seccionActiva === 'prompts' && (
+            <Prompts key={refreshKeys['prompts'] || 0} />
           )}
 
           {seccionActiva === 'compromisos' && (
