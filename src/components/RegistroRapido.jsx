@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { database } from '../api';
+// ==========================================
+// 🔴 ANTERIOR: API de Google Apps Script
+// import { database } from '../api';
+// 🟢 NUEVO: Cliente oficial de Supabase
+import { supabase } from '../supabase';
+// ==========================================
 import { CheckCircle2, AlertCircle, ArrowLeft, Terminal, Send, Database } from 'lucide-react';
 
 // =========================================================================
@@ -160,42 +165,68 @@ export default function RegistroRapido() {
           tarea: cadenaSinPuntoConHora,
           status: "Por Hacer",
           fecha: fechaFormateada,
-          tipo: "Trabajo"
+          tipo: "Trabajo",
+          prioridad: 99
         };
-        await database.guardarDatos('guardarTarea', { datos: payloadTarea });
+
+        // ==========================================
+        // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', { datos: payloadTarea });
+        // 🟢 NUEVO: Inserción directa en tabla 'kanban' de Supabase
+        const { error } = await supabase.from('kanban').insert([payloadTarea]);
+        if (error) throw error;
+        // ==========================================
       } 
-      // 2. FINANZAS ($) -> PESTAÑA FINANZAS
+      // 2. FINANZAS ($) -> TABLA TRANSACCIONES
       else if (texto.trim().startsWith('$')) {
         const payloadFinanzas = {
           fecha: fechaFormateada,
           importe: parseFloat(deteccion.monto) || 0,
           descripcion: deteccion.concepto.toUpperCase(),
           metodo_pago: "Efectivo",
-          rubro: ""
+          rubro: "Extras"
         };
-        await database.guardarDatos('guardarTransaccion', payloadFinanzas);
+
+        // ==========================================
+        // 🔴 ANTERIOR: database.guardarDatos('guardarTransaccion', payloadFinanzas);
+        // 🟢 NUEVO: Inserción directa en tabla 'transacciones' de Supabase
+        const { error } = await supabase.from('transacciones').insert([payloadFinanzas]);
+        if (error) throw error;
+        // ==========================================
       } 
-      // 🟢 3. EVENTOS (#) -> PESTAÑA REUNIONES (FUTURE LOG)
+      // 3. EVENTOS (#) -> TABLA REUNIONES (FUTURE LOG)
       else if (texto.trim().startsWith('#')) {
         const payloadReunion = {
           comite: deteccion.comite.toUpperCase(),
+          tipo_recurrencia: 'unica',
           fecha: deteccion.fechaFormateada,
           hora: deteccion.hora,
           lugar: deteccion.lugar,
           tipo: deteccion.tipoEvento
         };
 
-        await database.guardarDatos('guardarReunion', { datos: payloadReunion });
+        // ==========================================
+        // 🔴 ANTERIOR: database.guardarDatos('guardarReunion', { datos: payloadReunion });
+        // 🟢 NUEVO: Inserción directa en tabla 'reuniones' de Supabase
+        const { error } = await supabase.from('reuniones').insert([payloadReunion]);
+        if (error) throw error;
+        // ==========================================
       } 
-      // 4. NOTAS (-), IDEAS (!) O TEXTO PLANO -> BULLET JOURNAL
+      // 4. NOTAS (-), IDEAS (!) O TEXTO PLANO -> TABLA KANBAN (STATUS: Bullet)
       else {
         const payloadGenerico = {
           tarea: texto.trim(),
           status: "Bullet",
           fecha: fechaFormateada,
-          tipo: "BulletJournal"
+          tipo: "BulletJournal",
+          prioridad: 1
         };
-        await database.guardarDatos('guardarTarea', { datos: payloadGenerico });
+
+        // ==========================================
+        // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', { datos: payloadGenerico });
+        // 🟢 NUEVO: Inserción directa en tabla 'kanban' de Supabase
+        const { error } = await supabase.from('kanban').insert([payloadGenerico]);
+        if (error) throw error;
+        // ==========================================
       }
       
       setMensaje({ 
@@ -204,6 +235,7 @@ export default function RegistroRapido() {
       });
       setTexto(''); 
     } catch (err) {
+      console.error("Error al registrar en Supabase:", err);
       setMensaje({ tipo: 'error', texto: 'ERR_NET_UNREACHABLE: No se pudo registrar' });
     } finally {
       setGuardando(false);

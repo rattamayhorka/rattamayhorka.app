@@ -1,5 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import { database } from '../api'; // Usa tu API existente
+// ==========================================
+// 🔴 ANTERIOR: API de Google Apps Script
+// import { database } from '../api'; // Usa tu API existente
+// 🟢 NUEVO: Cliente oficial de Supabase
+import { supabase } from '../supabase';
+// ==========================================
 import { Send, Terminal, Database, Loader2, Sparkles, Trash2, Edit2, X, Columns3 } from 'lucide-react';
 
 // =========================================================================
@@ -180,18 +185,28 @@ export default function Bullet({ refreshTrigger }) {
   const cargarHistoricoTerminal = async () => {
     setCargando(true);
     try {
-      const data = await database.obtenerSeccion('pendientes');
+      // ==========================================
+      // 🔴 ANTERIOR: const data = await database.obtenerSeccion('pendientes');
+      // 🟢 NUEVO: Consulta directa en tabla 'kanban' de Supabase
+      const { data, error } = await supabase
+        .from('kanban')
+        .select('*')
+        .ilike('status', 'Bullet')
+        .order('id', { ascending: true });
+
+      if (error) throw error;
+      // ==========================================
       
-      const logsFiltrados = data.filter(item => {
-        const statusLower = (item.Status || '').trim().toLowerCase();
+      const logsFiltrados = (data || []).filter(item => {
+        const statusLower = (item.status || item.Status || '').trim().toLowerCase();
         return statusLower === 'bullet';
       });
 
       const parseados = logsFiltrados.map((item, idx) => {
-        const textoOriginal = item.Tarea || "";
-        const fecha = item.Fecha || "---";
-        const hora = item.Hora || "";
-        const tipoOriginal = item.Tipo || "Trabajo";
+        const textoOriginal = item.tarea || item.Tarea || "";
+        const fecha = item.fecha || item.Fecha || "---";
+        const hora = item.hora || item.Hora || "";
+        const tipoOriginal = item.tipo || item.Tipo || "Trabajo";
         
         let stringDeAnalisis = textoOriginal;
         if (hora) {
@@ -201,7 +216,8 @@ export default function Bullet({ refreshTrigger }) {
         const analisis = parsearLineaTerminal(stringDeAnalisis);
 
         return {
-          id: idx,
+          id: item.id || idx,
+          rawId: item.id,
           textoOriginal,
           fecha,
           tipoOriginal,
@@ -221,14 +237,7 @@ export default function Bullet({ refreshTrigger }) {
     cargarHistoricoTerminal();
   }, [refreshTrigger]);
 
-  // ANTERIOR SCROLL HACIA ABAJO COMENTADO (Causaba salto vertical completo de pantalla en tablets)
-  /*
-  useEffect(() => {
-    bottomTerminalRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
-  */
-
-  // 🛠️ NUEVO SCROLL CONTENIDO EXCLUSIVAMENTE AL CONTENEDOR INTERNO
+  // 🛠️ SCROLL CONTENIDO EXCLUSIVAMENTE AL CONTENEDOR INTERNO
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
@@ -255,84 +264,112 @@ export default function Bullet({ refreshTrigger }) {
 
     try {
       if (modoEdicion && notaAEditar) {
-        await database.guardarDatos('modificarTarea', {
-          datos: {
-            tareaOriginal: notaAEditar.textoOriginal,
-            nuevaTarea: comandoCrudo,
-            nuevoStatus: 'Bullet',
-            nuevaFecha: fechaFormateada,
-            nuevoTipo: 'BulletJournal'
-          }
-        });
+        // ==========================================
+        // 🔴 ANTERIOR: database.guardarDatos('modificarTarea', ...);
+        // 🟢 NUEVO: Actualización directa en Supabase
+        const { error } = await supabase
+          .from('kanban')
+          .update({
+            tarea: comandoCrudo,
+            status: 'Bullet',
+            fecha: fechaFormateada,
+            tipo: 'BulletJournal'
+          })
+          .eq('id', notaAEditar.rawId);
+
+        if (error) throw error;
+        // ==========================================
         
         setLogs(prev => prev.map(item => 
-          item.textoOriginal === notaAEditar.textoOriginal 
+          item.rawId === notaAEditar.rawId 
             ? { ...item, textoOriginal: comandoCrudo, ...analisis } 
             : item
         ));
         cancelarEdicion();
       } else {
-        // 🟢 FINANZAS SIN RUBRO ASIGNADO POR DEFECTO
+        // 🟢 FINANZAS ($): GUARDA EN TABLA TRANSACCIONES
         if (analisis.tipo === 'finanzas') {
           const payloadFinanzas = {
             fecha: fechaFormateada,
             importe: parseFloat(analisis.montoLimpio) || 0,
             descripcion: analisis.conceptoLimpio.toUpperCase(),
             metodo_pago: "Efectivo",
-            rubro: "" // Se deja vacío sin rubro por defecto para definir a mano después
+            rubro: "Extras"
           };
-          await database.guardarDatos('guardarTransaccion', payloadFinanzas);
+
+          // ==========================================
+          // 🔴 ANTERIOR: database.guardarDatos('guardarTransaccion', payloadFinanzas);
+          // 🟢 NUEVO: Inserción directa en tabla 'transacciones'
+          const { error } = await supabase.from('transacciones').insert([payloadFinanzas]);
+          if (error) throw error;
+          // ==========================================
         } 
-        // 🟢 SI ES TAREA (INICIA CON .) ENVÍA A KANBAN
+        // 🟢 TAREAS (.): ENVÍA A KANBAN
         else if (analisis.tipo === 'tarea') {
           const cadenaSinPuntoConHora = analisis.hora 
             ? `${analisis.textoLimpioSinPunto}; ${analisis.hora}` 
             : analisis.textoLimpioSinPunto;
 
-          await database.guardarDatos('guardarTarea', {
-            datos: {
-              tarea: cadenaSinPuntoConHora, // Sin punto inicial
-              status: 'Por Hacer', // Va a Kanban directamente
-              fecha: fechaFormateada,
-              tipo: 'Trabajo' // Se fuerza a Trabajo para Kanban
-            }
-          });
+          // ==========================================
+          // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', ...);
+          // 🟢 NUEVO: Inserción directa en tabla 'kanban'
+          const { error } = await supabase.from('kanban').insert([{
+            tarea: cadenaSinPuntoConHora,
+            status: 'Por Hacer',
+            fecha: fechaFormateada,
+            tipo: 'Trabajo',
+            prioridad: 99
+          }]);
+          if (error) throw error;
+          // ==========================================
         } 
-        // 🟢 CORRECCIÓN EVENTO: ESCRIBE DIRECTO A LA PESTAÑA REUNIONES (FUTURELOG)
+        // 🟢 EVENTOS (#): ESCRIBE DIRECTO A LA TABLA REUNIONES (FUTURELOG)
         else if (analisis.tipo === 'evento') {
           const payloadReunion = {
             comite: analisis.comite.toUpperCase(),
+            tipo_recurrencia: 'unica',
             fecha: analisis.fechaFormateada,
             hora: analisis.hora,
             lugar: analisis.lugar,
             tipo: analisis.tipoEvento
           };
 
-          await database.guardarDatos('guardarReunion', { datos: payloadReunion });
+          // ==========================================
+          // 🔴 ANTERIOR: database.guardarDatos('guardarReunion', { datos: payloadReunion });
+          // 🟢 NUEVO: Inserción directa en tabla 'reuniones'
+          const { error } = await supabase.from('reuniones').insert([payloadReunion]);
+          if (error) throw error;
+          // ==========================================
         } 
         else {
-          // 🔴 COMPORTAMIENTO NORMAL PARA NOTAS E IDEAS (!) (SE GUARDAN COMO BULLET EN PENDIENTES)
+          // 🔴 NOTAS (-) E IDEAS (!): SE GUARDAN COMO BULLET EN KANBAN
+          // ==========================================
+          // 🔴 ANTERIOR: database.guardarDatos('guardarTarea', ...);
+          // 🟢 NUEVO: Inserción directa en tabla 'kanban'
+          const { data: insertado, error } = await supabase.from('kanban').insert([{
+            tarea: comandoCrudo,
+            status: 'Bullet',
+            fecha: fechaFormateada,
+            tipo: 'BulletJournal',
+            prioridad: 1
+          }]).select().single();
+
+          if (error) throw error;
+
           const nuevoLogOptimo = {
-            id: Date.now(),
+            id: insertado ? insertado.id : Date.now(),
+            rawId: insertado ? insertado.id : Date.now(),
             textoOriginal: comandoCrudo,
             fecha: fechaFormateada,
             ...analisis
           };
           setLogs(prev => [...prev, nuevoLogOptimo]);
-
-          await database.guardarDatos('guardarTarea', {
-            datos: {
-              tarea: comandoCrudo,
-              status: 'Bullet', 
-              fecha: fechaFormateada,
-              tipo: 'BulletJournal'
-            }
-          });
+          // ==========================================
         }
       }
       setNuevoComando('');
     } catch (err) {
-      console.error("Error al enviar comando:", err);
+      console.error("Error al enviar comando en Supabase:", err);
     } finally {
       setEnviando(false);
     }
@@ -340,8 +377,7 @@ export default function Bullet({ refreshTrigger }) {
 
   // 📋 ENVIAR TAREA AL KANBAN
   const enviarAKanban = async (item) => {
-    // 1. Remoción visual optimista inmediata de la pantalla Bullet
-    setLogs(prev => prev.filter(l => l.textoOriginal !== item.textoOriginal));
+    setLogs(prev => prev.filter(l => l.rawId !== item.rawId));
 
     const hoy = new Date();
     const fechaFormateada = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
@@ -350,34 +386,46 @@ export default function Bullet({ refreshTrigger }) {
       ? `${item.textoLimpioSinPunto}; ${item.hora}`
       : item.textoLimpioSinPunto;
 
+    // ==========================================
+    // 🔴 ANTERIOR: database.guardarDatos('modificarTarea', ...);
+    // 🟢 NUEVO: Cambio de estatus a 'Por Hacer' en Supabase
     try {
-      await database.guardarDatos('modificarTarea', {
-        datos: {
-          tareaOriginal: item.textoOriginal,
-          nuevaTarea: nuevaTareaLimpia,
-          nuevoStatus: 'Por Hacer',
-          nuevaFecha: item.fecha !== '---' ? item.fecha : fechaFormateada,
-          nuevoTipo: 'Trabajo'
-        }
-      });
+      const { error } = await supabase
+        .from('kanban')
+        .update({
+          tarea: nuevaTareaLimpia,
+          status: 'Por Hacer',
+          fecha: item.fecha !== '---' ? item.fecha : fechaFormateada,
+          tipo: 'Trabajo'
+        })
+        .eq('id', item.rawId);
+
+      if (error) throw error;
     } catch (err) {
-      console.error("Error al transferir al Kanban:", err);
+      console.error("Error al transferir al Kanban en Supabase:", err);
     }
+    // ==========================================
   };
 
   const eliminarNota = async (item) => {
     if (!window.confirm("¿Seguro que deseas eliminar este log?")) return;
     
-    setLogs(prev => prev.filter(l => l.textoOriginal !== item.textoOriginal));
+    setLogs(prev => prev.filter(l => l.rawId !== item.rawId));
 
+    // ==========================================
+    // 🔴 ANTERIOR: database.guardarDatos('statusKanban', ...);
+    // 🟢 NUEVO: Borrado físico directo en Supabase
     try {
-      await database.guardarDatos('statusKanban', {
-        tareaTexto: item.textoOriginal,
-        nuevoStatus: 'Terminado'
-      });
+      const { error } = await supabase
+        .from('kanban')
+        .delete()
+        .eq('id', item.rawId);
+
+      if (error) throw error;
     } catch (err) {
-      console.error("Error al archivar/eliminar:", err);
+      console.error("Error al eliminar en Supabase:", err);
     }
+    // ==========================================
   };
 
   const iniciarEdicion = (item) => {
@@ -400,7 +448,7 @@ export default function Bullet({ refreshTrigger }) {
     }
   };
 
-  // 🟢 AGREGADO: FILTRADO ACTIVO DE LOGS SEGÚN LA SELECCIÓN
+  // 🟢 FILTRADO ACTIVO DE LOGS SEGÚN LA SELECCIÓN
   const logsVisibles = logs.filter(log => {
     if (filtroTipo === 'TODOS') return true;
     return log.tipo === filtroTipo;
@@ -416,7 +464,6 @@ export default function Bullet({ refreshTrigger }) {
           <span className="font-black tracking-widest text-[9px] text-theme-text/50">CORE://RAPID_LOG</span>
         </div>
 
-        {/* 🟢 NUEVA SECCIÓN DE BOTONES DE FILTRO (INCLUYE OPCIÓN [TODOS] Y [BULLET]) */}
         <div className="flex items-center gap-2 text-[9px] flex-wrap">
           <button
             onClick={() => setFiltroTipo('TODOS')}
@@ -492,7 +539,7 @@ export default function Bullet({ refreshTrigger }) {
             const mostrarSeparador = idx === 0 || logsVisibles[idx - 1].fecha !== item.fecha;
 
             return (
-              <div key={idx} className="space-y-2">
+              <div key={item.rawId || idx} className="space-y-2">
                 {mostrarSeparador && (
                   <div className="flex items-center gap-2 pt-3 pb-1 select-none">
                     <span className="text-theme-accent font-bold tracking-widest text-[9px]">
@@ -512,35 +559,33 @@ export default function Bullet({ refreshTrigger }) {
 
                   {/* Controles del Hover */}
                   <div className="flex items-center gap-3 text-[8px] text-theme-text/50 font-mono select-none flex-shrink-0 self-end sm:self-auto">
-                    {/*<div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 transition-all mr-1">*/}
-                    {/* BLOQUE NUEVO: TOTALMENTE VISIBLE EN TABLET / CELULAR Y CON HOVER EN ESCRITORIO */}
-                  <div className="opacity-100 xl:opacity-0 xl:group-hover:opacity-100 flex items-center gap-1.5 transition-all mr-1">
-                    {item.tipo === 'tarea' && (
-                      <button 
-                        onClick={() => enviarAKanban(item)}
-                        className="p-1 text-theme-accent bg-theme-border/10 md:bg-transparent md:text-theme-text/70 hover:text-theme-accent hover:bg-theme-border/20 rounded cursor-pointer flex items-center gap-1"
-                        title="Mandar al Kanban como Por Hacer"
-                      >
-                        <Columns3 className="w-3.5 h-3.5" />
-                        <span className="text-[8px] uppercase font-bold">A Kanban</span>
-                      </button>
-                    )}
+                    <div className="opacity-100 xl:opacity-0 xl:group-hover:opacity-100 flex items-center gap-1.5 transition-all mr-1">
+                      {item.tipo === 'tarea' && (
+                        <button 
+                          onClick={() => enviarAKanban(item)}
+                          className="p-1 text-theme-accent bg-theme-border/10 md:bg-transparent md:text-theme-text/70 hover:text-theme-accent hover:bg-theme-border/20 rounded cursor-pointer flex items-center gap-1"
+                          title="Mandar al Kanban como Por Hacer"
+                        >
+                          <Columns3 className="w-3.5 h-3.5" />
+                          <span className="text-[8px] uppercase font-bold">A Kanban</span>
+                        </button>
+                      )}
 
-                    <button 
-                      onClick={() => iniciarEdicion(item)}
-                      className="p-1 text-theme-accent bg-theme-border/10 md:bg-transparent md:text-theme-text/70 hover:text-theme-accent hover:bg-theme-border/20 rounded cursor-pointer"
-                      title="Editar nota en prompt"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => eliminarNota(item)}
-                      className="p-1 text-theme-casa bg-theme-border/10 md:bg-transparent md:text-theme-text/70 hover:text-theme-casa hover:bg-theme-border/20 rounded cursor-pointer"
-                      title="Eliminar de Sheets"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                      <button 
+                        onClick={() => iniciarEdicion(item)}
+                        className="p-1 text-theme-accent bg-theme-border/10 md:bg-transparent md:text-theme-text/70 hover:text-theme-accent hover:bg-theme-border/20 rounded cursor-pointer"
+                        title="Editar nota en prompt"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        onClick={() => eliminarNota(item)}
+                        className="p-1 text-theme-casa bg-theme-border/10 md:bg-transparent md:text-theme-text/70 hover:text-theme-casa hover:bg-theme-border/20 rounded cursor-pointer"
+                        title="Eliminar de Supabase"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <span className="uppercase">{item.tipo === 'evento' && item.hora ? `[${item.hora}]` : `[*]` }</span>
                   </div>
                 </div>

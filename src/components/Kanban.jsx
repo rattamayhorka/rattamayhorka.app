@@ -1,5 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
-import { database } from '../api';
+// ==========================================
+// 🔴 ANTERIOR: API de Google Apps Script
+// import { database } from '../api';
+// 🟢 NUEVO: Cliente oficial de Supabase
+import { supabase } from '../supabase';
+// ==========================================
 import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter } from 'lucide-react';
 
 // =========================================================================
@@ -110,7 +115,34 @@ export default function Kanban({ refreshTrigger }) {
 
   const cargarTareas = async () => {
     setCargando(true);
-    const data = await database.obtenerSeccion('pendientes');
+
+    // ==========================================
+    // 🔴 ANTERIOR: Lectura en Google Sheets
+    // const data = await database.obtenerSeccion('pendientes');
+    //
+    // 🟢 NUEVO: Lectura directa desde PostgreSQL en Supabase
+    let data = [];
+    try {
+      const { data: dataSupabase, error } = await supabase
+        .from('kanban')
+        .select('*')
+        .order('prioridad', { ascending: true });
+
+      if (error) throw error;
+
+      // Mapeo seguro a la estructura que usa tu UI (PascalCase)
+      data = (dataSupabase || []).map(row => ({
+        id: row.id,
+        Tarea: row.tarea,
+        Status: row.status,
+        Fecha: row.fecha,
+        Tipo: row.tipo,
+        Prioridad: row.prioridad
+      }));
+    } catch (err) {
+      console.error('Error al cargar kanban desde Supabase:', err);
+    }
+    // ==========================================
     
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -127,7 +159,6 @@ export default function Kanban({ refreshTrigger }) {
       
       return true;
     }).map((t, idx) => {
-      // Si la tarea tiene prioridad asignada en la hoja la usa, si no, usa el orden de carga
       const prioridadNum = t.Prioridad && !isNaN(parseInt(t.Prioridad, 10)) ? parseInt(t.Prioridad, 10) : idx + 1;
       if ((t.Status || '').trim().toUpperCase() === 'PROGRAMADO') {
         return { ...t, Status: 'Por Hacer', Prioridad: prioridadNum };
@@ -135,7 +166,6 @@ export default function Kanban({ refreshTrigger }) {
       return { ...t, Prioridad: prioridadNum };
     });
 
-    // Ordenar inicialmente por Prioridad dentro de cada grupo
     filtradas.sort((a, b) => (a.Prioridad || 0) - (b.Prioridad || 0));
 
     setTareas(filtradas);
@@ -156,7 +186,6 @@ export default function Kanban({ refreshTrigger }) {
         (t.Tipo || "").toLowerCase().trim() === filtoEntorno.toLowerCase().trim()
       );
     }
-    // Mantener el orden visual respetando la columna Prioridad
     resultado.sort((a, b) => (a.Prioridad || 0) - (b.Prioridad || 0));
     setTareasFiltradas(resultado);
   }, [tareas, filtoEntorno]);
@@ -167,7 +196,7 @@ export default function Kanban({ refreshTrigger }) {
     }
   };
 
-  // 🎯 NUEVO: MANEJO DE DROP CON REORDENAMIENTO Y REASIGNACIÓN DE PRIORIDADES
+  // 🎯 MANEJO DE DROP CON REORDENAMIENTO Y REASIGNACIÓN DE PRIORIDADES
   const manejarDropContenedor = async (e, nuevoStatus, targetTareaTexto = null) => {
     if (e && e.preventDefault) e.preventDefault();
     setTarjetaTargetId(null);
@@ -192,7 +221,6 @@ export default function Kanban({ refreshTrigger }) {
           copia.push(itemMover);
         }
       } else {
-        // Si no cayó sobre otra tarjeta, se coloca al final del estado destino
         let ultimoIndiceStatus = -1;
         for (let i = 0; i < copia.length; i++) {
           if ((copia[i].Status || '').toLowerCase().trim() === nuevoStatus.toLowerCase().trim()) {
@@ -217,15 +245,31 @@ export default function Kanban({ refreshTrigger }) {
         return t;
       });
 
-      // 4. Persistir estado y prioridades en Google Sheets de forma asíncrona
-      const tareasActualizadasConPrioridad = resultadoFinal
-        .filter(t => (t.Status || '').toLowerCase().trim() === nuevoStatus.toLowerCase().trim())
-        .map(t => ({ tareaTexto: t.Tarea, prioridad: t.Prioridad, status: t.Status }));
+      // ==========================================
+      // 🔴 ANTERIOR: Envío a Apps Script para reordenar en la hoja
+      // const tareasActualizadasConPrioridad = resultadoFinal
+      //   .filter(t => (t.Status || '').toLowerCase().trim() === nuevoStatus.toLowerCase().trim())
+      //   .map(t => ({ tareaTexto: t.Tarea, prioridad: t.Prioridad, status: t.Status }));
+      //
+      // database.guardarDatos('reordenarPrioridadesKanban', { 
+      //   nuevoStatus, 
+      //   tareasConPrioridad: tareasActualizadasConPrioridad 
+      // }).catch(() => {});
+      //
+      // 🟢 NUEVO: Actualización asíncrona por lote en Supabase
+      (async () => {
+        const tareasAActualizar = resultadoFinal.filter(
+          t => (t.Status || '').toLowerCase().trim() === nuevoStatus.toLowerCase().trim()
+        );
 
-      database.guardarDatos('reordenarPrioridadesKanban', { 
-        nuevoStatus, 
-        tareasConPrioridad: tareasActualizadasConPrioridad 
-      }).catch(() => {});
+        for (const t of tareasAActualizar) {
+          await supabase
+            .from('kanban')
+            .update({ status: t.Status, prioridad: t.Prioridad })
+            .eq('tarea', t.Tarea);
+        }
+      })().catch(err => console.error('Error al sincronizar drag & drop en Supabase:', err));
+      // ==========================================
 
       return resultadoFinal;
     });
@@ -247,7 +291,6 @@ export default function Kanban({ refreshTrigger }) {
     const hoy = new Date();
     const fechaFormateada = `${String(hoy.getDate()).padStart(2, '0')}/${String(hoy.getMonth() + 1).padStart(2, '0')}/${hoy.getFullYear()}`;
 
-    // La nueva tarea toma la prioridad máxima dentro de "Por Hacer"
     const prioridadesPorHacer = tareas
       .filter(t => (t.Status || '').toLowerCase().trim() === 'por hacer')
       .map(t => t.Prioridad || 0);
@@ -266,7 +309,17 @@ export default function Kanban({ refreshTrigger }) {
     setMostrarModalNuevo(false);
     setGuardando(false);
 
-    await database.guardarDatos('guardarTarea', { datos });
+    // ==========================================
+    // 🔴 ANTERIOR: Guardado en Google Sheets
+    // await database.guardarDatos('guardarTarea', { datos });
+    //
+    // 🟢 NUEVO: Inserción directa en tabla 'kanban' de Supabase
+    try {
+      await supabase.from('kanban').insert([datos]);
+    } catch (err) {
+      console.error('Error al insertar tarea en Supabase:', err);
+    }
+    // ==========================================
   };
 
   const ejecutarModificarTarea = async (e) => {
@@ -299,15 +352,33 @@ export default function Kanban({ refreshTrigger }) {
     setTareaSeleccionada(null);
     setGuardando(false);
 
-    await database.guardarDatos('modificarTarea', { 
-      datos: {
-        tareaOriginal: tareaOriginal, 
-        nuevaTarea: nuevaTarea, 
-        nuevoStatus: nuevoStatus, 
-        nuevaFecha: fechaFinal, 
-        nuevoTipo: editTipo 
-      }
-    });
+    // ==========================================
+    // 🔴 ANTERIOR: Modificación en Google Sheets
+    // await database.guardarDatos('modificarTarea', { 
+    //   datos: {
+    //     tareaOriginal: tareaOriginal, 
+    //     nuevaTarea: nuevaTarea, 
+    //     nuevoStatus: nuevoStatus, 
+    //     nuevaFecha: fechaFinal, 
+    //     nuevoTipo: editTipo 
+    //   }
+    // });
+    //
+    // 🟢 NUEVO: Actualización directa por nombre o ID en Supabase
+    try {
+      await supabase
+        .from('kanban')
+        .update({
+          tarea: nuevaTarea,
+          status: nuevoStatus,
+          fecha: fechaFinal,
+          tipo: editTipo
+        })
+        .eq('tarea', tareaOriginal);
+    } catch (err) {
+      console.error('Error al modificar tarea en Supabase:', err);
+    }
+    // ==========================================
   };
 
   const ejecutarArchivarTarea = async () => {
@@ -322,7 +393,20 @@ export default function Kanban({ refreshTrigger }) {
     setTareaSeleccionada(null);
     setGuardando(false);
 
-    await database.guardarDatos('statusKanban', { tareaTexto, nuevoStatus });
+    // ==========================================
+    // 🔴 ANTERIOR: Cambio de estatus a 'Terminado' en Google Sheets
+    // await database.guardarDatos('statusKanban', { tareaTexto, nuevoStatus });
+    //
+    // 🟢 NUEVO: Actualización de estatus en Supabase (o DELETE si no deseas conservar archivados)
+    try {
+      await supabase
+        .from('kanban')
+        .update({ status: nuevoStatus })
+        .eq('tarea', tareaTexto);
+    } catch (err) {
+      console.error('Error al archivar tarea en Supabase:', err);
+    }
+    // ==========================================
   };
 
   const abrirModalEdicion = (task) => {
@@ -399,7 +483,7 @@ export default function Kanban({ refreshTrigger }) {
         </button>
       </div>
       
-      {/* BLOQUE NUEVO CON ATRIBUTOS DE DETECCIÓN TÁCTIL */}
+      {/* BLOQUE CON ATRIBUTOS DE DETECCIÓN TÁCTIL */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* COLUMNA: POR HACER */}
         <div 
@@ -568,7 +652,6 @@ export default function Kanban({ refreshTrigger }) {
                 <option value="Hecho">Hecho</option>
                 <option value="Bullet">Bullet</option>
                 <option value="Programado">Pausar (Snooze)</option>
-
               </select>
 
               {editStatus === 'Programado' && (
@@ -639,7 +722,6 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
 
   const estiloIconoCalendario = esTrabajo ? "text-theme-trabajo" : "text-theme-casa";
 
-  // ⚡ EVENTOS TÁCTILES CON ACELERACIÓN POR GPU (TRANSFORM3D + REQUESTANIMATIONFRAME)
   const handleTouchStart = (e) => {
     const touch = e.touches[0];
     touchStartPos.current = { x: touch.clientX, y: touch.clientY };

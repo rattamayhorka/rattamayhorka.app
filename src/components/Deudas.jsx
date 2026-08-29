@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
-import { database } from '../api';
+// ==========================================
+// 🔴 ANTERIOR: API de Google Apps Script
+// import { database } from '../api';
+// 🟢 NUEVO: Cliente oficial de Supabase
+import { supabase } from '../supabase';
+// ==========================================
 import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -17,32 +22,65 @@ export default function Deudas({ refreshTrigger }) {
   const sincronizarDatos = async (silencioso = false) => {
     try {
       if (!silencioso) setCargando(true);
-      const [dataDeudas, dataTransacciones] = await Promise.all([
-        database.obtenerSeccion('deudas'),
-        database.obtenerSeccion('transacciones')
+
+      // ==========================================
+      // 🔴 ANTERIOR: Lectura en Google Sheets
+      // const [dataDeudas, dataTransacciones] = await Promise.all([
+      //   database.obtenerSeccion('deudas'),
+      //   database.obtenerSeccion('transacciones')
+      // ]);
+      //
+      // 🟢 NUEVO: Consultas paralelas directas a Supabase
+      const [resDeudas, resTransacciones, resNW] = await Promise.all([
+        supabase.from('deudas').select('*').order('id', { ascending: true }),
+        supabase.from('transacciones').select('*').order('id', { ascending: false }),
+        supabase.from('needs_wants').select('*').order('id', { ascending: false })
       ]);
-      
-      if (Array.isArray(dataDeudas)) {
-        setDeudas(dataDeudas);
 
-        // Extraer elementos de Needs vs Wants presentes en la pestaña Deudas
-        const extraidos = dataDeudas
-          .filter(d => d.NW_Concepto && d.NW_Concepto.toString().trim() !== '')
-          .map((d, idx) => ({
-            id: d.NW_Concepto + '_' + idx,
-            concepto: d.NW_Concepto,
-            monto: limpiarMonto(d.NW_Monto),
-            tipo: d.NW_Tipo || 'NEED',
-            asignado: d.NW_Asignado || 'ENRIQUE',
-            completado: (d.NW_Status || '').toUpperCase() === 'COMPLETADO'
-          }));
-        
-        setItemsNW(extraidos);
-      }
+      const rawDeudas = resDeudas.data || [];
+      const rawTransacciones = resTransacciones.data || [];
+      const rawNW = resNW.data || [];
 
-      if (Array.isArray(dataTransacciones)) setTransacciones(dataTransacciones);
+      // Mapear Deudas al formato esperado por los componentes y gráficas
+      const deudasMapeadas = rawDeudas.map(d => ({
+        id: d.id,
+        Tarjeta: d.tarjeta,
+        Descripcion: d.descripcion,
+        Fecha_Limite_de_Pago: d.fecha_limite,
+        Fecha_De_Corte: d.fecha_corte,
+        Deuda_Total: d.deuda_total,
+        Monto_Inicial: d.monto_inicial,
+        Monto_Minimo: d.monto_minimo,
+        Pago_No_Intereses: d.pago_no_intereses,
+        Status: d.status
+      }));
+      setDeudas(deudasMapeadas);
+
+      // Mapear Transacciones
+      const transaccionesMapeadas = rawTransacciones.map(t => ({
+        id: t.id,
+        Fecha: t.fecha,
+        Importe: t.importe,
+        Descripción: t.descripcion,
+        'Metodo de pago': t.metodo_pago,
+        Rubro: t.rubro
+      }));
+      setTransacciones(transaccionesMapeadas);
+
+      // Mapear Needs vs Wants
+      const extraidosNW = rawNW.map(nw => ({
+        id: nw.id,
+        concepto: nw.concepto,
+        monto: limpiarMonto(nw.monto),
+        tipo: nw.tipo || 'NEED',
+        asignado: nw.asignado || 'ENRIQUE',
+        completado: (nw.status || '').toUpperCase() === 'COMPLETADO'
+      }));
+      setItemsNW(extraidosNW);
+      // ==========================================
+
     } catch (error) {
-      console.error("Error al sincronizar con Google Sheets:", error);
+      console.error("Error al sincronizar con Supabase:", error);
     } finally {
       if (!silencioso) setCargando(false);
     }
@@ -60,7 +98,9 @@ export default function Deudas({ refreshTrigger }) {
     return isNaN(numero) ? 0 : Math.abs(numero);
   };
 
+  // =========================================================================
   // HANDLERS PARA NEEDS VS WANTS
+  // =========================================================================
   const agregarItemNW = async (e) => {
     e.preventDefault();
     if (!formNW.concepto.trim() || !formNW.monto) return;
@@ -74,30 +114,64 @@ export default function Deudas({ refreshTrigger }) {
       status: 'PENDIENTE'
     };
 
-    await database.guardarDatos('guardarNeedsWants', nuevo);
-    setFormNW(prev => ({ ...prev, concepto: '', monto: '' }));
-    await sincronizarDatos(true);
-    setGuardandoNW(false);
+    // ==========================================
+    // 🔴 ANTERIOR: database.guardarDatos('guardarNeedsWants', nuevo);
+    // 🟢 NUEVO: Inserción directa en tabla 'needs_wants' en Supabase
+    try {
+      const { error } = await supabase.from('needs_wants').insert([nuevo]);
+      if (error) throw error;
+      setFormNW(prev => ({ ...prev, concepto: '', monto: '' }));
+      await sincronizarDatos(true);
+    } catch (err) {
+      console.error("Error al agregar Need/Want en Supabase:", err);
+    } finally {
+      setGuardandoNW(false);
+    }
+    // ==========================================
   };
 
   const toggleStatusNW = async (item) => {
     setGuardandoNW(true);
     const nuevoStatus = item.completado ? 'PENDIENTE' : 'COMPLETADO';
     
-    await database.guardarDatos('actualizarStatusNeedsWants', {
-      concepto: item.concepto,
-      status: nuevoStatus
-    });
+    // ==========================================
+    // 🔴 ANTERIOR: database.guardarDatos('actualizarStatusNeedsWants', ...);
+    // 🟢 NUEVO: Actualización directa por ID en Supabase
+    try {
+      const { error } = await supabase
+        .from('needs_wants')
+        .update({ status: nuevoStatus })
+        .eq('id', item.id);
 
-    await sincronizarDatos(true);
-    setGuardandoNW(false);
+      if (error) throw error;
+      await sincronizarDatos(true);
+    } catch (err) {
+      console.error("Error al actualizar status de Need/Want en Supabase:", err);
+    } finally {
+      setGuardandoNW(false);
+    }
+    // ==========================================
   };
 
-  const eliminarItemNW = async (concepto) => {
+  const eliminarItemNW = async (idNW) => {
     setGuardandoNW(true);
-    await database.guardarDatos('eliminarNeedsWants', { concepto });
-    await sincronizarDatos(true);
-    setGuardandoNW(false);
+    // ==========================================
+    // 🔴 ANTERIOR: database.guardarDatos('eliminarNeedsWants', { concepto });
+    // 🟢 NUEVO: Borrado directo por ID en Supabase
+    try {
+      const { error } = await supabase
+        .from('needs_wants')
+        .delete()
+        .eq('id', idNW);
+
+      if (error) throw error;
+      await sincronizarDatos(true);
+    } catch (err) {
+      console.error("Error al eliminar Need/Want en Supabase:", err);
+    } finally {
+      setGuardandoNW(false);
+    }
+    // ==========================================
   };
 
   if (cargando) {
@@ -530,7 +604,7 @@ export default function Deudas({ refreshTrigger }) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => eliminarItemNW(item.concepto)}
+                  onClick={() => eliminarItemNW(item.id)}
                   disabled={guardandoNW}
                   className="text-theme-text/40 hover:text-theme-casa transition-colors cursor-pointer bg-transparent border-none p-0 disabled:opacity-50"
                 >

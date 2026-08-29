@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
-import { database } from '../api';
-import { AlertTriangle, Calendar, CheckCircle2, User, Filter, X, ExternalLink, Clock } from 'lucide-react';
+// ==========================================
+// 🔴 ANTERIOR: API de Google Apps Script
+// import { database } from '../api';
+// 🟢 NUEVO: Cliente oficial de Supabase
+import { supabase } from '../supabase';
+// ==========================================
+import { AlertTriangle, Calendar, CheckCircle2, User, Filter, X, ExternalLink, Clock, Plus, Trash2 } from 'lucide-react';
 
-// --- NUEVO COMPONENTE: LÍNEA DE TIEMPO VISUAL ESTILO GIT BRANCHES ---
+// --- COMPONENTE: LÍNEA DE TIEMPO VISUAL ESTILO TIMELINE ---
 function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
-  // 1. Filtrar solo tareas activas (pendientes/vencidas) y ordenarlas cronológicamente
   const tareasActivas = acuerdos
     .filter(item => {
       const statusUpper = (item.Status || "").trim().toUpperCase();
@@ -18,18 +22,15 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
 
   if (tareasActivas.length === 0) return null;
 
-  // 2. Definir el punto de inicio absoluto del timeline (Hoy o la primera vencida)
   let fechaBase = new Date(hoy);
   if (tareasActivas[0].fechaFinObj < fechaBase) {
     fechaBase = new Date(tareasActivas[0].fechaFinObj);
-    fechaBase.setDate(fechaBase.getDate() - 2); // Pequeño colchón inicial
+    fechaBase.setDate(fechaBase.getDate() - 2);
   }
 
-  // 3. Calcular la duración individual de cada tramo en la línea de tiempo única
   const bloquesTimeline = tareasActivas.map((item, idx) => {
     const fechaInicioObj = idx === 0 ? new Date(fechaBase) : new Date(tareasActivas[idx - 1].fechaFinObj);
     
-    // Evitar empalmes de 0 días
     if (fechaInicioObj >= item.fechaFinObj) {
       fechaInicioObj.setTime(item.fechaFinObj.getTime() - (1 * 24 * 60 * 60 * 1000));
     }
@@ -45,7 +46,6 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
     };
   });
 
-  // Calcular el total de días de toda la autopista de tiempo
   const totalDiasLinea = bloquesTimeline.reduce((acc, b) => acc + b.duracionDias, 0);
 
   return (
@@ -57,19 +57,13 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
         </h3>
       </div>
 
-      {/* Contenedor de Desplazamiento Horizontal */}
       <div className="overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-theme-border scrollbar-track-transparent">
-        {/* Forzamos un ancho mínimo amplio para que se aprecien las proporciones de los días */}
         <div className="min-w-[1100px] flex items-start relative py-4 px-2">
-          
           {bloquesTimeline.map((item, idx) => {
             const esVencido = item.diasRestantes < 0;
             const textoLimpio = (item.Acciones || "").replace(/\[(.*?)\]/, "").trim();
-            
-            // Proporción del bloque respecto a la duración total del tiempo
             const anchoPorcentaje = (item.duracionDias / totalDiasLinea) * 100;
 
-            // Determinar colores basados en la paleta del tema dinámico
             let colorBloque = "bg-theme-bg border-theme-border text-theme-accent hover:border-theme-accent";
             let colorTextoComite = "text-theme-accent";
             
@@ -77,10 +71,10 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
             if (esVencido) {
               colorBloque = "bg-theme-casa/10 border-theme-casa text-theme-casa hover:bg-theme-casa/20 animate-pulse";
               colorTextoComite = "text-theme-casa";
-            } else if (origen.includes("TECNOVIGILANCIA")) {
+            } else if (origen.includes("TECNOVIGILANCIA") || origen === "CTV") {
               colorBloque = "bg-theme-accent/10 border-theme-accent/60 text-theme-accent hover:bg-theme-accent/20";
               colorTextoComite = "text-theme-accent";
-            } else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA")) {
+            } else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA") || origen === "UHTV") {
               colorBloque = "bg-theme-trabajo/10 border-theme-trabajo/60 text-theme-trabajo hover:bg-theme-trabajo/20";
               colorTextoComite = "text-theme-trabajo";
             } else if (origen.includes("COMPRA")) {
@@ -94,7 +88,6 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                 className="flex flex-col flex-1"
                 style={{ width: `${Math.max(anchoPorcentaje, 16)}%`, minWidth: '180px' }}
               >
-                {/* 1. PARTE SUPERIOR: Fechas de Corte y Días Restantes */}
                 <div className="mb-3 px-2 flex flex-col items-center text-center">
                   <span className="text-[9px] font-black text-theme-text/80 tracking-tighter uppercase bg-theme-bg border border-theme-border px-2 py-0.5 rounded-md">
                     {item['Fecha compromiso']}
@@ -104,7 +97,6 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                   </span>
                 </div>
 
-                {/* 2. PARTE CENTRAL: La Barra Continua estilo Chevron */}
                 <div 
                   onClick={() => alHacerClickItem(item)}
                   className={`relative h-10 border flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm mx-0.5 rounded-xl text-center group ${colorBloque}`}
@@ -113,7 +105,6 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                     {item.duracionDias} {item.duracionDias === 1 ? 'Día' : 'Días'}
                   </span>
                   
-                  {/* Pequeño indicador de flujo en medio */}
                   {idx < bloquesTimeline.length - 1 && (
                     <div className="absolute -right-1.5 top-1/2 transform -translate-y-1/2 text-theme-text/40 font-bold text-xs z-20 pointer-events-none group-hover:text-theme-text transition-colors">
                       ➔
@@ -121,7 +112,6 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                   )}
                 </div>
 
-                {/* 3. PARTE INFERIOR: Detalles e identificación del acuerdo */}
                 <div className="mt-3 px-3 text-center flex flex-col items-center">
                   <span className={`text-[8px] font-extrabold uppercase tracking-widest mb-1 ${colorTextoComite}`}>
                     {item.Tema ? item.Tema.replace('COMITE DE ', '').substring(0, 12) : 'ACUERDO'}
@@ -134,11 +124,9 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                     {textoLimpio}
                   </p>
                 </div>
-
               </div>
             );
           })}
-
         </div>
       </div>
     </div>
@@ -157,21 +145,59 @@ export default function Proyectos() {
   const [acuerdoSeleccionado, setAcuerdoSeleccionado] = useState(null);
   const [nuevoStatus, setNuevoStatus] = useState('PENDIENTE');
   const [textoAcuerdoEditado, setTextoAcuerdoEditado] = useState('');
+  const [temaEditado, setTemaEditado] = useState('');
+  const [responsableEditado, setResponsableEditado] = useState('');
+  const [fechaEditada, setFechaEditada] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  // Control de Modal de Creación
+  const [mostrarModalCrear, setMostrarModalCrear] = useState(false);
+  const [formNuevo, setFormNuevo] = useState({
+    acciones: '',
+    tema: 'CTV',
+    responsable: 'Jefe de Biomédica',
+    fecha_compromiso: '',
+    status: 'PENDIENTE'
+  });
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
   const cargarAcuerdos = async () => {
     setCargando(true);
-    const data = await database.obtenerSeccion('proyectos');
-    setAcuerdos(data);
     
-    const temasUnicos = [...new Set(data
-      .map(item => (item.Tema || "").trim())
-      .filter(tema => tema !== "")
-    )];
-    setComitesDisponibles(temasUnicos);
+    // ==========================================
+    // 🔴 ANTERIOR: database.obtenerSeccion('proyectos');
+    // 🟢 NUEVO: Lectura directa desde Supabase
+    try {
+      const { data, error } = await supabase
+        .from('minutas_compromisos')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+
+      const formateados = (data || []).map(row => ({
+        id: row.id,
+        Acciones: row.acciones,
+        Status: row.status,
+        Tema: row.tema,
+        Responsable: row.responsable,
+        'Fecha compromiso': row.fecha_compromiso
+      }));
+
+      setAcuerdos(formateados);
+      
+      const temasUnicos = [...new Set(formateados
+        .map(item => (item.Tema || "").trim())
+        .filter(tema => tema !== "")
+      )];
+      setComitesDisponibles(temasUnicos);
+    } catch (err) {
+      console.error("Error al cargar compromisos desde Supabase:", err);
+    }
+    // ==========================================
+    
     setCargando(false);
   };
 
@@ -192,15 +218,28 @@ export default function Proyectos() {
   }, [acuerdos, filtroActivo]);
 
   const parseFecha = (str) => {
-    if (!str || !str.includes('/')) return new Date(2099, 1, 1);
-    const p = str.split('/');
-    return new Date(p[2], p[1] - 1, p[0]);
+    if (!str || (!str.includes('/') && !str.includes('-'))) return new Date(2099, 1, 1);
+    const partes = str.includes('-') ? str.split('-') : str.split('/');
+    if (partes[0].length === 4) {
+      return new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+    }
+    return new Date(parseInt(partes[2], 10), parseInt(partes[1], 10) - 1, parseInt(partes[0], 10));
   };
 
   const abrirEdicion = (item) => {
     setAcuerdoSeleccionado(item);
     setNuevoStatus(item.Status || 'PENDIENTE');
     setTextoAcuerdoEditado(item.Acciones || '');
+    setTemaEditado(item.Tema || 'CTV');
+    setResponsableEditado(item.Responsable || 'Jefe de Biomédica');
+    
+    // Normalizar fecha para el input type="date"
+    const fechaObj = parseFecha(item['Fecha compromiso']);
+    const a = fechaObj.getFullYear();
+    const m = String(fechaObj.getMonth() + 1).padStart(2, '0');
+    const d = String(fechaObj.getDate()).padStart(2, '0');
+    setFechaEditada(`${a}-${m}-${d}`);
+
     setMostrarModal(true);
   };
 
@@ -209,27 +248,114 @@ export default function Proyectos() {
     if (!acuerdoSeleccionado) return;
 
     setGuardando(true);
-    const textoOriginalCelda = acuerdoSeleccionado.Acciones; 
+    
+    // Reconstruir fecha en formato DD/MM/YYYY
+    let fechaGuardar = acuerdoSeleccionado['Fecha compromiso'];
+    if (fechaEditada && fechaEditada.includes('-')) {
+      const [a, m, d] = fechaEditada.split('-');
+      fechaGuardar = `${d}/${m}/${a}`;
+    }
 
     setAcuerdos(prev => prev.map(item => 
-      item.Acciones === textoOriginalCelda 
-        ? { ...item, Acciones: textoAcuerdoEditado, Status: nuevoStatus } 
+      item.id === acuerdoSeleccionado.id 
+        ? { 
+            ...item, 
+            Acciones: textoAcuerdoEditado, 
+            Status: nuevoStatus,
+            Tema: temaEditado,
+            Responsable: responsableEditado,
+            'Fecha compromiso': fechaGuardar
+          } 
         : item
     ));
 
+    // ==========================================
+    // 🔴 ANTERIOR: database.guardarDatos('modificarProyecto', ...);
+    // 🟢 NUEVO: Actualización en Supabase
     try {
-      await database.guardarDatos('modificarProyecto', { 
-        tareaOriginal: textoOriginalCelda, 
-        nuevaTarea: textoAcuerdoEditado, 
-        nuevoStatus: nuevoStatus
-      });
+      const { error } = await supabase
+        .from('minutas_compromisos')
+        .update({
+          acciones: textoAcuerdoEditado,
+          status: nuevoStatus,
+          tema: temaEditado,
+          responsable: responsableEditado,
+          fecha_compromiso: fechaGuardar
+        })
+        .eq('id', acuerdoSeleccionado.id);
+
+      if (error) throw error;
     } catch (error) {
-      console.error("Error al sincronizar con Sheets:", error);
+      console.error("Error al actualizar compromiso en Supabase:", error);
     }
+    // ==========================================
 
     setMostrarModal(false);
     setAcuerdoSeleccionado(null);
     setGuardando(false);
+    cargarAcuerdos();
+  };
+
+  const ejecutarCrearCompromiso = async (e) => {
+    e.preventDefault();
+    if (!formNuevo.acciones.trim() || !formNuevo.fecha_compromiso) return alert("Completa los campos obligatorios");
+
+    setGuardando(true);
+
+    const [a, m, d] = formNuevo.fecha_compromiso.split('-');
+    const fechaFormatoDDMM = `${d}/${m}/${a}`;
+
+    const payload = {
+      acciones: formNuevo.acciones.trim(),
+      status: formNuevo.status,
+      tema: formNuevo.tema.trim().toUpperCase(),
+      responsable: formNuevo.responsable.trim(),
+      fecha_compromiso: fechaFormatoDDMM
+    };
+
+    try {
+      const { error } = await supabase.from('minutas_compromisos').insert([payload]);
+      if (error) throw error;
+
+      setFormNuevo({
+        acciones: '',
+        tema: 'CTV',
+        responsable: 'Jefe de Biomédica',
+        fecha_compromiso: '',
+        status: 'PENDIENTE'
+      });
+      setMostrarModalCrear(false);
+      await cargarAcuerdos();
+    } catch (err) {
+      console.error("Error al crear compromiso en Supabase:", err);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const ejecutarEliminarCompromiso = async () => {
+    if (!acuerdoSeleccionado) return;
+    if (!window.confirm("¿Deseas eliminar definitivamente este compromiso?")) return;
+
+    setGuardando(true);
+
+    try {
+      const { error } = await supabase
+        .from('minutas_compromisos')
+        .delete()
+        .eq('id', acuerdoSeleccionado.id);
+
+      if (error) throw error;
+
+      setAcuerdos(prev => prev.filter(item => item.id !== acuerdoSeleccionado.id));
+      setMostrarModal(false);
+      setAcuerdoSeleccionado(null);
+    } catch (err) {
+      console.error("Error al eliminar compromiso en Supabase:", err);
+    } finally {
+      setGuardando(false);
+      cargarAcuerdos();
+    }
   };
 
   const obtenerCriticos = () => {
@@ -263,16 +389,26 @@ export default function Proyectos() {
   }).length;
 
   return (
-    <div className="space-y-6 text-left relative">
+    <div className="space-y-6 text-left relative font-mono">
       
       {/* Encabezado */}
-      <div className="flex justify-between items-end border-b border-theme-border pb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-theme-border pb-4 gap-4">
         <div>
           <h2 className="text-2xl font-black text-theme-accent tracking-tighter uppercase italic">Seguimiento de Minutas</h2>
           <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">Dashboard de Acuerdos / Compromisos</p>
         </div>
-        <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase italic tracking-tighter text-theme-bg ${totalCriticosGeneral > 0 ? 'bg-theme-casa animate-pulse' : 'bg-theme-trabajo'}`}>
-          {totalCriticosGeneral} Pendientes Vencidos
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setMostrarModalCrear(true)}
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nuevo Compromiso
+          </button>
+          
+          <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase italic tracking-tighter text-theme-bg ${totalCriticosGeneral > 0 ? 'bg-theme-casa animate-pulse' : 'bg-theme-trabajo'}`}>
+            {totalCriticosGeneral} Vencidos
+          </div>
         </div>
       </div>
 
@@ -298,7 +434,7 @@ export default function Proyectos() {
         ))}
       </div>
 
-      {/* INYECCIÓN DE LA LÍNEA DE TIEMPO VISUAL */}
+      {/* TIMELINE VISUAL */}
       <GanttDashboard
         acuerdos={acuerdosFiltrados} 
         parseFecha={parseFecha} 
@@ -330,46 +466,203 @@ export default function Proyectos() {
         </div>
       </div>
 
-      {/* MODAL INTERACTIVO DE EDICIÓN */}
-      {mostrarModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-theme-accent">
-            <form onSubmit={ejecutarActualizarEstatus} className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic">Editar Compromiso</h4>
-                <button type="button" onClick={() => setMostrarModal(false)} className="text-theme-text/50 hover:text-theme-text cursor-pointer"><X className="w-4 h-4" /></button>
+      {/* MODAL 1: NUEVO COMPROMISO */}
+      {mostrarModalCrear && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border-t-4 border-t-theme-accent">
+            <form onSubmit={ejecutarCrearCompromiso} className="p-6 space-y-4">
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-theme-accent" /> Registrar Compromiso
+                </h4>
+                <button type="button" onClick={() => setMostrarModalCrear(false)} className="text-theme-text/50 hover:text-theme-text cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Texto del Acuerdo / Añadir Nota Obsidian entre [ ]</label>
+              <div>
+                <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">
+                  Acción / Acuerdo (Puedes incluir [Nota_Obsidian])
+                </label>
                 <textarea 
-                  value={textoAcuerdoEditado}
-                  onChange={(e) => setTextoAcuerdoEditado(e.target.value)}
+                  required
                   rows={3}
-                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-xs font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none font-sans"
-                  placeholder="Escribe el compromiso aquí... [nombre_nota_obsidian]"
+                  value={formNuevo.acciones}
+                  onChange={(e) => setFormNuevo(prev => ({ ...prev, acciones: e.target.value }))}
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-xs font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none"
+                  placeholder="Ej. Capacitación de bombas de infusión [PNO-01_Capacitacion]"
                 />
               </div>
 
-              <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Estatus en Minuta</label>
-              <select 
-                value={nuevoStatus}
-                onChange={(e) => setNuevoStatus(e.target.value)}
-                className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-sm font-bold uppercase outline-none text-theme-text focus:border-theme-accent mb-6"
-              >
-                <option value="PENDIENTE">PENDIENTE</option>
-                <option value="HECHO">HECHO (Mover a Historial)</option>
-                <option value="TERMINADO">TERMINADO (Archivar y Ocultar)</option>
-              </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Comité / Tema</label>
+                  <input
+                    type="text"
+                    required
+                    list="lista-temas-sugeridos"
+                    value={formNuevo.tema}
+                    onChange={(e) => setFormNuevo(prev => ({ ...prev, tema: e.target.value }))}
+                    placeholder="Ej. CTV, UHTV"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase text-theme-text outline-none focus:border-theme-accent"
+                  />
+                  <datalist id="lista-temas-sugeridos">
+                    {comitesDisponibles.map((t, idx) => <option key={idx} value={t} />)}
+                  </datalist>
+                </div>
 
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setMostrarModal(false)} className="flex-1 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer">Cancelar</button>
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Responsable</label>
+                  <input
+                    type="text"
+                    required
+                    value={formNuevo.responsable}
+                    onChange={(e) => setFormNuevo(prev => ({ ...prev, responsable: e.target.value }))}
+                    placeholder="Ej. Jefe de Biomédica"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Fecha Compromiso</label>
+                  <input
+                    type="date"
+                    required
+                    value={formNuevo.fecha_compromiso}
+                    onChange={(e) => setFormNuevo(prev => ({ ...prev, fecha_compromiso: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Estatus Inicial</label>
+                  <select 
+                    value={formNuevo.status}
+                    onChange={(e) => setFormNuevo(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                  >
+                    <option value="PENDIENTE">PENDIENTE</option>
+                    <option value="HECHO">HECHO</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalCrear(false)} 
+                  className="flex-1 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
+                >
+                  Cancelar
+                </button>
                 <button 
                   type="submit" 
                   disabled={guardando}
                   className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
                 >
-                  {guardando ? 'Sincronizando...' : 'Confirmar'}
+                  {guardando ? 'Guardando...' : 'Crear Compromiso'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: EDITAR COMPROMISO & ELIMINAR */}
+      {mostrarModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border-t-4 border-t-theme-accent">
+            <form onSubmit={ejecutarActualizarEstatus} className="p-6 space-y-4">
+              <div className="flex justify-between items-center mb-1">
+                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic">Editar Compromiso</h4>
+                <button type="button" onClick={() => setMostrarModal(false)} className="text-theme-text/50 hover:text-theme-text cursor-pointer"><X className="w-4 h-4" /></button>
+              </div>
+
+              <div>
+                <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Texto del Acuerdo / Nota Obsidian entre [ ]</label>
+                <textarea 
+                  value={textoAcuerdoEditado}
+                  onChange={(e) => setTextoAcuerdoEditado(e.target.value)}
+                  rows={3}
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-xs font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none"
+                  placeholder="Escribe el compromiso aquí... [nombre_nota_obsidian]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Comité / Tema</label>
+                  <input
+                    type="text"
+                    value={temaEditado}
+                    onChange={(e) => setTemaEditado(e.target.value)}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase text-theme-text outline-none focus:border-theme-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Responsable</label>
+                  <input
+                    type="text"
+                    value={responsableEditado}
+                    onChange={(e) => setResponsableEditado(e.target.value)}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Fecha Compromiso</label>
+                  <input
+                    type="date"
+                    value={fechaEditada}
+                    onChange={(e) => setFechaEditada(e.target.value)}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Estatus en Minuta</label>
+                  <select 
+                    value={nuevoStatus}
+                    onChange={(e) => setNuevoStatus(e.target.value)}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                  >
+                    <option value="PENDIENTE">PENDIENTE</option>
+                    <option value="HECHO">HECHO (Mover a Historial)</option>
+                    <option value="TERMINADO">TERMINADO (Archivar y Ocultar)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={ejecutarEliminarCompromiso}
+                  title="Eliminar acuerdo permanentemente"
+                  className="p-3 bg-theme-bg border border-theme-border text-theme-text/40 hover:text-red-400 hover:border-red-400/50 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModal(false)} 
+                  className="flex-1 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button 
+                  type="submit" 
+                  disabled={guardando}
+                  className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
+                >
+                  {guardando ? 'Sincronizando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>
@@ -385,8 +678,8 @@ export default function Proyectos() {
 function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
   let badgeColor = "bg-theme-bg text-theme-text/70 border-theme-border";
   const origen = (item.Tema || "").trim().toUpperCase();
-  if (origen.includes("TECNOVIGILANCIA")) badgeColor = "bg-theme-accent/10 text-theme-accent border-theme-accent/40";
-  else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA")) badgeColor = "bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/40";
+  if (origen.includes("TECNOVIGILANCIA") || origen === "CTV") badgeColor = "bg-theme-accent/10 text-theme-accent border-theme-accent/40";
+  else if (origen.includes("BIOMÉDICA") || origen.includes("BIOMEDICA") || origen === "UHTV") badgeColor = "bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/40";
   else if (origen.includes("COMPRA")) badgeColor = "bg-theme-casa/10 text-theme-casa border-theme-casa/40";
 
   const NOMBRE_VAULT = "Obsidian"; 

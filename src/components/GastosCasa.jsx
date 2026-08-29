@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { database } from '../api';
-import { X, Plus, CreditCard, ChevronDown, ChevronRight, AlertTriangle, ShieldCheck, Flame, Wallet, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../supabase';
+import { 
+  X, Plus, CreditCard, ChevronDown, ChevronRight, AlertTriangle, 
+  ShieldCheck, Flame, Wallet, CheckCircle2, Settings, Trash2, TableProperties, Save
+} from 'lucide-react';
 
 export default function Finanzas({ refreshTrigger }) {
   const [transacciones, setTransacciones] = useState([]);
@@ -12,8 +15,16 @@ export default function Finanzas({ refreshTrigger }) {
   
   // 💸 CONTROL DE SALDOS Y MÉTODOS
   const [modalSaldos, setModalSaldos] = useState(false);
+  const [modalSettingsTabla, setModalSettingsTabla] = useState(false);
+  const [tabSettings, setTabSettings] = useState('macros'); // 'macros' | 'cuentas' | 'mapeo'
+
   const [saldosCuentas, setSaldosCuentas] = useState({}); 
   const [listaMetodos, setListaMetodos] = useState([]);  
+
+  // 📝 ESTADOS LOCALES PARA LA TABLA EDITABLE EN SETTINGS
+  const [editCategorias, setEditCategorias] = useState([]);
+  const [editCuentas, setEditCuentas] = useState([]);
+  const [editMapeo, setEditMapeo] = useState([]);
 
   // 📅 SELECCIÓN DE PERIODO DINÁMICO
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState(obtenerQuincenaActualId());
@@ -127,57 +138,76 @@ export default function Finanzas({ refreshTrigger }) {
   const progresoQuincena = calcularProgresoTiempoQuincena();
 
   // =========================================================================
-  //  📡 INGESTIÓN DE DATA (CON ACTUALIZACIÓN SILENCIOSA EN SEGUNDO PLANO)
+  //  📡 INGESTIÓN DE DATA DESDE SUPABASE
   // =========================================================================
   const cargarDatos = async (silencioso = false) => {
     try {
       if (!silencioso) setCargando(true);
-      const [dataTransacciones, dataPresupuestos, dataMapeo] = await Promise.all([
-        database.obtenerSeccion('transacciones'),
-        database.obtenerSeccion('presupuestos_macro'), 
-        database.obtenerSeccion('mapeo_rubros')
+
+      const [resTransacciones, resCuentas, resCategorias, resMapeo] = await Promise.all([
+        supabase.from('transacciones').select('*').order('id', { ascending: false }),
+        supabase.from('cuentas_bancarias').select('*').order('id', { ascending: true }),
+        supabase.from('categorias_presupuesto').select('*').order('id', { ascending: true }),
+        supabase.from('mapeo_rubros').select('*').order('id', { ascending: true })
       ]);
+
+      const dataTransacciones = (resTransacciones.data || []).map(row => ({
+        id: row.id,
+        Fecha: row.fecha,
+        Importe: row.importe,
+        Descripción: row.descripcion,
+        'Metodo de pago': row.metodo_pago,
+        Rubro: row.rubro
+      }));
+
+      const rawCuentas = resCuentas.data || [];
+      const rawCategorias = resCategorias.data || [];
+      const rawMapeo = resMapeo.data || [];
+
+      setEditCategorias(rawCategorias);
+      setEditCuentas(rawCuentas);
+      setEditMapeo(rawMapeo);
 
       if (Array.isArray(dataTransacciones)) setTransacciones(dataTransacciones);
       
-      if (Array.isArray(dataPresupuestos)) {
-        setPresupuestosBase(dataPresupuestos);
-        const mapaSaldosDetectados = {};
-        const metodosDetectados = [];
-
-        dataPresupuestos.forEach(fila => {
-          if (fila.Metodos_Pago && fila.Metodos_Pago.trim() !== "") {
-            const nombreMetodo = fila.Metodos_Pago.trim();
-            const saldoMetodo = parseFloat(fila.Saldo_Actual?.toString().replace(/[$,\s]/g, '')) || 0;
-            mapaSaldosDetectados[nombreMetodo] = saldoMetodo;
-            metodosDetectados.push(nombreMetodo);
-          }
-        });
-
-        setSaldosCuentas(mapaSaldosDetectados);
-        if (metodosDetectados.length > 0) {
-          setListaMetodos(metodosDetectados);
-          const primerMetodoConSaldo = metodosDetectados.find(m => (mapaSaldosDetectados[m] || 0) > 0) || metodosDetectados[0];
-          setForm(prev => ({ ...prev, metodo_pago: prev.metodo_pago || primerMetodoConSaldo }));
+      const mapaSaldosDetectados = {};
+      const metodosDetectados = [];
+      rawCuentas.forEach(cuenta => {
+        if (cuenta.nombre && cuenta.nombre.trim() !== '') {
+          const nombreMetodo = cuenta.nombre.trim();
+          const saldo = parseFloat(cuenta.saldo_actual) || 0;
+          mapaSaldosDetectados[nombreMetodo] = saldo;
+          metodosDetectados.push(nombreMetodo);
         }
+      });
+
+      setSaldosCuentas(mapaSaldosDetectados);
+      if (metodosDetectados.length > 0) {
+        setListaMetodos(metodosDetectados);
+        const primerMetodoConSaldo = metodosDetectados.find(m => (mapaSaldosDetectados[m] || 0) > 0) || metodosDetectados[0];
+        setForm(prev => ({ ...prev, metodo_pago: prev.metodo_pago || primerMetodoConSaldo }));
       }
-      
-      if (Array.isArray(dataMapeo) && dataMapeo.length > 0) {
-        const mapaConstruido = dataMapeo.reduce((acc, curr) => {
-          if (curr.Sub_Rubro && curr.Categoria_Macro) {
-            acc[curr.Sub_Rubro.trim()] = curr.Categoria_Macro.trim();
-          }
-          return acc;
-        }, {});
-        
-        setMapaRubrosAMacro(mapaConstruido);
-        const rubrosDisponibles = Object.keys(mapaConstruido);
-        if (rubrosDisponibles.length > 0) {
-          setForm(prev => ({ ...prev, rubro: prev.rubro || rubrosDisponibles[0] }));
+
+      const presupuestosAdaptados = rawCategorias.map(cat => ({
+        Categoria_Macro: cat.categoria_macro?.trim() || '',
+        Asignacion_Quincenal: parseFloat(cat.asignacion_quincenal) || 0
+      }));
+      setPresupuestosBase(presupuestosAdaptados);
+
+      const mapaConstruido = {};
+      rawMapeo.forEach(m => {
+        if (m.sub_rubro && m.categoria_macro) {
+          mapaConstruido[m.sub_rubro.trim()] = m.categoria_macro.trim();
         }
+      });
+      setMapaRubrosAMacro(mapaConstruido);
+
+      const rubrosDisponibles = Object.keys(mapaConstruido);
+      if (rubrosDisponibles.length > 0) {
+        setForm(prev => ({ ...prev, rubro: prev.rubro || rubrosDisponibles[0] }));
       }
     } catch (error) {
-      console.error("Error al sincronizar con Búnker Sheets:", error);
+      console.error("Error al sincronizar con Supabase:", error);
     } finally {
       if (!silencioso) setCargando(false);
     }
@@ -213,15 +243,29 @@ export default function Finanzas({ refreshTrigger }) {
       fecha: new Date().toLocaleDateString('es-MX'),
       importe: finalImporte, 
       descripcion: form.descripcion.toUpperCase().trim(),
-      metodo_pago: form.metodo_pago,
-      rubro: form.rubro
+      metodo_pago: form.metodo_pago || (listaMetodos[0] || 'Efectivo'),
+      rubro: form.rubro || (listadoRubros[0] || 'Varios')
     };
 
-    setTransacciones(prev => [payload, ...prev]);
+    setTransacciones(prev => [
+      {
+        Fecha: payload.fecha,
+        Importe: payload.importe,
+        Descripción: payload.descripcion,
+        'Metodo de pago': payload.metodo_pago,
+        Rubro: payload.rubro
+      },
+      ...prev
+    ]);
     setModalRegistro(false);
     setPaginaActual(1);
     
-    await database.guardarDatos('guardarTransaccion', payload);
+    try {
+      const { error } = await supabase.from('transacciones').insert([payload]);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error al guardar transacción en Supabase:', err);
+    }
 
     setForm(prev => ({ ...prev, importe: "", descripcion: "", tipo: "GASTO" }));
     setGuardando(false);
@@ -231,10 +275,86 @@ export default function Finanzas({ refreshTrigger }) {
   const ejecutarActualizarSaldos = async (e) => {
     e.preventDefault();
     setGuardando(true);
-    await database.guardarDatos('actualizarSaldos', saldosCuentas);
+
+    try {
+      const promesas = Object.entries(saldosCuentas).map(([metodo, nuevoSaldo]) =>
+        supabase
+          .from('cuentas_bancarias')
+          .update({ saldo_actual: nuevoSaldo })
+          .eq('nombre', metodo)
+      );
+      await Promise.all(promesas);
+    } catch (err) {
+      console.error('Error al actualizar saldos en Supabase:', err);
+    }
+
     setModalSaldos(false);
     setGuardando(false);
     cargarDatos(false);
+  };
+
+  // -------------------------------------------------------------
+  // ⚙️ CONTROLADORES DEL EDITOR DE TABLAS (GRID SETTINGS)
+  // -------------------------------------------------------------
+  const agregarFilaCategoria = () => {
+    setEditCategorias(prev => [...prev, { categoria_macro: 'Nueva Categoría', asignacion_quincenal: 0, _esNuevo: true }]);
+  };
+
+  const agregarFilaCuenta = () => {
+    setEditCuentas(prev => [...prev, { nombre: 'Nueva Cuenta', saldo_actual: 0, _esNuevo: true }]);
+  };
+
+  const agregarFilaMapeo = () => {
+    const primeraMacro = editCategorias[0]?.categoria_macro || 'Facturas / Vivienda';
+    setEditMapeo(prev => [...prev, { sub_rubro: 'Nuevo Subrubro', categoria_macro: primeraMacro, _esNuevo: true }]);
+  };
+
+  const guardarTodoSettingsTabla = async () => {
+    setGuardando(true);
+    try {
+      // 1. Guardar Categorías Macro
+      await supabase.from('categorias_presupuesto').delete().neq('id', 0);
+      const categoriasLimpias = editCategorias
+        .filter(c => c.categoria_macro?.trim())
+        .map(c => ({
+          categoria_macro: c.categoria_macro.trim(),
+          asignacion_quincenal: parseFloat(c.asignacion_quincenal) || 0
+        }));
+      if (categoriasLimpias.length > 0) {
+        await supabase.from('categorias_presupuesto').insert(categoriasLimpias);
+      }
+
+      // 2. Guardar Cuentas Bancarias
+      await supabase.from('cuentas_bancarias').delete().neq('id', 0);
+      const cuentasLimpias = editCuentas
+        .filter(c => c.nombre?.trim())
+        .map(c => ({
+          nombre: c.nombre.trim(),
+          saldo_actual: parseFloat(c.saldo_actual) || 0
+        }));
+      if (cuentasLimpias.length > 0) {
+        await supabase.from('cuentas_bancarias').insert(cuentasLimpias);
+      }
+
+      // 3. Guardar Mapeo Sub-Rubro -> Macro
+      await supabase.from('mapeo_rubros').delete().neq('id', 0);
+      const mapeosLimpios = editMapeo
+        .filter(m => m.sub_rubro?.trim() && m.categoria_macro?.trim())
+        .map(m => ({
+          sub_rubro: m.sub_rubro.trim(),
+          categoria_macro: m.categoria_macro.trim()
+        }));
+      if (mapeosLimpios.length > 0) {
+        await supabase.from('mapeo_rubros').insert(mapeosLimpios);
+      }
+
+      setModalSettingsTabla(false);
+      await cargarDatos(false);
+    } catch (err) {
+      console.error("Error al guardar tablas de presupuesto en Supabase:", err);
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const listadoRubros = Object.keys(mapaRubrosAMacro);
@@ -249,7 +369,6 @@ export default function Finanzas({ refreshTrigger }) {
   let gastoGlobal = 0;
   let ingresosSueldo = 0;
   let ingresosSobrante = 0;
-  // AGREGADO: Acumulador de Ingreso tipo REGALO
   let ingresosRegalo = 0;
   let presupuestoGlobalEstatico = 0;
   let totalDeudaMitigada = 0;
@@ -260,7 +379,6 @@ export default function Finanzas({ refreshTrigger }) {
   const macroEstructura = {};
   const macrosObligatorias = ["Facturas / Vivienda", "Servicios / Internet", "Educacion"];
 
-  // 1. Inicializar macros fijas de la hoja
   presupuestosBase.forEach(p => {
     const lim = parseFloat(p.Asignacion_Quincenal?.toString().replace(/[$,\s]/g, '')) || 0;
     const macroNombre = p.Categoria_Macro;
@@ -272,7 +390,6 @@ export default function Finanzas({ refreshTrigger }) {
     }
   });
 
-  // 2. Procesar transacciones directo mediante segmentación limpia
   const transaccionesFiltradasYProcesadas = transacciones.map(t => {
     const fechaFila = t.Fecha || t.fecha || "";
     const rubroActual = (t.Rubro || t.rubro || "Extras").trim();
@@ -291,13 +408,10 @@ export default function Finanzas({ refreshTrigger }) {
     };
   }).filter(t => t.qIdFinal === periodoSeleccionado);
 
-  // 3. Ejecutar clasificaciones agregadas para el periodo activo
   transaccionesFiltradasYProcesadas.forEach(t => {
     const rubroUpper = t.rubroFinal.toUpperCase();
     
-    if (rubroUpper === "TRASPASO") {
-      return; 
-    }
+    if (rubroUpper === "TRASPASO") return; 
 
     if (rubroUpper === "SUELDO") {
       ingresosSueldo += t.montoAbsoluto;
@@ -307,7 +421,6 @@ export default function Finanzas({ refreshTrigger }) {
       ingresosSobrante += t.montoAbsoluto;
       return;
     }
-    // AGREGADO: Captura e integración del rubro REGALO
     if (rubroUpper === "REGALO") {
       ingresosRegalo += t.montoAbsoluto;
       return;
@@ -334,22 +447,10 @@ export default function Finanzas({ refreshTrigger }) {
   const deudasAsignadas = macroEstructura["Deudas / Tarjetas"] ? macroEstructura["Deudas / Tarjetas"].asignado : 0;
   const bolsaDisponibleFlujoLibre = (presupuestoGlobalEstatico - deudasAsignadas) - (gastoGlobal - totalDeudaMitigada);
 
-  // =========================================================================
-  //  ⚠️ CÁLCULO DE ALERTA POR DESFASE DE PRESUPUESTO
-  // =========================================================================
-
-  // NUEVA IMPLEMENTACIÓN BIDIRECCIONAL (CON MARGEN DE TOLERANCIA DE $1.00):
   const diferenciaPresupuesto = presupuestoGlobalEstatico - ingresosTotalesFlujo;
-  
-  // Te pasas si el presupuesto asignado es mayor a tus ingresos reales
   const presupuestoExcedido = ingresosTotalesFlujo > 0 && diferenciaPresupuesto > 1.00;
-  
-  // Te falta asignar si los ingresos reales son mayores que el presupuesto asignado
   const presupuestoFaltante = ingresosTotalesFlujo > 0 && diferenciaPresupuesto < -1.00;
 
-  // =========================================================================
-  //  🔍 CONCILIADOR INDIVIDUAL CUENTA POR CUENTA
-  // =========================================================================
   const ingresosPorMetodo = {};
   
   transaccionesFiltradasYProcesadas.forEach(t => {
@@ -357,22 +458,16 @@ export default function Finanzas({ refreshTrigger }) {
     const metodo = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
    
     if (rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO") {
-      const metodo = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
       ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
     }
 
     if (rubroUpper === "TRASPASO") {
-      const importeCrudo = parseFloat((t.Importe || t.importe || "0").toString().replace(/[$,\s()]/g, '')) || 0;
-      // Si en Sheets viene como (1,000) o negativo, es ENTRADA a esa cuenta:
       if (t.importe < 0 || (typeof t.Importe === 'string' && t.Importe.includes('('))) {
         ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
       } else {
-        // Si viene positivo, es SALIDA de esa cuenta:
         gastosPorMetodo[metodo] = (gastosPorMetodo[metodo] || 0) + t.montoAbsoluto;
       }
     }
-
-
   });
 
   const cuentasDescuadradas = [];
@@ -437,13 +532,23 @@ export default function Finanzas({ refreshTrigger }) {
           </div>
         </div>
         
-        <div className="flex gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          {/* BOTÓN DE CONFIGURACIÓN EN TABLAS EDITABLES */}
+          <button 
+            onClick={() => setModalSettingsTabla(true)} 
+            className="bg-theme-bg hover:opacity-80 text-theme-text/70 border border-theme-border px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center transition-all cursor-pointer"
+            title="Editar Tablas de Presupuestos, Cuentas y Mapeo"
+          >
+            <TableProperties className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Tablas Presupuesto
+          </button>
+
           <button 
             onClick={() => setModalSaldos(true)} 
-            className="bg-theme-bg hover:opacity-80 text-theme-text/70 border border-theme-border px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center transition-all cursor-pointer"
+            className="bg-theme-bg hover:opacity-80 text-theme-text/70 border border-theme-border px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center transition-all cursor-pointer"
           >
-            <Wallet className="w-3.5 h-3.5 mr-1.5 text-theme-text/50" /> Ajustar Canales Fijos
+            <Wallet className="w-3.5 h-3.5 mr-1.5 text-theme-text/50" /> Ajustar Saldos
           </button>
+
           <button 
             onClick={() => setModalRegistro(true)} 
             className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
@@ -522,7 +627,7 @@ export default function Finanzas({ refreshTrigger }) {
           </div>
         </div>
 
-        {/* NUEVA TARJETA CON SOPORTE PARA EXCESO Y REPARTO FALTANTE */}
+        {/* TARJETA PRESUPUESTO / CAJA LIBRE */}
         <div className={`border rounded-xl p-4 flex flex-col justify-between transition-all duration-300 ${
           presupuestoExcedido 
             ? 'bg-theme-casa/10 border-theme-casa border-t-4 border-t-theme-casa animate-pulse' 
@@ -596,7 +701,6 @@ export default function Finanzas({ refreshTrigger }) {
                 const gastoIdealProporcional = (item.asignado / 100) * progresoQuincena.pct;
                 const vaAdelantadoAlDia = item.gastado > gastoIdealProporcional && (item.gastado - gastoIdealProporcional) > 40;
 
-                /* let colorBarra = "bg-emerald-400"; */
                 let colorBarra = "bg-theme-trabajo";
                 let statusBadgeText = "Estable";
                 let badgeStyle = "bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/20";
@@ -606,12 +710,10 @@ export default function Finanzas({ refreshTrigger }) {
                   statusBadgeText = "Sobregiro";
                   badgeStyle = "bg-theme-casa/20 text-theme-casa border-theme-casa/30";
                 } else if (vaAdelantadoAlDia && periodoSeleccionado === obtenerQuincenaActualId()) {
-                  /* colorBarra = "bg-orange-400"; */
                   colorBarra = "bg-theme-accent";
                   statusBadgeText = "Gasto Rápido";
                   badgeStyle = "bg-theme-accent/20 text-theme-accent border-theme-accent/30";
                 } else if (porcentajeBarra > 85) {
-                  /* colorBarra = "bg-amber-500"; */
                   colorBarra = "bg-theme-accent";
                   statusBadgeText = "Límite Crítico";
                   badgeStyle = "bg-theme-accent/20 text-theme-accent border-theme-accent/30";
@@ -734,8 +836,6 @@ export default function Finanzas({ refreshTrigger }) {
                     const macro = t.macroFinal;
                     const rubroUpper = rubro.toUpperCase();
                     const esDeuda = macro === "Deudas / Tarjetas";
-                    // ANTERIOR: const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE";
-                    // AGREGADO: Se incluye REGALO como un ingreso puro
                     const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO";
 
                     return (
@@ -765,7 +865,7 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
       </div>
 
-      {/* MODAL REGISTRO */}
+      {/* MODAL REGISTRO DE MOVIMIENTO */}
       {modalRegistro && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border border-theme-border border-t-4 border-t-theme-accent">
@@ -815,8 +915,6 @@ export default function Finanzas({ refreshTrigger }) {
                         setForm(prev => ({
                           ...prev, 
                           rubro: val, 
-                          // ANTERIOR: descripcion: val === "SOBRANTE" ? "SOBRANTE PERIODO ANTERIOR" : "NÓMINA QUINCENAL"
-                          // AGREGADO: Se agrega el autocompletado por defecto para REGALO
                           descripcion: val === "SOBRANTE" ? "SOBRANTE PERIODO ANTERIOR" : val === "REGALO" ? "REGALO RECIBIDO" : "NÓMINA QUINCENAL"
                         }));
                       }}
@@ -824,7 +922,6 @@ export default function Finanzas({ refreshTrigger }) {
                     >
                       <option value="SUELDO">💼 SUELDO</option>
                       <option value="SOBRANTE">📦 SOBRANTE</option>
-                      {/* AGREGADO: Opción para guardar con la cadena explícita 'REGALO' en la columna rubro */}
                       <option value="REGALO">🎁 REGALO</option>
                     </select>
                   ) : (
@@ -841,7 +938,7 @@ export default function Finanzas({ refreshTrigger }) {
                 </div>
               </div>
               <button type="submit" disabled={guardando} className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-2">
-                {guardando ? 'Sincronizando con Google Sheets...' : 'Ejecutar Transacción'}
+                {guardando ? 'Sincronizando con Supabase...' : 'Ejecutar Transacción'}
               </button>
             </form>
           </div>
@@ -858,7 +955,7 @@ export default function Finanzas({ refreshTrigger }) {
             </div>
             
             <form onSubmit={ejecutarActualizarSaldos} className="p-6 space-y-4 max-h-[450px] overflow-y-auto custom-scrollbar">
-              <p className="text-[9px] font-bold text-theme-text/50 uppercase tracking-wider mb-2">Modifica los fondos corrientes de tu columna C de la hoja:</p>
+              <p className="text-[9px] font-bold text-theme-text/50 uppercase tracking-wider mb-2">Modifica los fondos corrientes de tus canales:</p>
               
               <div className="space-y-3">
                 {Object.keys(saldosCuentas).map(metodo => (
@@ -879,9 +976,292 @@ export default function Finanzas({ refreshTrigger }) {
               </div>
 
               <button type="submit" disabled={guardando} className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all mt-4">
-                {guardando ? 'Sincronizando Montos en google...' : 'Actualizar montos'}
+                {guardando ? 'Sincronizando Montos en Supabase...' : 'Actualizar montos'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🟢 NUEVO MODAL: EDITOR DE TABLAS DINÁMICAS (GRID COMPLETO) */}
+      {modalSettingsTabla && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[85] flex items-center justify-center p-4">
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden text-left border border-theme-border flex flex-col max-h-[92vh]">
+            
+            {/* Header Modal */}
+            <div className="bg-theme-bg p-4 border-b border-theme-border flex justify-between items-center">
+              <div className="flex items-center gap-2 text-theme-accent font-black text-xs uppercase tracking-wider">
+                <TableProperties className="w-4 h-4" /> Configuración de Presupuesto en Tablas
+              </div>
+              <button onClick={() => setModalSettingsTabla(false)} className="cursor-pointer text-theme-text/50 hover:text-theme-text">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Selector de Pestañas */}
+            <div className="flex border-b border-theme-border/60 bg-theme-border/5 px-4 pt-2 gap-2 text-[10px] font-black uppercase">
+              <button
+                onClick={() => setTabSettings('macros')}
+                className={`px-4 py-2 rounded-t-lg transition-colors cursor-pointer ${
+                  tabSettings === 'macros'
+                    ? 'bg-theme-bg border-t border-x border-theme-border text-theme-accent'
+                    : 'text-theme-text/50 hover:text-theme-text'
+                }`}
+              >
+                1. Categorías Macro & Topes (Cols A-B)
+              </button>
+              <button
+                onClick={() => setTabSettings('cuentas')}
+                className={`px-4 py-2 rounded-t-lg transition-colors cursor-pointer ${
+                  tabSettings === 'cuentas'
+                    ? 'bg-theme-bg border-t border-x border-theme-border text-theme-accent'
+                    : 'text-theme-text/50 hover:text-theme-text'
+                }`}
+              >
+                2. Canales & Cuentas (Cols C-D)
+              </button>
+              <button
+                onClick={() => setTabSettings('mapeo')}
+                className={`px-4 py-2 rounded-t-lg transition-colors cursor-pointer ${
+                  tabSettings === 'mapeo'
+                    ? 'bg-theme-bg border-t border-x border-theme-border text-theme-accent'
+                    : 'text-theme-text/50 hover:text-theme-text'
+                }`}
+              >
+                3. Sub-Rubros Mapeados (Cols E-F)
+              </button>
+            </div>
+
+            {/* Contenido de Tablas */}
+            <div className="p-4 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+              
+              {/* TAB 1: CATEGORÍAS MACRO */}
+              {tabSettings === 'macros' && (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-theme-text/60 uppercase">
+                      Define los nombres de categoría macro y su tope quincenal asignado.
+                    </span>
+                    <button
+                      onClick={agregarFilaCategoria}
+                      className="bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent hover:text-theme-bg px-2.5 py-1 rounded text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3 stroke-[3]" /> Agregar Fila
+                    </button>
+                  </div>
+
+                  <div className="border border-theme-border rounded-xl overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead className="bg-theme-border/10 text-theme-text/60 text-[9px] uppercase font-bold border-b border-theme-border">
+                        <tr>
+                          <th className="p-2.5 w-1/2">Categoria_Macro (Col A)</th>
+                          <th className="p-2.5 w-1/3">Asignacion_Quincenal (Col B)</th>
+                          <th className="p-2.5 text-center w-16">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-theme-border/40 text-xs">
+                        {editCategorias.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-theme-border/5">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={item.categoria_macro || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditCategorias(prev => prev.map((c, i) => i === idx ? { ...c, categoria_macro: val } : c));
+                                }}
+                                className="w-full bg-theme-bg border border-theme-border/60 rounded px-2 py-1 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.asignacion_quincenal ?? 0}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditCategorias(prev => prev.map((c, i) => i === idx ? { ...c, asignacion_quincenal: val } : c));
+                                }}
+                                className="w-full bg-theme-bg border border-theme-border/60 rounded px-2 py-1 text-xs font-bold text-theme-text outline-none focus:border-theme-accent tabular-nums"
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                onClick={() => setEditCategorias(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-theme-text/40 hover:text-theme-casa cursor-pointer p-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: CUENTAS Y MÉTODOS */}
+              {tabSettings === 'cuentas' && (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-theme-text/60 uppercase">
+                      Canales y métodos de pago donde guardas fondos corrientes.
+                    </span>
+                    <button
+                      onClick={agregarFilaCuenta}
+                      className="bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent hover:text-theme-bg px-2.5 py-1 rounded text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3 stroke-[3]" /> Agregar Cuenta
+                    </button>
+                  </div>
+
+                  <div className="border border-theme-border rounded-xl overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead className="bg-theme-border/10 text-theme-text/60 text-[9px] uppercase font-bold border-b border-theme-border">
+                        <tr>
+                          <th className="p-2.5 w-1/2">Metodos_Pago (Col C)</th>
+                          <th className="p-2.5 w-1/3">Saldo_Actual (Col D)</th>
+                          <th className="p-2.5 text-center w-16">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-theme-border/40 text-xs">
+                        {editCuentas.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-theme-border/5">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={item.nombre || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditCuentas(prev => prev.map((c, i) => i === idx ? { ...c, nombre: val } : c));
+                                }}
+                                className="w-full bg-theme-bg border border-theme-border/60 rounded px-2 py-1 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.saldo_actual ?? 0}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditCuentas(prev => prev.map((c, i) => i === idx ? { ...c, saldo_actual: val } : c));
+                                }}
+                                className="w-full bg-theme-bg border border-theme-border/60 rounded px-2 py-1 text-xs font-bold text-theme-text outline-none focus:border-theme-accent tabular-nums"
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                onClick={() => setEditCuentas(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-theme-text/40 hover:text-theme-casa cursor-pointer p-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: MAPEO SUB-RUBROS */}
+              {tabSettings === 'mapeo' && (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-theme-text/60 uppercase">
+                      Vincula cada Sub-Rubro específico a su Categoría Macro correspondiente.
+                    </span>
+                    <button
+                      onClick={agregarFilaMapeo}
+                      className="bg-theme-accent/10 border border-theme-accent/30 text-theme-accent hover:bg-theme-accent hover:text-theme-bg px-2.5 py-1 rounded text-[9px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3 stroke-[3]" /> Agregar Sub-Rubro
+                    </button>
+                  </div>
+
+                  <div className="border border-theme-border rounded-xl overflow-hidden max-h-[420px] overflow-y-auto custom-scrollbar">
+                    <table className="w-full text-left">
+                      <thead className="bg-theme-border/10 text-theme-text/60 text-[9px] uppercase font-bold border-b border-theme-border sticky top-0 bg-theme-bg">
+                        <tr>
+                          <th className="p-2.5 w-1/2">Sub_Rubro (Col E)</th>
+                          <th className="p-2.5 w-1/3">Categorias_Macro (Col F)</th>
+                          <th className="p-2.5 text-center w-16">Acción</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-theme-border/40 text-xs">
+                        {editMapeo.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-theme-border/5">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                value={item.sub_rubro || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditMapeo(prev => prev.map((m, i) => i === idx ? { ...m, sub_rubro: val } : m));
+                                }}
+                                className="w-full bg-theme-bg border border-theme-border/60 rounded px-2 py-1 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent"
+                              />
+                            </td>
+                            <td className="p-2">
+                              <select
+                                value={item.categoria_macro || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditMapeo(prev => prev.map((m, i) => i === idx ? { ...m, categoria_macro: val } : m));
+                                }}
+                                className="w-full bg-theme-bg border border-theme-border/60 rounded px-2 py-1 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer"
+                              >
+                                {editCategorias.map((cat, i) => (
+                                  <option key={i} value={cat.categoria_macro}>{cat.categoria_macro}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                onClick={() => setEditMapeo(prev => prev.filter((_, i) => i !== idx))}
+                                className="text-theme-text/40 hover:text-theme-casa cursor-pointer p-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer Modal con Botón de Guardado */}
+            <div className="p-3 border-t border-theme-border bg-theme-border/5 flex justify-between items-center">
+              <span className="text-[9px] text-theme-text/50 font-bold uppercase">
+                * Los cambios afectarán métricas y selects inmediatamente.
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setModalSettingsTabla(false)}
+                  className="px-4 py-2 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  disabled={guardando}
+                  onClick={guardarTodoSettingsTabla}
+                  className="bg-theme-accent hover:opacity-90 text-theme-bg px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {guardando ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

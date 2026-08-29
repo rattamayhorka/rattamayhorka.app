@@ -1,3 +1,5 @@
+
+/*
 const API_URL = "https://script.google.com/macros/s/AKfycbzqXRsm-q8Bq2pZ5-ykFmKeHSk2f6elBAISDlXlKaMIjm1_-urQqw1XAKxkrJBaaQ3m-g/exec"
 
 export const database = {
@@ -39,3 +41,18 @@ export const database = {
     }
   }
 };
+
+*/
+
+// =========================================================================
+// 🟢 CLIENTE BASE SUPABASE (Fallback de seguridad)
+// =========================================================================
+export { supabase } from './supabase';
+
+// Mock inofensivo por si algún componente legacy sigue importando `database`
+export const database = {
+  obtenerSeccion: async () => [],
+  guardarDatos: async () => true
+};
+
+

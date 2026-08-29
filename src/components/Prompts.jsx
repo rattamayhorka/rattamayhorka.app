@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { database } from '../api';
+import { supabase } from '../supabase';
 import { 
   Sparkles, 
   Copy, 
@@ -7,11 +7,11 @@ import {
   Plus, 
   Search, 
   X, 
-  SlidersHorizontal,
-  FileText,
-  Pencil,
-  Trash2,
-  RefreshCw
+  SlidersHorizontal, 
+  FileText, 
+  Pencil, 
+  Trash2, 
+  RefreshCw 
 } from 'lucide-react';
 
 const CATEGORIAS = ['Todas', 'Código', 'Gestión', 'Comunicación', 'Documentación'];
@@ -33,7 +33,7 @@ export default function Prompts() {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [formPrompt, setFormPrompt] = useState({
-    id: '',
+    id: null,
     titulo: '',
     categoria: 'Código',
     etiquetas: '',
@@ -42,28 +42,36 @@ export default function Prompts() {
     variables: ''
   });
 
-  // Lectura directa desde Google Sheets
-  const cargarPromptsDesdeSheets = async () => {
+  // 🔄 1. Lectura rápida desde Supabase (<50ms)
+  const cargarPrompts = async () => {
     setCargando(true);
     try {
-      const data = await database.obtenerSeccion('prompts');
-      if (data && Array.isArray(data)) {
-        setPrompts(data);
-        if (data.length > 0) {
-          setPromptActivo(data[0]);
-        } else {
-          setPromptActivo(null);
-        }
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+
+      setPrompts(data || []);
+      if (data && data.length > 0) {
+        setPromptActivo(prev => {
+          if (!prev) return data[0];
+          const sigueExistiendo = data.find(p => p.id === prev.id);
+          return sigueExistiendo || data[0];
+        });
+      } else {
+        setPromptActivo(null);
       }
     } catch (err) {
-      console.error('Error al cargar prompts desde Sheets:', err);
+      console.error('Error al cargar prompts desde Supabase:', err);
     } finally {
       setCargando(false);
     }
   };
 
   useEffect(() => {
-    cargarPromptsDesdeSheets();
+    cargarPrompts();
   }, []);
 
   const copiarAlPortapapeles = (texto, id) => {
@@ -75,7 +83,7 @@ export default function Prompts() {
   const abrirModalCrear = () => {
     setModoEdicion(false);
     setFormPrompt({
-      id: Date.now().toString(),
+      id: null,
       titulo: '',
       categoria: 'Código',
       etiquetas: '',
@@ -89,7 +97,7 @@ export default function Prompts() {
   const abrirModalEditar = (item) => {
     setModoEdicion(true);
     setFormPrompt({
-      id: item.id ? item.id.toString() : '',
+      id: item.id,
       titulo: item.titulo || '',
       categoria: item.categoria || 'Código',
       etiquetas: item.etiquetas || '',
@@ -100,58 +108,84 @@ export default function Prompts() {
     setModalAbierto(true);
   };
 
+  // 💾 2. Guardar (Insert / Update) en Supabase
   const handleGuardarPrompt = async (e) => {
     e.preventDefault();
     if (!formPrompt.titulo.trim() || !formPrompt.plantilla.trim()) return;
 
     setGuardando(true);
 
-    if (modoEdicion) {
-      const actualizados = prompts.map(p => 
-        p.id.toString() === formPrompt.id.toString() ? formPrompt : p
-      );
-      setPrompts(actualizados);
-      if (promptActivo?.id?.toString() === formPrompt.id.toString()) {
-        setPromptActivo(formPrompt);
+    try {
+      if (modoEdicion) {
+        // UPDATE directo por ID
+        const { data, error } = await supabase
+          .from('prompts')
+          .update({
+            titulo: formPrompt.titulo,
+            categoria: formPrompt.categoria,
+            etiquetas: formPrompt.etiquetas,
+            descripcion: formPrompt.descripcion,
+            plantilla: formPrompt.plantilla,
+            variables: formPrompt.variables
+          })
+          .eq('id', formPrompt.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setPrompts(prompts.map(p => p.id === data.id ? data : p));
+        if (promptActivo?.id === data.id) setPromptActivo(data);
+      } else {
+        // INSERT directo
+        const { data, error } = await supabase
+          .from('prompts')
+          .insert([{
+            titulo: formPrompt.titulo,
+            categoria: formPrompt.categoria,
+            etiquetas: formPrompt.etiquetas,
+            descripcion: formPrompt.descripcion,
+            plantilla: formPrompt.plantilla,
+            variables: formPrompt.variables
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setPrompts([data, ...prompts]);
+        setPromptActivo(data);
       }
 
-      try {
-        await database.guardarDatos('modificarPrompt', { datos: formPrompt });
-      } catch (err) {
-        console.error('Error al actualizar en Sheets:', err);
-      }
-    } else {
-      const nuevoItem = { ...formPrompt };
-      setPrompts([nuevoItem, ...prompts]);
-      setPromptActivo(nuevoItem);
-
-      try {
-        await database.guardarDatos('guardarPrompt', { datos: nuevoItem });
-      } catch (err) {
-        console.error('Error al guardar en Sheets:', err);
-      }
+      setModalAbierto(false);
+    } catch (err) {
+      console.error('Error al persistir en Supabase:', err);
+    } finally {
+      setGuardando(false);
     }
-
-    setGuardando(false);
-    setModalAbierto(false);
   };
 
+  // 🗑️ 3. Eliminar directo por ID
   const handleEliminarPrompt = async (idAEliminar) => {
     if (!idAEliminar) return;
     if (!window.confirm('¿Seguro que deseas eliminar este prompt?')) return;
 
-    const idStr = idAEliminar.toString();
-    const actualizados = prompts.filter(p => p.id?.toString() !== idStr);
-    setPrompts(actualizados);
-
-    if (promptActivo?.id?.toString() === idStr) {
-      setPromptActivo(actualizados.length > 0 ? actualizados[0] : null);
-    }
-
     try {
-      await database.guardarDatos('eliminarPrompt', { datos: { id: idStr } });
+      const { error } = await supabase
+        .from('prompts')
+        .delete()
+        .eq('id', idAEliminar);
+
+      if (error) throw error;
+
+      const actualizados = prompts.filter(p => p.id !== idAEliminar);
+      setPrompts(actualizados);
+
+      if (promptActivo?.id === idAEliminar) {
+        setPromptActivo(actualizados.length > 0 ? actualizados[0] : null);
+      }
     } catch (err) {
-      console.error('Error al eliminar en Sheets:', err);
+      console.error('Error al eliminar en Supabase:', err);
     }
   };
 
@@ -172,15 +206,15 @@ export default function Prompts() {
         <div>
           <div className="flex items-center gap-2 text-theme-accent mb-1">
             <Sparkles className="w-5 h-5 animate-pulse" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Catálogo & Biblioteca</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">Catálogo & Biblioteca (SQL)</span>
           </div>
           <h2 className="text-3xl font-black tracking-tighter uppercase italic text-theme-text">Gestor de Prompts</h2>
         </div>
 
         <div className="flex items-center gap-2 w-full md:w-auto">
           <button 
-            onClick={cargarPromptsDesdeSheets}
-            title="Recargar desde Google Sheets"
+            onClick={cargarPrompts}
+            title="Recargar desde Supabase"
             className="p-2.5 rounded-xl border border-theme-border bg-theme-bg text-theme-text/60 hover:text-theme-accent transition-all cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin text-theme-accent' : ''}`} />
@@ -236,11 +270,11 @@ export default function Prompts() {
         <div className="lg:col-span-5 space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
           {cargando ? (
             <div className="p-8 text-center bg-theme-bg border border-theme-border rounded-xl">
-              <p className="text-xs font-bold text-theme-text/40 uppercase">Cargando prompts desde Sheets...</p>
+              <p className="text-xs font-bold text-theme-text/40 uppercase">Consultando PostgreSQL...</p>
             </div>
           ) : promptsFiltrados.length > 0 ? (
             promptsFiltrados.map((item) => {
-              const activo = promptActivo?.id?.toString() === item.id?.toString();
+              const activo = promptActivo?.id === item.id;
               return (
                 <div
                   key={item.id}
@@ -313,7 +347,7 @@ export default function Prompts() {
             })
           ) : (
             <div className="p-8 text-center bg-theme-bg border border-theme-border rounded-xl">
-              <p className="text-xs font-bold text-theme-text/40 uppercase">No hay prompts registrados</p>
+              <p className="text-xs font-bold text-theme-text/40 uppercase">No hay prompts en la base de datos</p>
             </div>
           )}
         </div>
