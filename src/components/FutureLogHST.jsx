@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 // 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
 // ==========================================
-import { X, Calendar, MapPin, Clock, Trash2, Filter, Repeat } from 'lucide-react';
+import { X, Calendar, MapPin, Clock, Trash2, Filter, Repeat, Edit2, Plus, Save } from 'lucide-react';
 
 export default function Reuniones() {
   const [reunionesRaw, setReunionesRaw] = useState([]);
@@ -16,15 +16,16 @@ export default function Reuniones() {
 
   // Modales y Formulario
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [modalEliminar, setModalEliminar] = useState(false);
+  const [modalEdicion, setModalEdicion] = useState(false); // 🟢 NUEVO: Modal de edición completa
   const [reunionSeleccionada, setReunionSeleccionada] = useState(null);
   const [guardando, setGuardando] = useState(false);
   
-  // Formulario extendido con soporte de recurrencia
+  // Formulario para creación
   const [formData, setFormData] = useState({
     comite: '',
-    tipo_recurrencia: 'unica', // 'unica' | 'mensual_rango' | 'semanal_dias'
+    tipo_recurrencia: 'unica', // 'unica' | 'mensual_dia' | 'mensual_rango' | 'semanal_dias'
     fecha: '',
+    dia_mes: 24,
     dias_mes: '15,16,17,18,19',
     dias_semana: [1, 3, 5], // 1=Lun, 3=Mié, 5=Vie
     hora: '09:00',
@@ -32,13 +33,22 @@ export default function Reuniones() {
     tipo: 'Trabajo'
   });
 
+  // 🟢 Formulario para edición
+  const [formEditData, setFormEditData] = useState({
+    id: null,
+    comite: '',
+    tipo_recurrencia: 'unica',
+    fecha: '',
+    dia_mes: 24,
+    dias_mes: '15,16,17,18,19',
+    dias_semana: [1, 3, 5],
+    hora: '09:00',
+    lugar: '',
+    tipo: 'Trabajo'
+  });
+
   const cargarReuniones = async () => {
     setCargando(true);
-    // ==========================================
-    // 🔴 ANTERIOR: Lectura en Google Sheets
-    // const data = await database.obtenerSeccion('reuniones');
-    //
-    // 🟢 NUEVO: Lectura directa desde Supabase
     try {
       const { data, error } = await supabase
         .from('reuniones')
@@ -50,7 +60,6 @@ export default function Reuniones() {
     } catch (err) {
       console.error('Error al cargar reuniones desde Supabase:', err);
     }
-    // ==========================================
     setCargando(false);
   };
 
@@ -63,14 +72,29 @@ export default function Reuniones() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const toggleDiaSemana = (diaNum) => {
-    setFormData(prev => {
-      const existe = prev.dias_semana.includes(diaNum);
-      const actualizados = existe 
-        ? prev.dias_semana.filter(d => d !== diaNum)
-        : [...prev.dias_semana, diaNum].sort();
-      return { ...prev, dias_semana: actualizados };
-    });
+  const manejarCambioEditInput = (e) => {
+    const { name, value } = e.target;
+    setFormEditData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const toggleDiaSemana = (diaNum, esEdicion = false) => {
+    if (esEdicion) {
+      setFormEditData(prev => {
+        const existe = prev.dias_semana.includes(diaNum);
+        const actualizados = existe 
+          ? prev.dias_semana.filter(d => d !== diaNum)
+          : [...prev.dias_semana, diaNum].sort();
+        return { ...prev, dias_semana: actualizados };
+      });
+    } else {
+      setFormData(prev => {
+        const existe = prev.dias_semana.includes(diaNum);
+        const actualizados = existe 
+          ? prev.dias_semana.filter(d => d !== diaNum)
+          : [...prev.dias_semana, diaNum].sort();
+        return { ...prev, dias_semana: actualizados };
+      });
+    }
   };
 
   const ejecutarGuardarReunion = async (e) => {
@@ -84,6 +108,7 @@ export default function Reuniones() {
       comite: formData.comite.trim(),
       tipo_recurrencia: formData.tipo_recurrencia,
       fecha: formData.tipo_recurrencia === 'unica' ? formData.fecha : null,
+      dia_mes: formData.tipo_recurrencia === 'mensual_dia' ? parseInt(formData.dia_mes, 10) : null,
       dias_mes: formData.tipo_recurrencia === 'mensual_rango' ? formData.dias_mes : null,
       dias_semana: formData.tipo_recurrencia === 'semanal_dias' ? formData.dias_semana.join(',') : null,
       hora: formData.hora,
@@ -91,23 +116,18 @@ export default function Reuniones() {
       tipo: formData.tipo
     };
 
-    // ==========================================
-    // 🔴 ANTERIOR: Envío a Google Apps Script
-    // await database.guardarDatos('guardarReunion', { datos: payload });
-    //
-    // 🟢 NUEVO: Inserción directa en tabla 'reuniones' en Supabase
     try {
       const { error } = await supabase.from('reuniones').insert([payload]);
       if (error) throw error;
     } catch (err) {
       console.error('Error al guardar evento en Supabase:', err);
     }
-    // ==========================================
 
     setFormData({
       comite: '',
       tipo_recurrencia: 'unica',
       fecha: '',
+      dia_mes: 24,
       dias_mes: '15,16,17,18,19',
       dias_semana: [1, 3, 5],
       hora: '09:00',
@@ -120,17 +140,86 @@ export default function Reuniones() {
     cargarReuniones();
   };
 
-  const ejecutarEliminarReunion = async () => {
-    if (!reunionSeleccionada) return;
+  // 🟢 ABRIR MODAL DE EDICIÓN CARGANDO LA REGLA ORIGINAL DE SUPABASE
+  const abrirEdicionReunion = (item) => {
+    const reglaOriginal = reunionesRaw.find(r => r.id === item.rawId);
+    if (!reglaOriginal) return;
+
+    let fechaFormatoInput = '';
+    if (reglaOriginal.fecha) {
+      if (reglaOriginal.fecha.includes('/')) {
+        const [d, m, a] = reglaOriginal.fecha.split('/');
+        fechaFormatoInput = `${a}-${m}-${d}`;
+      } else {
+        fechaFormatoInput = reglaOriginal.fecha;
+      }
+    }
+
+    const diasSemanaArr = reglaOriginal.dias_semana 
+      ? reglaOriginal.dias_semana.split(',').map(n => parseInt(n.trim(), 10))
+      : [1, 3, 5];
+
+    setReunionSeleccionada(item);
+    setFormEditData({
+      id: reglaOriginal.id,
+      comite: reglaOriginal.comite || '',
+      tipo_recurrencia: reglaOriginal.tipo_recurrencia || 'unica',
+      fecha: fechaFormatoInput,
+      dia_mes: reglaOriginal.dia_mes || 24,
+      dias_mes: reglaOriginal.dias_mes || '15,16,17,18,19',
+      dias_semana: diasSemanaArr,
+      hora: reglaOriginal.hora || '09:00',
+      lugar: reglaOriginal.lugar || '',
+      tipo: reglaOriginal.tipo || 'Trabajo'
+    });
+
+    setModalEdicion(true);
+  };
+
+  // 🟢 GUARDAR CAMBIOS DE EDICIÓN
+  const ejecutarActualizarReunion = async (e) => {
+    e.preventDefault();
+    if (!formEditData.comite.trim() || !formEditData.hora) return;
+
     setGuardando(true);
 
-    const idEliminar = reunionSeleccionada.rawId;
+    const payload = {
+      comite: formEditData.comite.trim(),
+      tipo_recurrencia: formEditData.tipo_recurrencia,
+      fecha: formEditData.tipo_recurrencia === 'unica' ? formEditData.fecha : null,
+      dia_mes: formEditData.tipo_recurrencia === 'mensual_dia' ? parseInt(formEditData.dia_mes, 10) : null,
+      dias_mes: formEditData.tipo_recurrencia === 'mensual_rango' ? formEditData.dias_mes : null,
+      dias_semana: formEditData.tipo_recurrencia === 'semanal_dias' ? formEditData.dias_semana.join(',') : null,
+      hora: formEditData.hora,
+      lugar: formEditData.lugar.trim(),
+      tipo: formEditData.tipo
+    };
 
-    // ==========================================
-    // 🔴 ANTERIOR: Borrado en Google Apps Script
-    // await database.guardarDatos('eliminarReunion', { comite: nombreComite });
-    //
-    // 🟢 NUEVO: Eliminación directa por ID en Supabase
+    try {
+      const { error } = await supabase
+        .from('reuniones')
+        .update(payload)
+        .eq('id', formEditData.id);
+
+      if (error) throw error;
+      setModalEdicion(false);
+      setReunionSeleccionada(null);
+      await cargarReuniones();
+    } catch (err) {
+      console.error('Error al actualizar evento en Supabase:', err);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  // 🟢 ELIMINAR DIRECTAMENTE DESDE EL MODAL DE EDICIÓN
+  const ejecutarEliminarReunion = async () => {
+    if (!formEditData.id) return;
+    if (!window.confirm(`¿Seguro que deseas eliminar "${formEditData.comite}"?`)) return;
+
+    setGuardando(true);
+    const idEliminar = formEditData.id;
+
     try {
       const { error } = await supabase
         .from('reuniones')
@@ -139,20 +228,14 @@ export default function Reuniones() {
 
       if (error) throw error;
       setReunionesRaw(prev => prev.filter(item => item.id !== idEliminar));
+      setModalEdicion(false);
+      setReunionSeleccionada(null);
     } catch (err) {
       console.error('Error al eliminar evento en Supabase:', err);
+    } finally {
+      setGuardando(false);
+      cargarReuniones();
     }
-    // ==========================================
-
-    setModalEliminar(false);
-    setReunionSeleccionada(null);
-    setGuardando(false);
-    cargarReuniones();
-  };
-
-  const abrirConfirmacionEliminar = (item) => {
-    setReunionSeleccionada(item);
-    setModalEliminar(true);
   };
 
   // -------------------------------------------------------------
@@ -171,7 +254,6 @@ export default function Reuniones() {
   }
   fechaLimite.setHours(23, 59, 59, 999);
 
-  // Iterar día por día en la ventana visible y generar instancias
   const instanciasCronograma = [];
   const curr = new Date(hoy);
 
@@ -190,6 +272,8 @@ export default function Reuniones() {
           ? regla.fecha.split('/').reverse().join('-')
           : regla.fecha;
         if (fechaReglaNormalizada === fechaISO) aplica = true;
+      } else if (regla.tipo_recurrencia === 'mensual_dia') {
+        if (parseInt(regla.dia_mes, 10) === diaDelMes) aplica = true;
       } else if (regla.tipo_recurrencia === 'mensual_rango') {
         const diasArray = (regla.dias_mes || '').split(',').map(n => parseInt(n.trim(), 10));
         if (diasArray.includes(diaDelMes)) aplica = true;
@@ -199,7 +283,6 @@ export default function Reuniones() {
       }
 
       if (aplica) {
-        // Filtrado por Tipo (Trabajo / Casa)
         const coincideFiltro = filtroTipo === 'Todos' || 
           (regla.tipo || 'Trabajo').toLowerCase().trim() === filtroTipo.toLowerCase().trim();
 
@@ -221,7 +304,6 @@ export default function Reuniones() {
     curr.setDate(curr.getDate() + 1);
   }
 
-  // Agrupar por fecha
   const grupos = {};
   let eventosHoy = 0;
 
@@ -284,7 +366,7 @@ export default function Reuniones() {
             onClick={() => setModalAbierto(true)} 
             className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 rounded-lg shadow-lg flex items-center text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
           >
-            Nuevo evento
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nuevo evento
           </button>
           
           <div className={`px-4 py-2 rounded-lg shadow-sm text-xs font-black uppercase italic tracking-tighter border ${
@@ -342,7 +424,7 @@ export default function Reuniones() {
                     return (
                       <div 
                         key={idx} 
-                        onClick={() => abrirConfirmacionEliminar(item)}
+                        onClick={() => abrirEdicionReunion(item)} // 🟢 ABRE MODAL CON EDITAR Y ELIMINAR
                         className={`${estiloTarjeta} p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group transition-all duration-200 border`}
                       >
                         <div>
@@ -357,7 +439,9 @@ export default function Reuniones() {
                               </span>
                             )}
                             
-                            <Trash2 className="w-3.5 h-3.5 text-theme-text/40 group-hover:text-theme-casa transition-colors" />
+                            <div className="flex items-center gap-1 text-theme-text/40 group-hover:text-theme-accent transition-colors">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </div>
                           </div>
                           <h4 className="text-sm font-black text-theme-text uppercase mt-3 mb-4 tracking-tight leading-snug">
                             {item['Comité / Evento']}
@@ -381,7 +465,7 @@ export default function Reuniones() {
         )}
       </div>
 
-      {/* MODAL 1: REGISTRAR REUNIÓN / REGLA RECURRENTE */}
+      {/* MODAL 1: REGISTRAR REUNIÓN / NUEVA REGLA */}
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-theme-border max-h-[90vh] flex flex-col">
@@ -436,6 +520,7 @@ export default function Reuniones() {
                   className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none uppercase font-bold"
                 >
                   <option value="unica">Fecha Única (Cita / Pendiente puntual)</option>
+                  <option value="mensual_dia">Día Fijo del Mes (ej. cada 24)</option>
                   <option value="mensual_rango">Mensual (Rango de días ej. 15 al 19)</option>
                   <option value="semanal_dias">Semanal (Días fijos ej. Lun, Mié, Vie)</option>
                 </select>
@@ -453,6 +538,24 @@ export default function Reuniones() {
                     onChange={manejarCambioInput} 
                     className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
                   />
+                </div>
+              )}
+
+              {formData.tipo_recurrencia === 'mensual_dia' && (
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-accent mb-1">Día del mes (1 al 31)</label>
+                  <input 
+                    type="number" 
+                    name="dia_mes" 
+                    min="1"
+                    max="31"
+                    required 
+                    value={formData.dia_mes} 
+                    onChange={manejarCambioInput} 
+                    placeholder="24"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
+                  />
+                  <span className="text-[8px] text-theme-text/40 block mt-1">Se repetirá automáticamente el día {formData.dia_mes || 'X'} de cada mes.</span>
                 </div>
               )}
 
@@ -490,7 +593,7 @@ export default function Reuniones() {
                         <button
                           key={dia.id}
                           type="button"
-                          onClick={() => toggleDiaSemana(dia.id)}
+                          onClick={() => toggleDiaSemana(dia.id, false)}
                           className={`py-2 rounded-lg text-xs font-black transition-all border cursor-pointer ${
                             activo
                               ? 'bg-theme-accent text-theme-bg border-theme-accent'
@@ -541,30 +644,203 @@ export default function Reuniones() {
         </div>
       )}
 
-      {/* MODAL 2: CONFIRMACIÓN DE ELIMINACIÓN */}
-      {modalEliminar && (
+      {/* 🟢 MODAL 2: GESTIÓN COMPLETA DE EVENTO (EDITAR O ELIMINAR) */}
+      {modalEdicion && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden border border-theme-border border-t-8 border-t-theme-casa text-center p-6">
-            <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic mb-2">¿Eliminar Regla / Evento?</h4>
-            <p className="text-[11px] font-bold text-theme-text/70 uppercase bg-theme-bg p-3 rounded-lg border border-theme-border mb-6 leading-normal">
-              {reunionSeleccionada?.['Comité / Evento']}
-            </p>
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                onClick={() => { setModalEliminar(false); setReunionSeleccionada(null); }} 
-                className="flex-1 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={ejecutarEliminarReunion}
-                disabled={guardando}
-                className="flex-1 bg-theme-casa hover:opacity-90 text-theme-bg py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50"
-              >
-                {guardando ? 'Borrando...' : 'Eliminar'}
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-theme-border max-h-[90vh] flex flex-col">
+            <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-xs italic tracking-widest flex justify-between border-b border-theme-border">
+              <span>Modificar Evento</span>
+              <button onClick={() => { setModalEdicion(false); setReunionSeleccionada(null); }} className="cursor-pointer text-theme-text/50 hover:text-theme-text">
+                <X className="w-4 h-4" />
               </button>
             </div>
+            
+            <form onSubmit={ejecutarActualizarReunion} className="p-6 space-y-4 overflow-y-auto flex-1">
+              
+              {/* Selección Tipo (Casa / Trabajo) */}
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Entorno</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['Trabajo', 'Casa'].map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setFormEditData(prev => ({ ...prev, tipo: t }))}
+                      className={`py-2 rounded-lg text-xs font-black uppercase transition-all border cursor-pointer ${
+                        formEditData.tipo === t
+                          ? 'bg-theme-accent text-theme-bg border-theme-accent'
+                          : 'bg-theme-bg text-theme-text/60 border-theme-border hover:text-theme-text'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Nombre del Evento</label>
+                <input 
+                  type="text" 
+                  name="comite" 
+                  required 
+                  value={formEditData.comite} 
+                  onChange={manejarCambioEditInput} 
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none uppercase font-bold" 
+                />
+              </div>
+
+              {/* Selector de Frecuencia / Recurrencia */}
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Frecuencia</label>
+                <select
+                  name="tipo_recurrencia"
+                  value={formEditData.tipo_recurrencia}
+                  onChange={manejarCambioEditInput}
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none uppercase font-bold"
+                >
+                  <option value="unica">Fecha Única</option>
+                  <option value="mensual_dia">Día Fijo del Mes</option>
+                  <option value="mensual_rango">Mensual (Rango de días)</option>
+                  <option value="semanal_dias">Semanal (Días fijos)</option>
+                </select>
+              </div>
+
+              {/* Render condicional según la frecuencia */}
+              {formEditData.tipo_recurrencia === 'unica' && (
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fecha</label>
+                  <input 
+                    type="date" 
+                    name="fecha" 
+                    required 
+                    value={formEditData.fecha} 
+                    onChange={manejarCambioEditInput} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
+                  />
+                </div>
+              )}
+
+              {formEditData.tipo_recurrencia === 'mensual_dia' && (
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-accent mb-1">Día del mes (1 al 31)</label>
+                  <input 
+                    type="number" 
+                    name="dia_mes" 
+                    min="1"
+                    max="31"
+                    required 
+                    value={formEditData.dia_mes} 
+                    onChange={manejarCambioEditInput} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
+                  />
+                </div>
+              )}
+
+              {formEditData.tipo_recurrencia === 'mensual_rango' && (
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-accent mb-1">Días del mes (separados por coma)</label>
+                  <input 
+                    type="text" 
+                    name="dias_mes" 
+                    required 
+                    value={formEditData.dias_mes} 
+                    onChange={manejarCambioEditInput} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
+                  />
+                </div>
+              )}
+
+              {formEditData.tipo_recurrencia === 'semanal_dias' && (
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-accent mb-1.5">Días que se repite</label>
+                  <div className="grid grid-cols-7 gap-1">
+                    {[
+                      { id: 1, label: 'L' },
+                      { id: 2, label: 'M' },
+                      { id: 3, label: 'X' },
+                      { id: 4, label: 'J' },
+                      { id: 5, label: 'V' },
+                      { id: 6, label: 'S' },
+                      { id: 0, label: 'D' },
+                    ].map(dia => {
+                      const activo = formEditData.dias_semana.includes(dia.id);
+                      return (
+                        <button
+                          key={dia.id}
+                          type="button"
+                          onClick={() => toggleDiaSemana(dia.id, true)}
+                          className={`py-2 rounded-lg text-xs font-black transition-all border cursor-pointer ${
+                            activo
+                              ? 'bg-theme-accent text-theme-bg border-theme-accent'
+                              : 'bg-theme-bg text-theme-text/50 border-theme-border hover:text-theme-text'
+                          }`}
+                        >
+                          {dia.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Hora</label>
+                  <input 
+                    type="time" 
+                    name="hora" 
+                    required 
+                    value={formEditData.hora} 
+                    onChange={manejarCambioEditInput} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Lugar / Link</label>
+                  <input 
+                    type="text" 
+                    name="lugar" 
+                    value={formEditData.lugar} 
+                    onChange={manejarCambioEditInput} 
+                    placeholder="Ej. Sala 1, Casa"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none uppercase font-bold" 
+                  />
+                </div>
+              </div>
+
+              {/* Botonera de acciones: Eliminar | Cancelar | Guardar */}
+              <div className="flex gap-2 pt-2 border-t border-theme-border/40">
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={ejecutarEliminarReunion}
+                  title="Eliminar evento permanentemente"
+                  className="p-3 bg-theme-bg border border-theme-border text-theme-text/40 hover:text-theme-casa hover:border-theme-casa/50 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => { setModalEdicion(false); setReunionSeleccionada(null); }} 
+                  className="flex-1 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                <button 
+                  type="submit" 
+                  disabled={guardando} 
+                  className="flex-1 bg-theme-accent text-theme-bg font-black uppercase text-[10px] py-3 rounded-lg hover:opacity-90 shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {guardando ? 'Guardando...' : 'Actualizar'}
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
       )}
