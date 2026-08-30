@@ -399,16 +399,6 @@ export default function App() {
               <Wrench className="w-4 h-4 flex-shrink-0 xl:hidden" />
               <span className="hidden xl:inline px-1">Bullet</span>
             </button>
-            <button
-              onClick={() => cambiarSeccion('prompts')}
-              title="Prompts"
-              className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
-                seccionActiva === 'prompts' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
-              }`}
-            >
-              <Bot className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
-              <span className="hidden xl:inline px-1">Prompts</span>
-            </button>
 
             <button 
               onClick={() => cambiarSeccion('kanban')} 
@@ -488,6 +478,7 @@ export default function App() {
               <span className="hidden xl:inline px-1">Control Deudas</span>
             </button>
 
+
             <button   
               onClick={() => cambiarSeccion('proyectos_grafo')}  
               title="Mapa de Proyectos"
@@ -498,6 +489,18 @@ export default function App() {
               <Map className="w-4 h-4 flex-shrink-0 xl:hidden" />
               <span className="hidden xl:inline px-1">Mapa Proyectos</span>
             </button>
+            
+            <button
+              onClick={() => cambiarSeccion('prompts')}
+              title="Prompts"
+              className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
+                seccionActiva === 'prompts' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
+              }`}
+            >
+              <Bot className="w-4 h-4 flex-shrink-0 xl:hidden" /> 
+              <span className="hidden xl:inline px-1">Prompts</span>
+            </button>
+
           </nav>
         </div>
 
@@ -524,7 +527,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v.1.0.2 "SQLero"
+            rattamayhorka v1.0.2 "SQLero"
           </div>
         </div>
       </div>

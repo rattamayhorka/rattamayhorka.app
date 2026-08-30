@@ -14,11 +14,17 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { supabase } from '../supabase';
-import { Layers, Trash2 } from 'lucide-react';
+import { Layers, Trash2, Plus, X, FolderKanban } from 'lucide-react';
 
 // =========================================================
 // STYLES & THEME CONSTANTS (Obsidian Minimalist Aesthetic)
 // =========================================================
+
+// ==========================================
+// 🔴 ANTERIOR (nodeTypes declarado antes de las funciones que usaba):
+// const nodeTypes = { nodoMeta: NodoMetaAutonomo, nodoGrupo: NodoGrupoExpandible };
+// ==========================================
+
 const connectionLineStyle = { stroke: 'var(--color-theme-border)', strokeWidth: 1.5 };
 
 const defaultEdgeOptions = {
@@ -74,9 +80,19 @@ function NodoGrupoExpandible(props) {
         <Handle type="source" position={Position.Right} id="g-r-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
       </div>
 
-      <div className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50">
+      <div 
+        className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50 cursor-pointer"
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          const nuevoNombre = prompt("Editar nombre del grupo:", data.label);
+          if (nuevoNombre && nuevoNombre.trim() && nuevoNombre.trim() !== data.label) {
+            data.onEditarNombreGrupo && data.onEditarNombreGrupo(id, nuevoNombre.trim());
+          }
+        }}
+        title="Doble clic para editar nombre del grupo"
+      >
         <Layers className={`w-4 h-4 ${colorActual.text}`} />
-        <span className="text-[12px] font-semibold tracking-wider text-theme-text uppercase bg-theme-bg/80 px-2 py-0.5 rounded border border-theme-border shadow-md">
+        <span className="text-[12px] font-semibold tracking-wider text-theme-text uppercase bg-theme-bg/80 px-2 py-0.5 rounded border border-theme-border shadow-md hover:border-theme-accent transition-colors">
           {data.label}
         </span>
       </div>
@@ -126,7 +142,7 @@ function NodoMetaAutonomo(props) {
   const handleClass = "w-1.5 h-1.5 !bg-theme-border !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
 
   return (
-    <div className={`border rounded-lg p-3 w-56 shadow-2xl font-mono text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-1 ring-theme-text border-theme-text shadow-2xl' : ''}`}>
+    <div className={`border rounded-lg p-3 w-56 shadow-2xl font-mono text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-2 ring-theme-accent border-theme-accent shadow-2xl' : ''}`}>
       <Handle type="target" position={Position.Top} id="t" className={`${handleClass} z-[60]`} />
       <Handle type="source" position={Position.Top} id="t-o" className={`${handleClass} z-[60]`} />
       <Handle type="target" position={Position.Bottom} id="b" className={`${handleClass} z-[70]`} style={{ bottom: '-4px' }} />
@@ -138,7 +154,8 @@ function NodoMetaAutonomo(props) {
 
       <div 
         className="min-w-0 cursor-text select-none"
-        onDoubleClick={() => {
+        onDoubleClick={(e) => {
+          e.stopPropagation();
           const nuevoTexto = prompt("Editar contenido de la nota:", data.label);
           if (nuevoTexto && nuevoTexto.trim() && nuevoTexto.trim() !== data.label) {
             data.onEditarTexto && data.onEditarTexto(id, nuevoTexto.trim());
@@ -163,18 +180,25 @@ function NodoMetaAutonomo(props) {
   );
 }
 
+// =========================================================
+// 🟢 NUEVO: DEFINIR NODETYPES AQUÍ FUERA (EVITA ERROR REACTFLOW #002)
+// =========================================================
 const nodeTypes = { nodoMeta: NodoMetaAutonomo, nodoGrupo: NodoGrupoExpandible };
 
 // =========================================================
 // 3. COMPONENTE PRINCIPAL
 // =========================================================
 export function GestionProyectosContenido() {
+  const [proyectos, setProyectos] = useState([]);
+  const [tabActiva, setTabActiva] = useState('principal');
+
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
   const flowWrapper = useRef(null);
   
   const nodesRef = useRef([]);
   const edgesRef = useRef([]);
+  const tabActivaRef = useRef('principal');
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -184,10 +208,33 @@ export function GestionProyectosContenido() {
     edgesRef.current = edges;
   }, [edges]);
 
+  useEffect(() => {
+    tabActivaRef.current = tabActiva;
+  }, [tabActiva]);
+
+  // =========================================================
+  // 🟢 NUEVO: MATAR EL AUTO-SCROLL DEL NAVEGADOR A NIVEL CAPTURA GLOBAL
+  // =========================================================
+  useEffect(() => {
+    const prevenirAutoScrollGlobal = (e) => {
+      if (e.button === 1) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('mousedown', prevenirAutoScrollGlobal, { capture: true, passive: false });
+    window.addEventListener('auxclick', prevenirAutoScrollGlobal, { capture: true, passive: false });
+
+    return () => {
+      window.removeEventListener('mousedown', prevenirAutoScrollGlobal, { capture: true });
+      window.removeEventListener('auxclick', prevenirAutoScrollGlobal, { capture: true });
+    };
+  }, []);
+
   const contadorMetasLocal = useRef(0);
   const contadorGruposLocal = useRef(0);
 
-  // 🟢 PERSISTENCIA ATÓMICA EN SUPABASE
+  // 🟢 PERSISTENCIA EN SUPABASE
   const guardarEnSupabase = async (nodosAGuardar, edgesAGuardar) => {
     try {
       const nodosSerializables = nodosAGuardar.map(n => ({
@@ -204,10 +251,14 @@ export function GestionProyectosContenido() {
         }
       }));
 
+      const proyectoActual = proyectos.find(p => p.id === tabActivaRef.current);
+      const nombreActual = proyectoActual ? proyectoActual.nombre : 'Proyecto';
+
       await supabase
         .from('mapa_proyectos')
         .upsert({
-          id: 'principal',
+          id: tabActivaRef.current,
+          nombre: nombreActual,
           nodes: nodosSerializables,
           edges: edgesAGuardar,
           updated_at: new Date().toISOString()
@@ -222,6 +273,19 @@ export function GestionProyectosContenido() {
       const actualizados = nds.map((n) => {
         if (n.id === idGrupo) {
           return { ...n, data: { ...n.data, color: nuevoColor } };
+        }
+        return n;
+      });
+      guardarEnSupabase(actualizados, edgesRef.current);
+      return actualizados;
+    });
+  }, []);
+
+  const editarNombreGrupo = useCallback((idGrupo, nuevoNombre) => {
+    setNodes((nds) => {
+      const actualizados = nds.map((n) => {
+        if (n.id === idGrupo) {
+          return { ...n, data: { ...n.data, label: nuevoNombre } };
         }
         return n;
       });
@@ -275,7 +339,6 @@ export function GestionProyectosContenido() {
 
       let actualizadosNodos = [];
       if (esGrupo) {
-        // Liberar a los hijos si se elimina su contenedor
         actualizadosNodos = nodosFiltrados.map(n => {
           if (n.parentId === idNodo) {
             const posXAbs = n.position.x + (nodoABorrar.position?.x || 0);
@@ -309,12 +372,38 @@ export function GestionProyectosContenido() {
     });
   }, []);
 
-  const cargarMapa = useCallback(async () => {
+  const cargarListaProyectos = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('mapa_proyectos')
+        .select('id, nombre, updated_at')
+        .order('updated_at', { ascending: true });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        const inicial = { id: 'principal', nombre: 'Principal' };
+        await supabase.from('mapa_proyectos').insert([{ id: 'principal', nombre: 'Principal', nodes: [], edges: [] }]);
+        setProyectos([inicial]);
+        setTabActiva('principal');
+      } else {
+        setProyectos(data);
+        if (!data.some(p => p.id === tabActivaRef.current)) {
+          setTabActiva(data[0].id);
+        }
+      }
+    } catch (e) {
+      console.error("Error al cargar lista de proyectos:", e);
+    }
+  }, []);
+
+  const cargarMapa = useCallback(async (idProyecto) => {
+    if (!idProyecto) return;
     try {
       const { data, error } = await supabase
         .from('mapa_proyectos')
         .select('*')
-        .eq('id', 'principal')
+        .eq('id', idProyecto)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
@@ -333,6 +422,7 @@ export function GestionProyectosContenido() {
           onEliminarNodo: eliminarNodo,
           onEditarTexto: editarTextoMeta,
           onCambiarColorGrupo: cambiarColorGrupo,
+          onEditarNombreGrupo: editarNombreGrupo,
           onResizeGrupo: resizeGrupo
         }
       }));
@@ -342,11 +432,82 @@ export function GestionProyectosContenido() {
     } catch (e) {
       console.error("Error al cargar mapa desde Supabase:", e);
     }
-  }, [cambiarEstadoMeta, eliminarNodo, editarTextoMeta, cambiarColorGrupo, resizeGrupo]);
+  }, [cambiarEstadoMeta, eliminarNodo, editarTextoMeta, cambiarColorGrupo, editarNombreGrupo, resizeGrupo]);
 
   useEffect(() => {
-    cargarMapa();
-  }, [cargarMapa]);
+    cargarListaProyectos();
+  }, [cargarListaProyectos]);
+
+  useEffect(() => {
+    if (tabActiva) {
+      cargarMapa(tabActiva);
+    }
+  }, [tabActiva, cargarMapa]);
+
+  const handleCrearProyecto = async () => {
+    const nombre = prompt("Nombre del nuevo proyecto o pestaña:");
+    if (!nombre || !nombre.trim()) return;
+
+    const idNuevo = `proj_${Date.now()}`;
+    const payload = {
+      id: idNuevo,
+      nombre: nombre.trim(),
+      nodes: [],
+      edges: []
+    };
+
+    try {
+      await supabase.from('mapa_proyectos').insert([payload]);
+      setProyectos(prev => [...prev, { id: idNuevo, nombre: nombre.trim() }]);
+      setTabActiva(idNuevo);
+    } catch (err) {
+      console.error("Error al crear pestaña:", err);
+    }
+  };
+
+  // =========================================================
+  // 🟢 NUEVO: RENOMBRAR PESTAÑA / PROYECTO
+  // =========================================================
+  const handleRenombrarProyecto = async (idProyecto, nombreActual) => {
+    const nuevoNombre = prompt("Nuevo nombre para la pestaña:", nombreActual);
+    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === nombreActual) return;
+
+    const nombreLimpio = nuevoNombre.trim();
+
+    // 1. Actualizar estado local
+    setProyectos(prev => prev.map(p => p.id === idProyecto ? { ...p, nombre: nombreLimpio } : p));
+
+    // 2. Persistir en Supabase
+    try {
+      const { error } = await supabase
+        .from('mapa_proyectos')
+        .update({ nombre: nombreLimpio, updated_at: new Date().toISOString() })
+        .eq('id', idProyecto);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error al renombrar proyecto en Supabase:", err);
+    }
+  };
+
+  const handleEliminarProyecto = async (idAEliminar, nombre) => {
+    if (proyectos.length <= 1) {
+      alert("Debes tener al menos un proyecto activo.");
+      return;
+    }
+
+    const confirmar = window.confirm(`¿Seguro que deseas eliminar definitivamente la pestaña "${nombre}" y todo su contenido?`);
+    if (!confirmar) return;
+
+    try {
+      await supabase.from('mapa_proyectos').delete().eq('id', idAEliminar);
+      const restantes = proyectos.filter(p => p.id !== idAEliminar);
+      setProyectos(restantes);
+      setTabActiva(restantes[0].id);
+    } catch (err) {
+      console.error("Error al borrar pestaña:", err);
+    }
+  };
 
   const onNodesChange = useCallback((changes) => {
     setNodes((nds) => {
@@ -356,7 +517,6 @@ export function GestionProyectosContenido() {
     });
   }, []);
 
-  // 🎯 DETECCIÓN DE CONTENCIÓN EN GRUPOS AL SOLTAR EL NODO
   const onNodeDragStop = useCallback((event, nodoMovido) => {
     setNodes((nds) => {
       if (nodoMovido.type !== 'nodoMeta') {
@@ -365,8 +525,6 @@ export function GestionProyectosContenido() {
       }
 
       const grupos = nds.filter(n => n.type === 'nodoGrupo');
-      
-      // 1. Calcular posición absoluta en el lienzo
       let posXAbs = nodoMovido.position.x;
       let posYAbs = nodoMovido.position.y;
 
@@ -378,10 +536,9 @@ export function GestionProyectosContenido() {
         }
       }
 
-      const centroX = posXAbs + 112; // Ancho aproximado/2 (w-56)
+      const centroX = posXAbs + 112;
       const centroY = posYAbs + 30;
 
-      // 2. Verificar sobre cuál grupo cayó
       let nuevoPadre = null;
       for (const g of grupos) {
         const anchoG = (typeof g.style?.width === 'number' ? g.style.width : 380);
@@ -400,7 +557,6 @@ export function GestionProyectosContenido() {
 
       const nuevoParentId = nuevoPadre ? nuevoPadre.id : undefined;
 
-      // 3. Si cambió de contenedor o fue sacado al lienzo
       if (nodoMovido.parentId !== nuevoParentId) {
         const nuevaX = nuevoPadre ? posXAbs - nuevoPadre.position.x : posXAbs;
         const nuevaY = nuevoPadre ? posYAbs - nuevoPadre.position.y : posYAbs;
@@ -416,7 +572,6 @@ export function GestionProyectosContenido() {
           return n;
         });
 
-        // Ordenar para que los grupos queden al fondo del árbol DOM
         const ordenados = [...actualizadosConPadre].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1));
         guardarEnSupabase(ordenados, edgesRef.current);
         return ordenados;
@@ -458,12 +613,36 @@ export function GestionProyectosContenido() {
       posicionFinal = { x: 250 + desvíoX, y: 150 + desvíoY };
     }
 
+    let grupoPadreEncontrado = null;
+    let posRelativa = { ...posicionFinal };
+
+    const grupos = nodes.filter(n => n.type === 'nodoGrupo');
+    for (const g of grupos) {
+      const anchoG = (typeof g.style?.width === 'number' ? g.style.width : 380);
+      const altoG = (typeof g.style?.height === 'number' ? g.style.height : 280);
+
+      if (
+        posicionFinal.x >= g.position.x &&
+        posicionFinal.x <= g.position.x + anchoG &&
+        posicionFinal.y >= g.position.y &&
+        posicionFinal.y <= g.position.y + altoG
+      ) {
+        grupoPadreEncontrado = g;
+        posRelativa = {
+          x: posicionFinal.x - g.position.x,
+          y: posicionFinal.y - g.position.y
+        };
+        break;
+      }
+    }
+
     contadorMetasLocal.current += 1;
 
     const nuevaTarjetaMeta = {
       id: idMeta, 
       type: 'nodoMeta', 
-      position: posicionFinal,
+      position: posRelativa, 
+      parentId: grupoPadreEncontrado ? grupoPadreEncontrado.id : undefined,
       data: { 
         id: idMeta, 
         label: textoLimpio, 
@@ -475,7 +654,7 @@ export function GestionProyectosContenido() {
     };
 
     setNodes((nds) => {
-      const actualizados = [...nds, nuevaTarjetaMeta];
+      const actualizados = [...nds, nuevaTarjetaMeta].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1));
       guardarEnSupabase(actualizados, edgesRef.current);
       return actualizados;
     });
@@ -500,12 +679,13 @@ export function GestionProyectosContenido() {
       position: posicionCascada, 
       style: { width: 380, height: 280 }, 
       data: { 
-        id: idGrupo,
+        id: idGrupo, 
         label: nombreLimpio, 
-        color: 'purple',
+        color: 'purple', 
         onEliminarNodo: eliminarNodo, 
-        onCambiarColorGrupo: cambiarColorGrupo,
-        onResizeGrupo: resizeGrupo
+        onCambiarColorGrupo: cambiarColorGrupo, 
+        onEditarNombreGrupo: editarNombreGrupo,
+        onResizeGrupo: resizeGrupo 
       }
     };
 
@@ -516,9 +696,122 @@ export function GestionProyectosContenido() {
     });
   };
 
+  const ejecutarAgrupacionDirecta = useCallback((nodosSeleccionados) => {
+    if (!nodosSeleccionados || nodosSeleccionados.length === 0) return;
+
+    const nombre = prompt("Nombre del nuevo grupo para la selección:");
+    if (!nombre || !nombre.trim()) {
+      setNodes((nds) => nds.map(n => ({ ...n, selected: false })));
+      return;
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    nodosSeleccionados.forEach(n => {
+      let xAbs = n.position.x;
+      let yAbs = n.position.y;
+
+      if (n.parentId) {
+        const padre = nodesRef.current.find(p => p.id === n.parentId);
+        if (padre) {
+          xAbs += padre.position.x;
+          yAbs += padre.position.y;
+        }
+      }
+
+      const w = n.measured?.width || n.width || 224;
+      const h = n.measured?.height || n.height || 85;
+
+      minX = Math.min(minX, xAbs);
+      minY = Math.min(minY, yAbs);
+      maxX = Math.max(maxX, xAbs + w);
+      maxY = Math.max(maxY, yAbs + h);
+    });
+
+    const paddingX = 35;
+    const paddingTop = 50;
+    const paddingBottom = 35;
+
+    const grupoX = minX - paddingX;
+    const grupoY = minY - paddingTop;
+    const grupoWidth = Math.max((maxX - minX) + (paddingX * 2), 260);
+    const grupoHeight = Math.max((maxY - minY) + paddingTop + paddingBottom, 180);
+
+    const idGrupo = `grupo_${Date.now()}`;
+    const nuevoGrupo = {
+      id: idGrupo,
+      type: 'nodoGrupo',
+      position: { x: grupoX, y: grupoY },
+      style: { width: grupoWidth, height: grupoHeight },
+      data: {
+        id: idGrupo,
+        label: nombre.trim(),
+        color: 'purple',
+        onEliminarNodo: eliminarNodo,
+        onCambiarColorGrupo: cambiarColorGrupo,
+        onEditarNombreGrupo: editarNombreGrupo,
+        onResizeGrupo: resizeGrupo
+      }
+    };
+
+    const idsSeleccionados = new Set(nodosSeleccionados.map(n => n.id));
+    const nodosActualizados = nodesRef.current.map(n => {
+      if (idsSeleccionados.has(n.id)) {
+        let xAbs = n.position.x;
+        let yAbs = n.position.y;
+
+        if (n.parentId) {
+          const padre = nodesRef.current.find(p => p.id === n.parentId);
+          if (padre) {
+            xAbs += padre.position.x;
+            yAbs += padre.position.y;
+          }
+        }
+
+        return {
+          ...n,
+          parentId: idGrupo,
+          position: { 
+            x: xAbs - grupoX, 
+            y: yAbs - grupoY 
+          },
+          selected: false
+        };
+      }
+      return n;
+    });
+
+    const ordenados = [nuevoGrupo, ...nodosActualizados].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1));
+    setNodes(ordenados);
+    guardarEnSupabase(ordenados, edgesRef.current);
+  }, [eliminarNodo, cambiarColorGrupo, editarNombreGrupo, resizeGrupo]);
+
+  const onSelectionEnd = useCallback(() => {
+    setTimeout(() => {
+      const seleccionados = nodesRef.current.filter(n => n.selected && n.type === 'nodoMeta');
+      if (seleccionados.length > 0) {
+        ejecutarAgrupacionDirecta(seleccionados);
+      }
+    }, 50);
+  }, [ejecutarAgrupacionDirecta]);
+
   const { screenToFlowPosition } = useReactFlow();
 
-  const onPaneClick = useCallback((event) => {
+  const onPaneDoubleClick = useCallback((event) => {
+    const sobreNota = event.target?.closest('.group\\/node');
+    const sobreBoton = event.target?.closest('button');
+    const sobreResizer = event.target?.closest('.react-flow__resize-control');
+
+    if (sobreNota || sobreBoton || sobreResizer) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
     const posicionMapa = screenToFlowPosition({
       x: event.clientX,
       y: event.clientY,
@@ -528,37 +821,109 @@ export function GestionProyectosContenido() {
   }, [screenToFlowPosition, handleCrearNuevaMetaDirecta]);
 
   return (
-    <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-4 text-left font-mono bg-theme-bg p-4 text-theme-text">
-      <div className="flex justify-between items-center border-b border-theme-border/40 pb-3">
-        <div>
-          <h2 className="text-xl font-medium text-theme-accent tracking-tight">Gráfico de Proyectos</h2>
-          <p className="text-[11px] text-theme-text/50 tracking-wide mt-0.5">Mapa de Proyectos</p>
+    <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-3 text-left font-mono bg-theme-bg p-4 text-theme-text">
+      
+      {/* 🟢 BARRA DE PESTAÑAS / PROYECTOS */}
+      <div className="flex items-center justify-between border-b border-theme-border/40 pb-2">
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-[60vw] scrollbar-none">
+          <FolderKanban className="w-4 h-4 text-theme-accent mr-1 flex-shrink-0" />
+          {proyectos.map((p) => {
+            const activa = p.id === tabActiva;
+            return (
+              <div
+                key={p.id}
+                onClick={() => setTabActiva(p.id)}
+                className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border select-none ${
+                  activa
+                    ? 'bg-theme-accent text-theme-bg border-theme-accent shadow-md'
+                    : 'bg-theme-bg/60 text-theme-text/60 border-theme-border/60 hover:text-theme-text hover:bg-theme-border/20'
+                }`}
+              >
+                {/* =========================================================
+                    🔴 ANTERIOR (Solo texto sin doble clic):
+                    <span className="truncate max-w-[120px]">{p.nombre}</span>
+
+                    🟢 NUEVO: Doble clic para renombrar la pestaña
+                   ========================================================= */}
+                <span 
+                  className="truncate max-w-[120px] hover:underline cursor-text"
+                  title="Doble clic para cambiar nombre"
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    handleRenombrarProyecto(p.id, p.nombre);
+                  }}
+                >
+                  {p.nombre}
+                </span>
+
+                {proyectos.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEliminarProyecto(p.id, p.nombre);
+                    }}
+                    className={`p-0.5 rounded transition-colors ${
+                      activa ? 'hover:bg-black/20 text-theme-bg' : 'hover:bg-theme-casa/20 hover:text-theme-casa text-theme-text/40'
+                    }`}
+                    title="Eliminar pestaña"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
+          <button
+            onClick={handleCrearProyecto}
+            className="p-1.5 rounded-lg border border-dashed border-theme-border/60 text-theme-text/50 hover:text-theme-accent hover:border-theme-accent transition-all cursor-pointer flex items-center"
+            title="Nueva pestaña de proyecto"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <div className="flex gap-2">
-          <button onClick={handleCrearContenedorGrupo} className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer">
+
+        <div className="flex items-center gap-2">
+          {/*
+          <button 
+            onClick={handleCrearContenedorGrupo} 
+            className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer"
+          >
             <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Crear Grupo
           </button>
+          */}
+
         </div>
       </div>
 
-      <div className="flex-1 w-full bg-theme-bg rounded-xl border border-theme-border relative overflow-hidden" ref={flowWrapper}>
+      {/* LIENZO DE REACT FLOW */}
+      <div 
+        className="flex-1 w-full bg-theme-bg rounded-xl border border-theme-border relative overflow-hidden" 
+        ref={flowWrapper}
+      >
         <ReactFlow 
           nodes={nodes} 
           edges={edges} 
           onNodesChange={onNodesChange} 
-          onNodeDragStop={onNodeDragStop}
+          onNodeDragStop={onNodeDragStop} 
           onEdgesChange={onEdgesChange} 
           onConnect={onConnect} 
-          onEdgeClick={onEdgeClick}
-          onPaneClick={onPaneClick} 
-          nodeTypes={nodeTypes}
-          connectionLineStyle={connectionLineStyle}
-          fitView={nodes.length > 1}
-          fitViewOptions={{ minZoom: 0.1, maxZoom: 1, padding: 0.2 }}
+          onEdgeClick={onEdgeClick} 
+          onDoubleClick={onPaneDoubleClick} 
+          zoomOnDoubleClick={false}
+          panOnDrag={[1, 2]}
+          selectionOnDrag={true}
+          selectionMode="partial"
+          onSelectionEnd={onSelectionEnd}
+          nodeTypes={nodeTypes} 
+          connectionLineStyle={connectionLineStyle} 
+          fitView={nodes.length > 1} 
+          fitViewOptions={{ minZoom: 0.1, maxZoom: 1, padding: 0.2 }} 
           minZoom={0.1} 
-          maxZoom={2}
-          translateExtent={[[-7500, -3000], [7500, 3000]]}
-          nodeExtent={[[-7500, -3000], [7500, 3000]]}
+          maxZoom={2} 
+          translateExtent={[[-7500, -3000], [7500, 3000]]} 
+          nodeExtent={[[-7500, -3000], [7500, 3000]]} 
           className="z-10"
         >
           <Background color="var(--color-theme-border)" gap={20} size={1} />
