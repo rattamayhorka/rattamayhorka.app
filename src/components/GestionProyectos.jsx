@@ -10,39 +10,214 @@ import {
   Position,
   NodeResizer,
   useReactFlow,
-  ReactFlowProvider
+  ReactFlowProvider,
+  BaseEdge,
+  getBezierPath,
+  EdgeLabelRenderer,
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { supabase } from '../supabase';
-import { Layers, Trash2, Plus, X, FolderKanban } from 'lucide-react';
+import { 
+  Layers, 
+  Trash2, 
+  Plus, 
+  X, 
+  FolderKanban, 
+  ArrowRight, 
+  ArrowLeftRight, 
+  Minus 
+} from 'lucide-react';
 
 // =========================================================
 // STYLES & THEME CONSTANTS (Obsidian Minimalist Aesthetic)
 // =========================================================
 
-// ==========================================
-// 🔴 ANTERIOR (nodeTypes declarado antes de las funciones que usaba):
-// const nodeTypes = { nodoMeta: NodoMetaAutonomo, nodoGrupo: NodoGrupoExpandible };
-// ==========================================
-
 const connectionLineStyle = { stroke: 'var(--color-theme-border)', strokeWidth: 1.5 };
 
 const defaultEdgeOptions = {
+  type: 'customMenuEdge',
   animated: false, 
   style: { 
     stroke: 'var(--color-theme-accent)',
     strokeWidth: 1.7,
-  }, 
+  },
+
+  //markerEnd: {
+  //  type: MarkerType.ArrowClosed,
+  //  width: 16,
+  //  height: 16,
+  //  color: 'var(--color-theme-accent)'
+  //}
+
+  markerEnd: undefined,
+  markerStart: undefined,
+
 };
 
 const OPCIONES_COLOR_GRUPO = [
-  { id: 'purple',  nombre: 'Morado',    bg: 'bg-theme-bg', border: 'border-purple-500/80',  dot: 'bg-purple-500',  text: 'text-purple-400' },
-  { id: 'blue',    nombre: 'Azul',      bg: 'bg-theme-bg', border: 'border-blue-500/80',    dot: 'bg-blue-500',    text: 'text-blue-400' },
-  { id: 'emerald', nombre: 'Esmeralda', bg: 'bg-theme-bg', border: 'border-emerald-500/80', dot: 'bg-emerald-500', text: 'text-emerald-400' },
-  { id: 'amber',   nombre: 'Ámbar',     bg: 'bg-theme-bg', border: 'border-amber-500/80',   dot: 'bg-amber-500',   text: 'text-amber-400' },
-  { id: 'rose',    nombre: 'Rosa',      bg: 'bg-theme-bg', border: 'border-rose-500/80',    dot: 'bg-rose-500',    text: 'text-rose-400' },
-  { id: 'zinc',    nombre: 'Gris',      bg: 'bg-theme-bg', border: 'border-zinc-500/60',    dot: 'bg-zinc-400',    text: 'text-zinc-400' },
+  { id: 'purple',  nombre: 'Morado',    bg: 'bg-purple-500/5',  border: 'border-purple-500/50',  dot: 'bg-purple-500',  text: 'text-purple-400' },
+  { id: 'blue',    nombre: 'Azul',      bg: 'bg-blue-500/5',    border: 'border-blue-500/50',    dot: 'bg-blue-500',    text: 'text-blue-400' },
+  { id: 'emerald', nombre: 'Esmeralda', bg: 'bg-emerald-500/5', border: 'border-emerald-500/50', dot: 'bg-emerald-500', text: 'text-emerald-400' },
+  { id: 'amber',   nombre: 'Ámbar',     bg: 'bg-amber-500/5',   border: 'border-amber-500/50',   dot: 'bg-amber-500',   text: 'text-amber-400' },
+  { id: 'rose',    nombre: 'Rosa',      bg: 'bg-rose-500/5',    border: 'border-rose-500/50',    dot: 'bg-rose-500',    text: 'text-rose-400' },
+  { id: 'zinc',    nombre: 'Gris',      bg: 'bg-zinc-500/5',    border: 'border-zinc-500/40',    dot: 'bg-zinc-400',    text: 'text-zinc-400' },
 ];
+
+// =========================================================
+// 🟢 CUSTOM EDGE INTERACTIVO CON MENÚ FLOTANTE
+// =========================================================
+function CustomMenuEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  markerStart,
+  selected,
+  data
+}) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const menuVisible = data?.edgeMenuAbiertoId === id;
+
+  return (
+    <>
+      {/* 🟢 Línea invisible con pointerEvents garantizado para capturar clic fácil */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={30}
+        style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+        onClick={(e) => {
+          e.stopPropagation();
+          data?.onToggleMenuEdge?.(id);
+        }}
+      />
+
+      {/* Línea visible principal */}
+      <BaseEdge 
+        path={edgePath} 
+        markerEnd={markerEnd} 
+        markerStart={markerStart} 
+        style={{ 
+          ...style, 
+          cursor: 'pointer',
+          stroke: selected || menuVisible ? 'var(--color-theme-accent)' : (style.stroke || 'var(--color-theme-accent)')
+        }} 
+      />
+      
+      <EdgeLabelRenderer>
+        {/* 🟢 Menú contextual que aparece en el centro de la flecha al hacer clic */}
+        {menuVisible && (
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'all',
+            }}
+            className="nodrag nopan z-[100]"
+          >
+            <div 
+              className="bg-theme-bg border border-theme-border rounded-lg shadow-2xl p-1.5 flex items-center gap-1 text-[10px] font-mono whitespace-nowrap backdrop-blur-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 1. Flecha en un sentido */}
+              <button
+                onClick={() => {
+                  data?.onModificarEdge?.(id, {
+                    markerStart: undefined,
+                    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' }
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer"
+                title="Flecha en un sentido"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 2. Flecha en dos sentidos */}
+              <button
+                onClick={() => {
+                  data?.onModificarEdge?.(id, {
+                    markerStart: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' },
+                    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' }
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer"
+                title="Flecha en ambos sentidos"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 3. Solo unión (sin flechas) */}
+              <button
+                onClick={() => {
+                  data?.onModificarEdge?.(id, {
+                    markerStart: undefined,
+                    markerEnd: undefined,
+                    style: { ...style, strokeDasharray: undefined }
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer"
+                title="Línea sólida simple"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+
+              {/* 4. Unión punteada */}
+              <button
+                onClick={() => {
+                  const tieneDash = !!style.strokeDasharray;
+                  data?.onModificarEdge?.(id, {
+                    style: {
+                      ...style,
+                      strokeDasharray: tieneDash ? undefined : '5,5'
+                    }
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="px-1.5 py-0.5 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer font-bold"
+                title="Alternar línea punteada / sólida"
+              >
+                Punteada
+              </button>
+
+              <div className="w-[1px] h-3 bg-theme-border/60 mx-0.5" />
+
+              {/* 5. Eliminar conexión */}
+              <button
+                onClick={() => {
+                  data?.onEliminarEdge?.(id);
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-casa/20 rounded text-theme-text/80 hover:text-theme-casa cursor-pointer"
+                title="Eliminar conexión"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </EdgeLabelRenderer>
+    </>
+  );
+}
 
 // =========================================================
 // 1. NODO GRUPO
@@ -180,10 +355,9 @@ function NodoMetaAutonomo(props) {
   );
 }
 
-// =========================================================
-// 🟢 NUEVO: DEFINIR NODETYPES AQUÍ FUERA (EVITA ERROR REACTFLOW #002)
-// =========================================================
+// 🟢 DEFINICIÓN FUERA DE LOS COMPONENTES
 const nodeTypes = { nodoMeta: NodoMetaAutonomo, nodoGrupo: NodoGrupoExpandible };
+const edgeTypes = { customMenuEdge: CustomMenuEdge };
 
 // =========================================================
 // 3. COMPONENTE PRINCIPAL
@@ -194,8 +368,9 @@ export function GestionProyectosContenido() {
 
   const [nodes, setNodes] = useState([]);
   const [edges, setEdges] = useState([]);
+  const [edgeMenuAbiertoId, setEdgeMenuAbiertoId] = useState(null);
+
   const flowWrapper = useRef(null);
-  
   const nodesRef = useRef([]);
   const edgesRef = useRef([]);
   const tabActivaRef = useRef('principal');
@@ -212,9 +387,7 @@ export function GestionProyectosContenido() {
     tabActivaRef.current = tabActiva;
   }, [tabActiva]);
 
-  // =========================================================
-  // 🟢 NUEVO: MATAR EL AUTO-SCROLL DEL NAVEGADOR A NIVEL CAPTURA GLOBAL
-  // =========================================================
+  // 🟢 BLOQUEO GLOBAL DEL AUTOSCROLL DEL NAVEGADOR
   useEffect(() => {
     const prevenirAutoScrollGlobal = (e) => {
       if (e.button === 1) {
@@ -251,6 +424,18 @@ export function GestionProyectosContenido() {
         }
       }));
 
+      const edgesSerializables = edgesAGuardar.map(e => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+        type: 'customMenuEdge',
+        style: e.style,
+        markerStart: e.markerStart,
+        markerEnd: e.markerEnd
+      }));
+
       const proyectoActual = proyectos.find(p => p.id === tabActivaRef.current);
       const nombreActual = proyectoActual ? proyectoActual.nombre : 'Proyecto';
 
@@ -260,7 +445,7 @@ export function GestionProyectosContenido() {
           id: tabActivaRef.current,
           nombre: nombreActual,
           nodes: nodosSerializables,
-          edges: edgesAGuardar,
+          edges: edgesSerializables,
           updated_at: new Date().toISOString()
         });
     } catch (err) {
@@ -361,16 +546,56 @@ export function GestionProyectosContenido() {
     });
   }, []);
 
-  const onEdgeClick = useCallback((event, edge) => {
-    const confirmar = window.confirm("¿Deseas eliminar este enlace de conexión?");
-    if (!confirmar) return;
+  // =========================================================
+  // 🟢 CONTROLADORES DEL MENÚ DE LA FLECHA
+  // =========================================================
+  const toggleMenuEdge = useCallback((idEdge) => {
+    setEdgeMenuAbiertoId(prev => prev === idEdge ? null : idEdge);
+  }, []);
 
+  const cerrarMenuEdge = useCallback(() => {
+    setEdgeMenuAbiertoId(null);
+  }, []);
+
+  const modificarEdge = useCallback((idEdge, nuevosProps) => {
     setEdges((eds) => {
-      const actualizadas = eds.filter((e) => e.id !== edge.id);
+      const actualizadas = eds.map((e) => {
+        if (e.id === idEdge) {
+          return {
+            ...e,
+            ...nuevosProps,
+            style: { ...e.style, ...(nuevosProps.style || {}) }
+          };
+        }
+        return e;
+      });
       guardarEnSupabase(nodesRef.current, actualizadas);
       return actualizadas;
     });
   }, []);
+
+  const eliminarEdge = useCallback((idEdge) => {
+    setEdges((eds) => {
+      const actualizadas = eds.filter((e) => e.id !== idEdge);
+      guardarEnSupabase(nodesRef.current, actualizadas);
+      return actualizadas;
+    });
+  }, []);
+
+  // 🟢 Actualizar el edgeMenuAbiertoId en la data de cada edge
+  useEffect(() => {
+    setEdges(eds => eds.map(e => ({
+      ...e,
+      data: {
+        ...e.data,
+        edgeMenuAbiertoId,
+        onToggleMenuEdge: toggleMenuEdge,
+        onCerrarMenuEdge: cerrarMenuEdge,
+        onModificarEdge: modificarEdge,
+        onEliminarEdge: eliminarEdge
+      }
+    })));
+  }, [edgeMenuAbiertoId, toggleMenuEdge, cerrarMenuEdge, modificarEdge, eliminarEdge]);
 
   const cargarListaProyectos = useCallback(async () => {
     try {
@@ -427,12 +652,25 @@ export function GestionProyectosContenido() {
         }
       }));
 
+      // Inyectar customMenuEdge por defecto
+      const edgesConFunciones = rawEdges.map(e => ({
+        ...e,
+        type: 'customMenuEdge',
+        data: {
+          edgeMenuAbiertoId: null,
+          onToggleMenuEdge: toggleMenuEdge,
+          onCerrarMenuEdge: cerrarMenuEdge,
+          onModificarEdge: modificarEdge,
+          onEliminarEdge: eliminarEdge
+        }
+      }));
+
       setNodes(nodosConFunciones);
-      setEdges(rawEdges.map(e => ({ ...e, ...defaultEdgeOptions })));
+      setEdges(edgesConFunciones);
     } catch (e) {
       console.error("Error al cargar mapa desde Supabase:", e);
     }
-  }, [cambiarEstadoMeta, eliminarNodo, editarTextoMeta, cambiarColorGrupo, editarNombreGrupo, resizeGrupo]);
+  }, [cambiarEstadoMeta, eliminarNodo, editarTextoMeta, cambiarColorGrupo, editarNombreGrupo, resizeGrupo, toggleMenuEdge, cerrarMenuEdge, modificarEdge, eliminarEdge]);
 
   useEffect(() => {
     cargarListaProyectos();
@@ -465,19 +703,14 @@ export function GestionProyectosContenido() {
     }
   };
 
-  // =========================================================
-  // 🟢 NUEVO: RENOMBRAR PESTAÑA / PROYECTO
-  // =========================================================
   const handleRenombrarProyecto = async (idProyecto, nombreActual) => {
     const nuevoNombre = prompt("Nuevo nombre para la pestaña:", nombreActual);
     if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === nombreActual) return;
 
     const nombreLimpio = nuevoNombre.trim();
 
-    // 1. Actualizar estado local
     setProyectos(prev => prev.map(p => p.id === idProyecto ? { ...p, nombre: nombreLimpio } : p));
 
-    // 2. Persistir en Supabase
     try {
       const { error } = await supabase
         .from('mapa_proyectos')
@@ -591,13 +824,25 @@ export function GestionProyectosContenido() {
   }, []);
 
   const onConnect = useCallback((params) => {
-    const nuevaConexion = { ...params, id: `edge_${Date.now()}`, ...defaultEdgeOptions };
+    const nuevaConexion = { 
+      ...params, 
+      id: `edge_${Date.now()}`, 
+      type: 'customMenuEdge',
+      data: {
+        edgeMenuAbiertoId: null,
+        onToggleMenuEdge: toggleMenuEdge,
+        onCerrarMenuEdge: cerrarMenuEdge,
+        onModificarEdge: modificarEdge,
+        onEliminarEdge: eliminarEdge
+      },
+      ...defaultEdgeOptions 
+    };
     setEdges((eds) => {
       const actualizadas = addEdge(nuevaConexion, eds);
       guardarEnSupabase(nodesRef.current, actualizadas);
       return actualizadas;
     });
-  }, []);
+  }, [toggleMenuEdge, cerrarMenuEdge, modificarEdge, eliminarEdge]);
 
   const handleCrearNuevaMetaDirecta = (posicionExplicita = null) => {
     const texto = prompt("Contenido de la nota:");
@@ -820,6 +1065,11 @@ export function GestionProyectosContenido() {
     handleCrearNuevaMetaDirecta(posicionMapa);
   }, [screenToFlowPosition, handleCrearNuevaMetaDirecta]);
 
+  // 🟢 Cerrar el menú flotante al hacer clic en cualquier parte vacía del lienzo
+  const onPaneClick = useCallback(() => {
+    setEdgeMenuAbiertoId(null);
+  }, []);
+
   return (
     <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-3 text-left font-mono bg-theme-bg p-4 text-theme-text">
       
@@ -839,12 +1089,6 @@ export function GestionProyectosContenido() {
                     : 'bg-theme-bg/60 text-theme-text/60 border-theme-border/60 hover:text-theme-text hover:bg-theme-border/20'
                 }`}
               >
-                {/* =========================================================
-                    🔴 ANTERIOR (Solo texto sin doble clic):
-                    <span className="truncate max-w-[120px]">{p.nombre}</span>
-
-                    🟢 NUEVO: Doble clic para renombrar la pestaña
-                   ========================================================= */}
                 <span 
                   className="truncate max-w-[120px] hover:underline cursor-text"
                   title="Doble clic para cambiar nombre"
@@ -893,7 +1137,6 @@ export function GestionProyectosContenido() {
             <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Crear Grupo
           </button>
           */}
-
         </div>
       </div>
 
@@ -909,7 +1152,13 @@ export function GestionProyectosContenido() {
           onNodeDragStop={onNodeDragStop} 
           onEdgesChange={onEdgesChange} 
           onConnect={onConnect} 
-          onEdgeClick={onEdgeClick} 
+          // 🟢 Cerrar menú al hacer clic en el lienzo
+          onPaneClick={onPaneClick}
+          // 🟢 Abrir menú de opciones al hacer clic en la flecha
+          onEdgeClick={(e, edge) => {
+            e.stopPropagation();
+            toggleMenuEdge(edge.id);
+          }}
           onDoubleClick={onPaneDoubleClick} 
           zoomOnDoubleClick={false}
           panOnDrag={[1, 2]}
@@ -917,6 +1166,7 @@ export function GestionProyectosContenido() {
           selectionMode="partial"
           onSelectionEnd={onSelectionEnd}
           nodeTypes={nodeTypes} 
+          edgeTypes={edgeTypes}
           connectionLineStyle={connectionLineStyle} 
           fitView={nodes.length > 1} 
           fitViewOptions={{ minZoom: 0.1, maxZoom: 1, padding: 0.2 }} 
@@ -926,7 +1176,12 @@ export function GestionProyectosContenido() {
           nodeExtent={[[-7500, -3000], [7500, 3000]]} 
           className="z-10"
         >
-          <Background color="var(--color-theme-border)" gap={20} size={1} />
+          <Background 
+            color="var(--color-theme-accent)" 
+            style={{ opacity: 0.5 }} 
+            gap={20} 
+            size={1.5} 
+          />
           <Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-60 hover:opacity-100 transition-opacity" />
         </ReactFlow>
       </div>

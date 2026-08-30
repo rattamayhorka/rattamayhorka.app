@@ -489,7 +489,7 @@ export default function App() {
               <Map className="w-4 h-4 flex-shrink-0 xl:hidden" />
               <span className="hidden xl:inline px-1">Mapa Proyectos</span>
             </button>
-            
+
             <button
               onClick={() => cambiarSeccion('prompts')}
               title="Prompts"
@@ -527,7 +527,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v1.0.2 "SQLero"
+            rattamayhorka v1.0.3 "arrowz"
           </div>
         </div>
       </div>
