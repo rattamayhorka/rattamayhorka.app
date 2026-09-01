@@ -339,7 +339,8 @@ export default function App() {
                   Introduce el Token de 6 dígitos
                 </label>
                 <input 
-                  type="text" 
+                  type="text"
+                  autoFocus
                   maxLength={6}
                   value={codigoInput}
                   onChange={(e) => setCodigoInput(e.target.value)}

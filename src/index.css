@@ -1,23 +1,20 @@
 @import "tailwindcss";
 
-/* Ajuste de suavizado de texto para evitar bordes borrosos en Windows/Chrome */
-*,
-*::before,
-*::after {
+/* 1. SUAVIZADO LIMPIO GLOBAL: 
+   Aplica solo al body sin romper elementos hijos ni el flujo de bloques */
+body {
+  font-family: 'JetBrains Mono', monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  background-color: var(--color-theme-bg);
+  color: var(--color-theme-text);
+  @apply font-mono overflow-hidden h-screen;
 }
 
-/* Espaciado para evitar que textos en cursiva o mayúsculas se corten por arriba */
-.italic,
-i,
-em {
-  display: inline-block;
-  line-height: normal;
-  padding-top: 0.1em;
-  padding-bottom: 0.1em;
-}
+/* ==========================================================================
+   VARIABLES DE TEMAS
+   ========================================================================== */
 
 :root {
   --color-theme-bg: #1b1c23;
@@ -252,12 +249,4 @@ em {
   --color-theme-accent: var(--color-theme-accent);
   --color-theme-trabajo: var(--color-theme-trabajo);
   --color-theme-casa: var(--color-theme-casa);
-}
-
-body {
-  font-family: 'JetBrains Mono', monospace;
-  background-color: var(--color-theme-bg);
-  color: var(--color-theme-text);
-  line-height: 1.4;
-  @apply font-mono overflow-hidden h-screen;
 }
