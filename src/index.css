@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Ajuste de suavizado de texto para evitar bordes borrosos en Windows/Chrome */
+*,
+*::before,
+*::after {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Espaciado para evitar que textos en cursiva o mayúsculas se corten por arriba */
+.italic,
+i,
+em {
+  display: inline-block;
+  line-height: normal;
+  padding-top: 0.1em;
+  padding-bottom: 0.1em;
+}
+
 :root {
   --color-theme-bg: #1b1c23;
   --color-theme-text: #a9b1d6;
@@ -226,6 +245,7 @@
 }
 
 @theme {
+  --font-mono: 'JetBrains Mono', monospace;
   --color-theme-bg: var(--color-theme-bg);
   --color-theme-text: var(--color-theme-text);
   --color-theme-border: var(--color-theme-border);
@@ -235,7 +255,9 @@
 }
 
 body {
+  font-family: 'JetBrains Mono', monospace;
   background-color: var(--color-theme-bg);
   color: var(--color-theme-text);
+  line-height: 1.4;
   @apply font-mono overflow-hidden h-screen;
 }
