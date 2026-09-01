@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-// ==========================================
-// 🔴 ANTERIOR: API de Google Apps Script
-// import { database } from '../api';
-// 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
 // ==========================================
-import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart } from 'lucide-react';
+// 🔴 ANTERIOR: Sin icono X para modal de edición
+// import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart } from 'lucide-react';
+// 🟢 NUEVO: Importación agregando icono X
+import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X } from 'lucide-react';
+// ==========================================
 import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function Deudas({ refreshTrigger }) {
@@ -14,23 +14,21 @@ export default function Deudas({ refreshTrigger }) {
   const [cargando, setCargando] = useState(true);
   const [guardandoNW, setGuardandoNW] = useState(false);
 
-  // ESTADOS PARA NEEDS VS WANTS
   const [itemsNW, setItemsNW] = useState([]);
   const [formNW, setFormNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
   const [filtroPersona, setFiltroPersona] = useState('TODOS');
+
+  // ==========================================
+  // 🟢 NUEVO: Estados para Modal de Edición de Needs / Wants
+  const [mostrarModalEditarNW, setMostrarModalEditarNW] = useState(false);
+  const [itemNWSeleccionado, setItemNWSeleccionado] = useState(null);
+  const [formEditNW, setFormEditNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
+  // ==========================================
 
   const sincronizarDatos = async (silencioso = false) => {
     try {
       if (!silencioso) setCargando(true);
 
-      // ==========================================
-      // 🔴 ANTERIOR: Lectura en Google Sheets
-      // const [dataDeudas, dataTransacciones] = await Promise.all([
-      //   database.obtenerSeccion('deudas'),
-      //   database.obtenerSeccion('transacciones')
-      // ]);
-      //
-      // 🟢 NUEVO: Consultas paralelas directas a Supabase
       const [resDeudas, resTransacciones, resNW] = await Promise.all([
         supabase.from('deudas').select('*').order('id', { ascending: true }),
         supabase.from('transacciones').select('*').order('id', { ascending: false }),
@@ -41,7 +39,6 @@ export default function Deudas({ refreshTrigger }) {
       const rawTransacciones = resTransacciones.data || [];
       const rawNW = resNW.data || [];
 
-      // Mapear Deudas al formato esperado por los componentes y gráficas
       const deudasMapeadas = rawDeudas.map(d => ({
         id: d.id,
         Tarjeta: d.tarjeta,
@@ -56,7 +53,6 @@ export default function Deudas({ refreshTrigger }) {
       }));
       setDeudas(deudasMapeadas);
 
-      // Mapear Transacciones
       const transaccionesMapeadas = rawTransacciones.map(t => ({
         id: t.id,
         Fecha: t.fecha,
@@ -67,7 +63,6 @@ export default function Deudas({ refreshTrigger }) {
       }));
       setTransacciones(transaccionesMapeadas);
 
-      // Mapear Needs vs Wants
       const extraidosNW = rawNW.map(nw => ({
         id: nw.id,
         concepto: nw.concepto,
@@ -77,7 +72,6 @@ export default function Deudas({ refreshTrigger }) {
         completado: (nw.status || '').toUpperCase() === 'COMPLETADO'
       }));
       setItemsNW(extraidosNW);
-      // ==========================================
 
     } catch (error) {
       console.error("Error al sincronizar con Supabase:", error);
@@ -98,9 +92,6 @@ export default function Deudas({ refreshTrigger }) {
     return isNaN(numero) ? 0 : Math.abs(numero);
   };
 
-  // =========================================================================
-  // HANDLERS PARA NEEDS VS WANTS
-  // =========================================================================
   const agregarItemNW = async (e) => {
     e.preventDefault();
     if (!formNW.concepto.trim() || !formNW.monto) return;
@@ -114,9 +105,6 @@ export default function Deudas({ refreshTrigger }) {
       status: 'PENDIENTE'
     };
 
-    // ==========================================
-    // 🔴 ANTERIOR: database.guardarDatos('guardarNeedsWants', nuevo);
-    // 🟢 NUEVO: Inserción directa en tabla 'needs_wants' en Supabase
     try {
       const { error } = await supabase.from('needs_wants').insert([nuevo]);
       if (error) throw error;
@@ -127,16 +115,56 @@ export default function Deudas({ refreshTrigger }) {
     } finally {
       setGuardandoNW(false);
     }
-    // ==========================================
   };
+
+  // ==========================================
+  // 🟢 NUEVAS FUNCIONES: ABRIR MODAL Y GUARDAR EDICIÓN DE NEED/WANT
+  // ==========================================
+  const abrirModalEdicionNW = (item) => {
+    setItemNWSeleccionado(item);
+    setFormEditNW({
+      concepto: item.concepto,
+      monto: item.monto.toString(),
+      tipo: item.tipo,
+      asignado: item.asignado
+    });
+    setMostrarModalEditarNW(true);
+  };
+
+  const ejecutarModificarNW = async (e) => {
+    e.preventDefault();
+    if (!itemNWSeleccionado || !formEditNW.concepto.trim() || !formEditNW.monto) return;
+
+    setGuardandoNW(true);
+    const datosActualizados = {
+      concepto: formEditNW.concepto.toUpperCase().trim(),
+      monto: parseFloat(formEditNW.monto) || 0,
+      tipo: formEditNW.tipo,
+      asignado: formEditNW.asignado
+    };
+
+    try {
+      const { error } = await supabase
+        .from('needs_wants')
+        .update(datosActualizados)
+        .eq('id', itemNWSeleccionado.id);
+
+      if (error) throw error;
+      setMostrarModalEditarNW(false);
+      setItemNWSeleccionado(null);
+      await sincronizarDatos(true);
+    } catch (err) {
+      console.error("Error al modificar Need/Want en Supabase:", err);
+    } finally {
+      setGuardandoNW(false);
+    }
+  };
+  // ==========================================
 
   const toggleStatusNW = async (item) => {
     setGuardandoNW(true);
     const nuevoStatus = item.completado ? 'PENDIENTE' : 'COMPLETADO';
-    
-    // ==========================================
-    // 🔴 ANTERIOR: database.guardarDatos('actualizarStatusNeedsWants', ...);
-    // 🟢 NUEVO: Actualización directa por ID en Supabase
+
     try {
       const { error } = await supabase
         .from('needs_wants')
@@ -150,14 +178,11 @@ export default function Deudas({ refreshTrigger }) {
     } finally {
       setGuardandoNW(false);
     }
-    // ==========================================
   };
 
   const eliminarItemNW = async (idNW) => {
     setGuardandoNW(true);
-    // ==========================================
-    // 🔴 ANTERIOR: database.guardarDatos('eliminarNeedsWants', { concepto });
-    // 🟢 NUEVO: Borrado directo por ID en Supabase
+
     try {
       const { error } = await supabase
         .from('needs_wants')
@@ -171,14 +196,12 @@ export default function Deudas({ refreshTrigger }) {
     } finally {
       setGuardandoNW(false);
     }
-    // ==========================================
   };
 
   if (cargando) {
     return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left p-4">Actualizando...</p>;
   }
 
-  // Filtramos ÚNICAMENTE las deudas cuyas descripciones coincidan exactamente con TDCV o TDCE
   const deudasPermitidas = ['TDCV', 'TDCE'];
 
   const deudasVigentes = deudas.filter(d => {
@@ -312,7 +335,6 @@ export default function Deudas({ refreshTrigger }) {
     return null;
   };
 
-  // LÓGICA FILTROS NEEDS VS WANTS
   const itemsNWFiltrados = itemsNW.filter(i => filtroPersona === 'TODOS' || i.asignado === filtroPersona);
   const totalNeeds = itemsNWFiltrados.filter(i => i.tipo === 'NEED' && !i.completado).reduce((acc, i) => acc + i.monto, 0);
   const totalWants = itemsNWFiltrados.filter(i => i.tipo === 'WANT' && !i.completado).reduce((acc, i) => acc + i.monto, 0);
@@ -569,19 +591,21 @@ export default function Deudas({ refreshTrigger }) {
               className={`flex justify-between items-center p-3 rounded-xl border transition-all ${
                 item.completado
                   ? 'bg-theme-bg/40 border-theme-border/40 text-theme-text/40 line-through'
-                  : 'bg-theme-bg border-theme-border text-theme-text'
+                  : 'bg-theme-bg border-theme-border text-theme-text hover:border-theme-accent/60'
               }`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => toggleStatusNW(item)}
                   disabled={guardandoNW}
-                  className="cursor-pointer bg-transparent border-none p-0 text-theme-text/50 hover:text-theme-trabajo disabled:opacity-50"
+                  className="cursor-pointer bg-transparent border-none p-0 text-theme-text/50 hover:text-theme-trabajo disabled:opacity-50 flex-shrink-0"
                 >
                   <CheckCircle2 className={`w-4 h-4 ${item.completado ? 'text-theme-trabajo' : ''}`} />
                 </button>
-                <div>
+                {/* ========================================== */}
+                {/* 🔴 ANTERIOR: Texto estático sin evento de clic */}
+                {/* <div>
                   <span className="text-xs font-black uppercase tracking-tight block">{item.concepto}</span>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${
@@ -595,11 +619,38 @@ export default function Deudas({ refreshTrigger }) {
                       {item.asignado}
                     </span>
                   </div>
+                </div> */}
+                {/* 🟢 NUEVO: Contenedor interactivo para abrir edición al hacer clic */}
+                <div 
+                  onClick={() => abrirModalEdicionNW(item)}
+                  className="cursor-pointer flex-1 min-w-0 group"
+                  title="Clic para editar"
+                >
+                  <span className="text-xs font-black uppercase tracking-tight block truncate group-hover:text-theme-accent transition-colors">
+                    {item.concepto}
+                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${
+                      item.tipo === 'NEED' 
+                        ? 'bg-theme-casa/10 text-theme-casa border-theme-casa/30' 
+                        : 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/30'
+                    }`}>
+                      {item.tipo}
+                    </span>
+                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${getBadgePersonaStyle(item.asignado)}`}>
+                      {item.asignado}
+                    </span>
+                  </div>
                 </div>
+                {/* ========================================== */}
               </div>
 
-              <div className="flex items-center gap-4">
-                <span className="text-xs font-black font-mono tabular-nums">
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <span 
+                  onClick={() => abrirModalEdicionNW(item)}
+                  className="text-xs font-black font-mono tabular-nums cursor-pointer hover:text-theme-accent transition-colors"
+                  title="Clic para editar"
+                >
                   ${item.monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                 </span>
                 <button
@@ -617,6 +668,93 @@ export default function Deudas({ refreshTrigger }) {
           )}
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 🟢 NUEVO: MODAL PARA EDITAR NEED / WANT */}
+      {/* ========================================================================= */}
+      {mostrarModalEditarNW && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-theme-accent">
+            <form onSubmit={ejecutarModificarNW} className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic">
+                  Editar Prioridad ({formEditNW.tipo})
+                </h4>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalEditarNW(false)} 
+                  className="text-theme-text/50 hover:text-theme-text cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Concepto</label>
+              <input 
+                type="text" 
+                required
+                value={formEditNW.concepto}
+                onChange={(e) => setFormEditNW(prev => ({ ...prev, concepto: e.target.value }))}
+                className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-sm font-bold uppercase outline-none text-theme-text focus:border-theme-accent mb-4"
+              />
+
+              <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Monto ($)</label>
+              <input 
+                type="number"
+                step="0.01"
+                required
+                value={formEditNW.monto}
+                onChange={(e) => setFormEditNW(prev => ({ ...prev, monto: e.target.value }))}
+                className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-sm font-bold outline-none text-theme-text focus:border-theme-accent mb-4 tabular-nums"
+              />
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Tipo</label>
+                  <select 
+                    value={formEditNW.tipo}
+                    onChange={(e) => setFormEditNW(prev => ({ ...prev, tipo: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                  >
+                    <option value="NEED">NEED 🔴</option>
+                    <option value="WANT">WANT 🟣</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Asignado</label>
+                  <select 
+                    value={formEditNW.asignado}
+                    onChange={(e) => setFormEditNW(prev => ({ ...prev, asignado: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                  >
+                    <option value="ENRIQUE">ENRIQUE</option>
+                    <option value="VICTORIA">VICTORIA</option>
+                    <option value="PAKAL">PAKAL</option>
+                    <option value="CASA">CASA</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-6">
+                <button 
+                  type="submit" 
+                  disabled={guardandoNW}
+                  className="w-full bg-theme-accent text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer hover:opacity-90"
+                >
+                  {guardandoNW ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalEditarNW(false)} 
+                  className="w-full text-center text-[10px] font-black uppercase text-theme-text/50 hover:text-theme-text cursor-pointer py-1"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -5,7 +5,10 @@ import { useEffect, useState, useRef } from 'react';
 // 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
 // ==========================================
-import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter } from 'lucide-react';
+// 🔴 ANTERIOR: Sin icono de papelera
+// import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter } from 'lucide-react';
+// 🟢 NUEVO: Importación con icono Trash2 agregado
+import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter, Trash2 } from 'lucide-react';
 
 // =========================================================================
 // 🚀 COMPONENTE INTERNO: RUTINA DE INICIO
@@ -94,6 +97,13 @@ export default function Kanban({ refreshTrigger }) {
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
 
+  // ==========================================
+  // 🟢 NUEVO: Estados para Modal de Papelera (Trash Bin)
+  const [mostrarModalTrash, setMostrarModalTrash] = useState(false);
+  const [tareasArchivadas, setTareasArchivadas] = useState([]);
+  const [cargandoTrash, setCargandoTrash] = useState(false);
+  // ==========================================
+
   // Formulario Nuevo
   const [nuevaTareaTexto, setNuevaTareaTexto] = useState('');
   const [nuevoTipo, setNuevoTipo] = useState('Trabajo');
@@ -152,6 +162,12 @@ export default function Kanban({ refreshTrigger }) {
       const esValido = tipoLower === 'trabajo' || tipoLower === 'casa';
       if (!esValido) return false;
 
+      // ==========================================
+      // 🟢 NUEVO: Oculta elementos terminados/archivados del tablero activo
+      const statusLower = (t.Status || '').toLowerCase().trim();
+      if (statusLower === 'terminado' || statusLower === 'archivado') return false;
+      // ==========================================
+
       if ((t.Status || '').trim().toUpperCase() === 'PROGRAMADO') {
         const fechaDespertar = parseFechaSheets(t.Fecha);
         if (fechaDespertar > hoy) return false;
@@ -189,6 +205,48 @@ export default function Kanban({ refreshTrigger }) {
     resultado.sort((a, b) => (a.Prioridad || 0) - (b.Prioridad || 0));
     setTareasFiltradas(resultado);
   }, [tareas, filtoEntorno]);
+
+  // ==========================================
+  // 🟢 NUEVAS FUNCIONES: GESTIÓN DE PAPELERA (TRASH BIN)
+  // ==========================================
+  const abrirPapelera = async () => {
+    setMostrarModalTrash(true);
+    setCargandoTrash(true);
+    try {
+      const { data, error } = await supabase
+        .from('kanban')
+        .select('*')
+        .or('status.ilike.Terminado,status.ilike.Archivado')
+        .order('id', { ascending: false });
+
+      if (error) throw error;
+      setTareasArchivadas(data || []);
+    } catch (err) {
+      console.error('Error al cargar elementos de la papelera:', err);
+    } finally {
+      setCargandoTrash(false);
+    }
+  };
+
+  const vaciarPapelera = async () => {
+    if (!window.confirm('¿Deseas eliminar definitivamente todos los registros de la papelera?')) return;
+
+    setCargandoTrash(true);
+    try {
+      const { error } = await supabase
+        .from('kanban')
+        .delete()
+        .or('status.ilike.Terminado,status.ilike.Archivado');
+
+      if (error) throw error;
+      setTareasArchivadas([]);
+    } catch (err) {
+      console.error('Error al vaciar papelera en Supabase:', err);
+    } finally {
+      setCargandoTrash(false);
+    }
+  };
+  // ==========================================
 
   const manejarDragStart = (e, tareaTexto) => {
     if (e.dataTransfer) {
@@ -449,6 +507,18 @@ export default function Kanban({ refreshTrigger }) {
         
         <div className="flex gap-2 items-center">
           <RutinaControl />
+          
+          {/* ========================================== */}
+          {/* 🟢 NUEVO: Botón para abrir la Papelera de tareas archivadas */}
+          <button 
+            onClick={abrirPapelera}
+            title="Ver tareas archivadas / terminadas"
+            className="bg-theme-bg hover:opacity-80 text-theme-casa border border-theme-border px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1 text-theme-casa" /> Papelera
+          </button>
+          {/* ========================================== */}
+
           <button 
             onClick={() => setMostrarModalNuevo(true)}
             className="bg-theme-border hover:opacity-80 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
@@ -593,7 +663,7 @@ export default function Kanban({ refreshTrigger }) {
                 <select 
                   value={nuevoTipo}
                   onChange={(e) => setNuevoTipo(e.target.value)}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-sm font-bold uppercase outline-none text-theme-text focus:border-theme-accent"
+                   className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-sm font-bold uppercase outline-none text-theme-text focus:border-theme-accent"
                 >
                   <option value="Trabajo">TRABAJO</option>
                   <option value="Casa">CASA</option>
@@ -680,7 +750,7 @@ export default function Kanban({ refreshTrigger }) {
 
                 <div className="flex gap-2 mt-1">
                   <button 
-                    type="button"
+                    type="button" 
                     disabled={guardando}
                     onClick={ejecutarArchivarTarea}
                     className="flex-1 bg-theme-bg hover:opacity-80 border border-theme-border text-theme-accent py-2.5 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1 disabled:opacity-50 cursor-pointer"
@@ -701,6 +771,65 @@ export default function Kanban({ refreshTrigger }) {
           </div>
         </div>
       )}
+
+      {/* ========================================== */}
+      {/* 🟢 NUEVO: MODAL TRASH BIN (PAPELERA Y VACIADO DEFINITIVO) */}
+      {/* ========================================== */}
+      {mostrarModalTrash && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border-t-4 border-t-theme-casa">
+            
+            {/* Header del Modal */}
+            <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-[10px] tracking-widest flex justify-between items-center border-b border-theme-border/50">
+              <span className="flex items-center gap-1.5 text-theme-casa">
+                <Trash2 className="w-4 h-4 text-theme-casa" /> Papelera de Tareas ({tareasArchivadas.length})
+              </span>
+              <button onClick={() => setMostrarModalTrash(false)} className="text-theme-text/60 hover:text-theme-text cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Listado de tareas archivadas */}
+            <div className="p-4 max-h-72 overflow-y-auto space-y-2">
+              {cargandoTrash ? (
+                <p className="text-xs italic text-theme-text/50 text-center py-4">Cargando elementos...</p>
+              ) : tareasArchivadas.length === 0 ? (
+                <p className="text-xs italic text-theme-text/40 text-center py-6">La papelera está vacía.</p>
+              ) : (
+                tareasArchivadas.map((t) => (
+                  <div key={t.id || t.tarea} className="p-2.5 bg-theme-border/10 border border-theme-border/30 rounded-xl flex justify-between items-center text-xs">
+                    <span className="font-bold text-theme-text line-through opacity-70 truncate mr-2">{t.tarea}</span>
+                    <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border border-theme-border/50 text-theme-text/50 flex-shrink-0">
+                      {t.tipo}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Acciones de pie de modal */}
+            <div className="p-4 border-t border-theme-border/40 flex justify-end gap-2 bg-theme-bg">
+              <button
+                type="button"
+                onClick={() => setMostrarModalTrash(false)}
+                className="px-4 py-2 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                disabled={tareasArchivadas.length === 0 || cargandoTrash}
+                onClick={vaciarPapelera}
+                className="bg-theme-casa hover:opacity-90 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg disabled:opacity-30 cursor-pointer flex items-center gap-1"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Vaciar Papelera
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ========================================== */}
+
     </div>
   );
 }

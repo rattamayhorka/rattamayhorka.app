@@ -95,11 +95,13 @@ function CustomMenuEdge({
   return (
     <>
       {/* 🟢 Línea invisible con pointerEvents garantizado para capturar clic fácil */}
+      {/* 🔴 ANTERIOR: strokeWidth={30} */}
+      {/* 🟢 NUEVO: strokeWidth={36} para facilitar toque táctil */}
       <path
         d={edgePath}
         fill="none"
         stroke="transparent"
-        strokeWidth={30}
+        strokeWidth={36}
         style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
         onClick={(e) => {
           e.stopPropagation();
@@ -136,6 +138,7 @@ function CustomMenuEdge({
             >
               {/* 1. Flecha en un sentido */}
               <button
+                type="button"
                 onClick={() => {
                   data?.onModificarEdge?.(id, {
                     markerStart: undefined,
@@ -151,6 +154,7 @@ function CustomMenuEdge({
 
               {/* 2. Flecha en dos sentidos */}
               <button
+                type="button"
                 onClick={() => {
                   data?.onModificarEdge?.(id, {
                     markerStart: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' },
@@ -166,6 +170,7 @@ function CustomMenuEdge({
 
               {/* 3. Solo unión (sin flechas) */}
               <button
+                type="button"
                 onClick={() => {
                   data?.onModificarEdge?.(id, {
                     markerStart: undefined,
@@ -182,6 +187,7 @@ function CustomMenuEdge({
 
               {/* 4. Unión punteada */}
               <button
+                type="button"
                 onClick={() => {
                   const tieneDash = !!style.strokeDasharray;
                   data?.onModificarEdge?.(id, {
@@ -202,6 +208,7 @@ function CustomMenuEdge({
 
               {/* 5. Eliminar conexión */}
               <button
+                type="button"
                 onClick={() => {
                   data?.onEliminarEdge?.(id);
                   data?.onCerrarMenuEdge?.();
@@ -244,19 +251,29 @@ function NodoGrupoExpandible(props) {
         }}
       />
 
-      <div className="opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-200">
-        <Handle type="target" position={Position.Top} id="g-t-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
-        <Handle type="source" position={Position.Top} id="g-t-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
-        <Handle type="target" position={Position.Bottom} id="g-b-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
-        <Handle type="source" position={Position.Bottom} id="g-b-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
-        <Handle type="target" position={Position.Left} id="g-l-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
-        <Handle type="source" position={Position.Left} id="g-l-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
-        <Handle type="target" position={Position.Right} id="g-r-in" className="w-2 h-2 !bg-theme-border border-none z-50" />
-        <Handle type="source" position={Position.Right} id="g-r-out" className="w-1.5 h-1.5 !bg-theme-accent border-none z-50" />
+      {/* 🔴 ANTERIOR: <div className="opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-200"> */}
+      {/* 🟢 NUEVO: Handles visibles en hover o al seleccionar la tarjeta en tablet */}
+      <div className={`${selected ? 'opacity-100' : 'opacity-0 group-hover/groupnode:opacity-100'} transition-opacity duration-200`}>
+        <Handle type="target" position={Position.Top} id="g-t-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Top} id="g-t-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Bottom} id="g-b-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Bottom} id="g-b-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Left} id="g-l-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Left} id="g-l-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Right} id="g-r-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Right} id="g-r-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
       </div>
 
       <div 
         className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50 cursor-pointer"
+        onClick={(e) => {
+          // 🟢 NUEVO: Un toque sobre la etiqueta permite editar en tablet
+          e.stopPropagation();
+          const nuevoNombre = prompt("Editar nombre del grupo:", data.label);
+          if (nuevoNombre && nuevoNombre.trim() && nuevoNombre.trim() !== data.label) {
+            data.onEditarNombreGrupo && data.onEditarNombreGrupo(id, nuevoNombre.trim());
+          }
+        }}
         onDoubleClick={(e) => {
           e.stopPropagation();
           const nuevoNombre = prompt("Editar nombre del grupo:", data.label);
@@ -272,14 +289,22 @@ function NodoGrupoExpandible(props) {
         </span>
       </div>
 
-      <div className="absolute top-full left-4 pt-2 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-150">
+      {/* 🔴 ANTERIOR: <div className="absolute top-full left-4 pt-2 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-150"> */}
+      {/* 🟢 NUEVO: Menú visible por hover O al tocar/seleccionar el nodo en tablet */}
+      <div className={`absolute top-full left-4 pt-2 z-[100] nodrag transition-opacity duration-150 ${
+        selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/groupnode:opacity-100 group-hover/groupnode:pointer-events-auto'
+      }`}>
         <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 pointer-events-auto antialiased [transform:translateZ(0)]">
           <div className="flex items-center gap-1">
             {OPCIONES_COLOR_GRUPO.map((c) => (
               <button
                 key={c.id}
-                onClick={() => data.onCambiarColorGrupo && data.onCambiarColorGrupo(id, c.id)}
-                className={`w-3 h-3 rounded-full ${c.dot} transition-transform hover:scale-125 cursor-pointer ${
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onCambiarColorGrupo && data.onCambiarColorGrupo(id, c.id);
+                }}
+                className={`w-3.5 h-3.5 rounded-full ${c.dot} transition-transform hover:scale-125 cursor-pointer ${
                   (data.color || 'purple') === c.id ? 'ring-2 ring-theme-text scale-110' : 'opacity-60 hover:opacity-100'
                 }`}
                 title={c.nombre || `Color ${c.id}`}
@@ -288,7 +313,11 @@ function NodoGrupoExpandible(props) {
           </div>
           <div className="w-[1px] h-3 bg-theme-border/60" />
           <button 
-            onClick={() => data.onEliminarNodo && data.onEliminarNodo(id)} 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onEliminarNodo && data.onEliminarNodo(id);
+            }} 
             className="text-theme-text/80 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer flex items-center gap-1 font-mono"
           >
             <Trash2 className="w-3.5 h-3.5 shrink-0" />
@@ -314,7 +343,9 @@ function NodoMetaAutonomo(props) {
     statusColor = 'border-2 border-theme-trabajo/50 bg-theme-bg text-theme-trabajo';
   }
 
-  const handleClass = "w-1.5 h-1.5 !bg-theme-border !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
+  // 🔴 ANTERIOR: const handleClass = "w-1.5 h-1.5 !bg-theme-border !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
+  // 🟢 NUEVO: Área táctil ampliada y visible al seleccionar en tablet
+  const handleClass = `w-2 h-2 !bg-theme-border ${selected ? '!opacity-100' : '!opacity-0 group-hover/node:!opacity-100'} transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-8 before:h-8 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]`;
 
   return (
     <div className={`border rounded-lg p-3 w-56 shadow-2xl font-mono text-left transition-all duration-200 relative group/node ${statusColor} ${selected ? 'ring-2 ring-theme-accent border-theme-accent shadow-2xl' : ''}`}>
@@ -328,7 +359,7 @@ function NodoMetaAutonomo(props) {
       <Handle type="source" position={Position.Right} id="r-o" className={`${handleClass} z-[60]`} />
 
       <div 
-        className="min-w-0 cursor-text select-none"
+        className="min-w-0 cursor-pointer select-none"
         onDoubleClick={(e) => {
           e.stopPropagation();
           const nuevoTexto = prompt("Editar contenido de la nota:", data.label);
@@ -342,13 +373,69 @@ function NodoMetaAutonomo(props) {
         </p>
       </div>
 
-      <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-[50] nodrag pointer-events-none opacity-0 group-hover/node:opacity-100 transition-all duration-150 ease-out">
-        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2 py-1 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto">
-          <button onClick={() => data.onCambiarEstado && data.onCambiarEstado(id, 'Por Hacer')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Por Hacer' ? 'bg-theme-border text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}>Nota</button>
-          <button onClick={() => data.onCambiarEstado && data.onCambiarEstado(id, 'En Progreso')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'En Progreso' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}>Progreso</button>
-          <button onClick={() => data.onCambiarEstado && data.onCambiarEstado(id, 'Completado')} className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Completado' ? 'bg-theme-trabajo text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}>Listo</button>
+      {/* 🔴 ANTERIOR: <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-[50] nodrag pointer-events-none opacity-0 group-hover/node:opacity-100 transition-all duration-150 ease-out"> */}
+      {/* 🟢 NUEVO: Menú contextual visible por hover O al tocar/seleccionar la tarjeta en tablet */}
+      <div className={`absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag transition-all duration-150 ease-out ${
+        selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto'
+      }`}>
+        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2 py-1.5 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto whitespace-nowrap">
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onCambiarEstado && data.onCambiarEstado(id, 'Por Hacer');
+            }} 
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Por Hacer' ? 'bg-theme-border text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}
+          >
+            Nota
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onCambiarEstado && data.onCambiarEstado(id, 'En Progreso');
+            }} 
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'En Progreso' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}
+          >
+            Progreso
+          </button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onCambiarEstado && data.onCambiarEstado(id, 'Completado');
+            }} 
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${data.status === 'Completado' ? 'bg-theme-trabajo text-theme-bg' : 'text-theme-text/50 hover:text-theme-text'}`}
+          >
+            Listo
+          </button>
+          
+          {/* 🟢 NUEVO: Botón de editar directo para tablets */}
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const nuevoTexto = prompt("Editar contenido de la nota:", data.label);
+              if (nuevoTexto && nuevoTexto.trim() && nuevoTexto.trim() !== data.label) {
+                data.onEditarTexto && data.onEditarTexto(id, nuevoTexto.trim());
+              }
+            }} 
+            className="text-[9px] font-medium px-1.5 py-0.5 rounded text-theme-accent hover:bg-theme-accent/10 transition-colors cursor-pointer"
+          >
+            Editar
+          </button>
+
           <div className="w-[1px] h-3 bg-theme-border/60" />
-          <button onClick={() => data.onEliminarNodo && data.onEliminarNodo(id)} className="text-theme-text/50 hover:text-theme-casa p-0.5 rounded transition-colors cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onEliminarNodo && data.onEliminarNodo(id);
+            }} 
+            className="text-theme-text/50 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
         </div>
       </div>
     </div>
@@ -929,7 +1016,7 @@ export function GestionProyectosContenido() {
         color: 'purple', 
         onEliminarNodo: eliminarNodo, 
         onCambiarColorGrupo: cambiarColorGrupo, 
-        onEditarNombreGrupo: editarNombreGrupo,
+        onEditarNombreGrupo: editarNombreGrupo, 
         onResizeGrupo: resizeGrupo 
       }
     };
@@ -1092,6 +1179,13 @@ export function GestionProyectosContenido() {
                 <span 
                   className="truncate max-w-[120px] hover:underline cursor-text"
                   title="Doble clic para cambiar nombre"
+                  onClick={(e) => {
+                    // 🟢 NUEVO: Soporte táctil para renombrar en tablet
+                    if (activa) {
+                      e.stopPropagation();
+                      handleRenombrarProyecto(p.id, p.nombre);
+                    }
+                  }}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     handleRenombrarProyecto(p.id, p.nombre);
@@ -1128,15 +1222,22 @@ export function GestionProyectosContenido() {
           </button>
         </div>
 
+        {/* 🟢 NUEVO: Botones de acción directa para pantallas táctiles */}
         <div className="flex items-center gap-2">
-          {/*
           <button 
-            onClick={handleCrearContenedorGrupo} 
-            className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-normal flex items-center transition-all cursor-pointer"
+            type="button"
+            onClick={() => handleCrearNuevaMetaDirecta()} 
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow transition-all cursor-pointer"
           >
-            <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Crear Grupo
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nota
           </button>
-          */}
+          <button 
+            type="button"
+            onClick={handleCrearContenedorGrupo} 
+            className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow transition-all cursor-pointer"
+          >
+            <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Grupo
+          </button>
         </div>
       </div>
 
@@ -1161,8 +1262,10 @@ export function GestionProyectosContenido() {
           }}
           onDoubleClick={onPaneDoubleClick} 
           zoomOnDoubleClick={false}
-          panOnDrag={[1, 2]}
-          selectionOnDrag={true}
+          /* 🔴 ANTERIOR: panOnDrag={[1, 2]} selectionOnDrag={true} */
+          /* 🟢 NUEVO: Soporte táctil para arrastrar lienzo con 1 dedo/toque */
+          panOnDrag={[0, 1, 2]}
+          selectionOnDrag={false}
           selectionMode="partial"
           onSelectionEnd={onSelectionEnd}
           nodeTypes={nodeTypes} 
@@ -1182,8 +1285,10 @@ export function GestionProyectosContenido() {
             gap={20} 
             size={1.5} 
           />
-          <Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-60 hover:opacity-100 transition-opacity" />
-        </ReactFlow>
+          <Controls className="!bg-theme-bg !border !border-theme-border !shadow-2xl [&_button]:!bg-theme-bg [&_button]:!border-b [&_button]:!border-theme-border [&_button]:!fill-theme-accent [&_button_svg]:!fill-theme-accent [&_button:hover]:!bg-theme-border/30 transition-all" />
+                 {/*<Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-80 hover:opacity-100 transition-opacity" /> */}
+
+        </ReactFlow> 
       </div>
     </div>
   );
