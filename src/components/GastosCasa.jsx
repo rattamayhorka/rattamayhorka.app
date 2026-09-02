@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 import { 
   X, Plus, CreditCard, ChevronDown, ChevronRight, AlertTriangle, 
-  ShieldCheck, Flame, Wallet, CheckCircle2, Settings, Trash2, TableProperties, Save
+  ShieldCheck, Flame, Wallet, CheckCircle2, Settings, Trash2, TableProperties, Save,
+  ArrowRightLeft // 🟢 NUEVO: Icono para traspasos entre cuentas
 } from 'lucide-react';
 
 export default function Finanzas({ refreshTrigger }) {
@@ -17,6 +18,16 @@ export default function Finanzas({ refreshTrigger }) {
   const [modalSaldos, setModalSaldos] = useState(false);
   const [modalSettingsTabla, setModalSettingsTabla] = useState(false);
   const [tabSettings, setTabSettings] = useState('macros'); // 'macros' | 'cuentas' | 'mapeo'
+
+  // ==========================================
+  // 🟢 NUEVO: Estado para Traspaso entre Cuentas
+  const [modalTraspaso, setModalTraspaso] = useState(false);
+  const [formTraspaso, setFormTraspaso] = useState({
+    cuentaOrigen: '',
+    cuentaDestino: '',
+    monto: ''
+  });
+  // ==========================================
 
   const [saldosCuentas, setSaldosCuentas] = useState({}); 
   const [listaMetodos, setListaMetodos] = useState([]);  
@@ -186,6 +197,13 @@ export default function Finanzas({ refreshTrigger }) {
         setListaMetodos(metodosDetectados);
         const primerMetodoConSaldo = metodosDetectados.find(m => (mapaSaldosDetectados[m] || 0) > 0) || metodosDetectados[0];
         setForm(prev => ({ ...prev, metodo_pago: prev.metodo_pago || primerMetodoConSaldo }));
+        
+        // 🟢 NUEVO: Precargar cuentas por defecto para Traspaso
+        setFormTraspaso(prev => ({
+          cuentaOrigen: prev.cuentaOrigen || metodosDetectados[0],
+          cuentaDestino: prev.cuentaDestino || (metodosDetectados[1] || metodosDetectados[0]),
+          monto: prev.monto || ''
+        }));
       }
 
       const presupuestosAdaptados = rawCategorias.map(cat => ({
@@ -272,6 +290,64 @@ export default function Finanzas({ refreshTrigger }) {
     cargarDatos(false);
   };
 
+  // ==========================================
+  // 🟢 NUEVO: EJECUTAR TRASPASO ENTRE CUENTAS
+  // ==========================================
+  const ejecutarTraspaso = async (e) => {
+    e.preventDefault();
+    const montoNum = parseFloat(formTraspaso.monto);
+    if (!montoNum || montoNum <= 0) return alert("Ingresa un monto válido");
+    if (formTraspaso.cuentaOrigen === formTraspaso.cuentaDestino) return alert("Elige cuentas distintas para el traspaso");
+
+    setGuardando(true);
+    const fechaHoy = new Date().toLocaleDateString('es-MX');
+
+    // 1. Dos transacciones espejo: salida (+) y entrada (-)
+    const registrosTraspaso = [
+      {
+        fecha: fechaHoy,
+        importe: montoNum, // Salida de origen
+        descripcion: `[TRASPASO SALIDA] -> ${formTraspaso.cuentaDestino.toUpperCase()}`,
+        metodo_pago: formTraspaso.cuentaOrigen,
+        rubro: 'TRASPASO'
+      },
+      {
+        fecha: fechaHoy,
+        importe: -montoNum, // Entrada a destino
+        descripcion: `[TRASPASO ENTRADA] <- ${formTraspaso.cuentaOrigen.toUpperCase()}`,
+        metodo_pago: formTraspaso.cuentaDestino,
+        rubro: 'TRASPASO'
+      }
+    ];
+
+    // 2. Nuevos saldos actualizados
+    const saldoOrigenActual = saldosCuentas[formTraspaso.cuentaOrigen] || 0;
+    const saldoDestinoActual = saldosCuentas[formTraspaso.cuentaDestino] || 0;
+    const nuevoSaldoOrigen = saldoOrigenActual - montoNum;
+    const nuevoSaldoDestino = saldoDestinoActual + montoNum;
+
+    try {
+      // Insertar transacciones
+      const { error: errTrans } = await supabase.from('transacciones').insert(registrosTraspaso);
+      if (errTrans) throw errTrans;
+
+      // Actualizar cuentas bancarias en Supabase
+      //await Promise.all([
+      //  supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoOrigen }).eq('nombre', formTraspaso.cuentaOrigen),
+      //  supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoDestino }).eq('nombre', formTraspaso.cuentaDestino)
+      //]);
+
+      setModalTraspaso(false);
+      setFormTraspaso(prev => ({ ...prev, monto: '' }));
+      await cargarDatos(false);
+    } catch (err) {
+      console.error("Error al ejecutar traspaso:", err);
+      alert("Ocurrió un error al procesar el traspaso");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const ejecutarActualizarSaldos = async (e) => {
     e.preventDefault();
     setGuardando(true);
@@ -312,7 +388,6 @@ export default function Finanzas({ refreshTrigger }) {
   const guardarTodoSettingsTabla = async () => {
     setGuardando(true);
     try {
-      // 1. Guardar Categorías Macro
       await supabase.from('categorias_presupuesto').delete().neq('id', 0);
       const categoriasLimpias = editCategorias
         .filter(c => c.categoria_macro?.trim())
@@ -324,7 +399,6 @@ export default function Finanzas({ refreshTrigger }) {
         await supabase.from('categorias_presupuesto').insert(categoriasLimpias);
       }
 
-      // 2. Guardar Cuentas Bancarias
       await supabase.from('cuentas_bancarias').delete().neq('id', 0);
       const cuentasLimpias = editCuentas
         .filter(c => c.nombre?.trim())
@@ -336,7 +410,6 @@ export default function Finanzas({ refreshTrigger }) {
         await supabase.from('cuentas_bancarias').insert(cuentasLimpias);
       }
 
-      // 3. Guardar Mapeo Sub-Rubro -> Macro
       await supabase.from('mapeo_rubros').delete().neq('id', 0);
       const mapeosLimpios = editMapeo
         .filter(m => m.sub_rubro?.trim() && m.categoria_macro?.trim())
@@ -540,6 +613,15 @@ export default function Finanzas({ refreshTrigger }) {
             title="Editar Tablas de Presupuestos, Cuentas y Mapeo"
           >
             <TableProperties className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Tablas Presupuesto
+          </button>
+
+          {/* 🟢 NUEVO BOTÓN: MOVER DINERO (TRASPASO) */}
+          <button 
+            onClick={() => setModalTraspaso(true)} 
+            className="bg-theme-bg hover:opacity-80 text-theme-accent border border-theme-border px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center transition-all cursor-pointer"
+            title="Transferir fondos entre cuentas/canales"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Mover Dinero
           </button>
 
           <button 
@@ -837,19 +919,36 @@ export default function Finanzas({ refreshTrigger }) {
                     const rubroUpper = rubro.toUpperCase();
                     const esDeuda = macro === "Deudas / Tarjetas";
                     const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO";
+                    const esTraspaso = rubroUpper === "TRASPASO";
 
                     return (
                       <tr key={idx} className="hover:bg-theme-border/10 transition-colors">
                         <td className="p-4">
                           <div className="text-xs font-black text-theme-text uppercase tracking-tight leading-tight">{t.Descripción || t.descripcion}</div>
-                          <div className="text-[8px] font-bold text-theme-text/40 font-mono mt-0.5">{t.Fecha || t.fecha}</div>
+                          <div className="text-[8px] font-bold text-theme-text/40 font-mono mt-0.5 flex gap-2 items-center">
+                            <span>{t.Fecha || t.fecha}</span>
+                            <span className="text-theme-text/60 font-semibold">• {t['Metodo de pago'] || t.metodo_pago}</span>
+                          </div>
                         </td>
-                        <td className="p-4 text-transform: uppercase text-[10px] font-black text-theme-text/80 tracking-tight">{esIngresoPuro ? "INGRESOS" : macro}</td>
+                        <td className="p-4 text-transform: uppercase text-[10px] font-black text-theme-text/80 tracking-tight">
+                          {esTraspaso ? "TRASPASO" : esIngresoPuro ? "INGRESOS" : macro}
+                        </td>
                         <td className="p-4">
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase bg-theme-bg border border-theme-border italic ${esIngresoPuro ? 'text-theme-trabajo border-theme-trabajo/30' : esDeuda ? 'text-theme-accent' : 'text-theme-casa'}`}>{rubro}</span>
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase bg-theme-bg border border-theme-border italic ${
+                            esTraspaso ? 'text-theme-accent border-theme-accent/40' :
+                            esIngresoPuro ? 'text-theme-trabajo border-theme-trabajo/30' : 
+                            esDeuda ? 'text-theme-accent' : 'text-theme-casa'
+                          }`}>
+                            {rubro}
+                          </span>
                         </td>
-                        <td className={`p-4 text-right text-xs font-black tabular-nums ${esIngresoPuro ? 'text-theme-trabajo' : esDeuda ? 'text-theme-accent' : 'text-theme-casa'}`}>
-                          {esIngresoPuro ? '+$' : esDeuda ? '-$' : '-$'}{t.montoAbsoluto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        <td className={`p-4 text-right text-xs font-black tabular-nums ${
+                          esTraspaso ? 'text-theme-accent' :
+                          esIngresoPuro ? 'text-theme-trabajo' : 
+                          esDeuda ? 'text-theme-accent' : 'text-theme-casa'
+                        }`}>
+                          {esIngresoPuro ? '+$' : esTraspaso ? (t.Importe < 0 ? '+$' : '-$') : '-$'}
+                          {t.montoAbsoluto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                     );
@@ -864,6 +963,86 @@ export default function Finanzas({ refreshTrigger }) {
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 🟢 NUEVO MODAL: TRANSFERENCIA / MOVER DINERO ENTRE CUENTAS */}
+      {/* ========================================================================= */}
+      {modalTraspaso && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border border-theme-border border-t-4 border-t-theme-accent">
+            <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-theme-border">
+              <span className="flex items-center gap-1.5 text-theme-accent">
+                <ArrowRightLeft className="w-3.5 h-3.5" /> Transferencia entre Cuentas
+              </span>
+              <button onClick={() => setModalTraspaso(false)} className="cursor-pointer text-theme-text/50 hover:text-theme-text">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form onSubmit={ejecutarTraspaso} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Monto a Mover ($)</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  required 
+                  placeholder="0.00" 
+                  value={formTraspaso.monto} 
+                  onChange={(e) => setFormTraspaso(prev => ({ ...prev, monto: e.target.value }))} 
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-sm font-bold text-theme-accent outline-none focus:border-theme-accent tabular-nums" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Cuenta Origen (Sale Dinero)</label>
+                <select 
+                  value={formTraspaso.cuentaOrigen} 
+                  onChange={(e) => setFormTraspaso(prev => ({ ...prev, cuentaOrigen: e.target.value }))} 
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer"
+                >
+                  {listaMetodos.map(m => (
+                    <option key={m} value={m}>
+                      {m} (${(saldosCuentas[m] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-center my-1">
+                <div className="bg-theme-border/20 p-1.5 rounded-full border border-theme-border/40">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-theme-accent" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Cuenta Destino (Entra Dinero)</label>
+                <select 
+                  value={formTraspaso.cuentaDestino} 
+                  onChange={(e) => setFormTraspaso(prev => ({ ...prev, cuentaDestino: e.target.value }))} 
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer"
+                >
+                  {listaMetodos.map(m => (
+                    <option key={m} value={m}>
+                      {m} (${(saldosCuentas[m] || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={guardando} 
+                  className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  {guardando ? 'Procesando Traspaso...' : 'Ejecutar Traspaso'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL REGISTRO DE MOVIMIENTO */}
       {modalRegistro && (
@@ -983,7 +1162,7 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
       )}
 
-      {/* 🟢 NUEVO MODAL: EDITOR DE TABLAS DINÁMICAS (GRID COMPLETO) */}
+      {/* MODAL: EDITOR DE TABLAS DINÁMICAS (GRID COMPLETO) */}
       {modalSettingsTabla && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[85] flex items-center justify-center p-4">
           <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden text-left border border-theme-border flex flex-col max-h-[92vh]">
@@ -1244,16 +1423,16 @@ export default function Finanzas({ refreshTrigger }) {
               </span>
               <div className="flex gap-2">
                 <button 
-                  type="button"
-                  onClick={() => setModalSettingsTabla(false)}
+                  type="button" 
+                  onClick={() => setModalSettingsTabla(false)} 
                   className="px-4 py-2 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button 
-                  type="button"
-                  disabled={guardando}
-                  onClick={guardarTodoSettingsTabla}
+                  type="button" 
+                  disabled={guardando} 
+                  onClick={guardarTodoSettingsTabla} 
                   className="bg-theme-accent hover:opacity-90 text-theme-bg px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
                 >
                   <Save className="w-3.5 h-3.5" />
