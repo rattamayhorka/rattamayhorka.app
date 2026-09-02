@@ -3,7 +3,9 @@ import { supabase } from '../supabase';
 import { 
   X, Plus, CreditCard, ChevronDown, ChevronRight, AlertTriangle, 
   ShieldCheck, Flame, Wallet, CheckCircle2, Settings, Trash2, TableProperties, Save,
-  ArrowRightLeft // 🟢 NUEVO: Icono para traspasos entre cuentas
+  ArrowRightLeft,
+  // 🟢 NUEVO: Icono para editar transacciones
+  Edit3
 } from 'lucide-react';
 
 export default function Finanzas({ refreshTrigger }) {
@@ -20,12 +22,26 @@ export default function Finanzas({ refreshTrigger }) {
   const [tabSettings, setTabSettings] = useState('macros'); // 'macros' | 'cuentas' | 'mapeo'
 
   // ==========================================
-  // 🟢 NUEVO: Estado para Traspaso entre Cuentas
+  // 🟢 ESTADO PARA TRASPASO ENTRE CUENTAS
   const [modalTraspaso, setModalTraspaso] = useState(false);
   const [formTraspaso, setFormTraspaso] = useState({
     cuentaOrigen: '',
     cuentaDestino: '',
     monto: ''
+  });
+  // ==========================================
+
+  // ==========================================
+  // 🟢 NUEVO: ESTADOS PARA EDICIÓN DE TRANSACCIONES
+  const [modalEditarTransaccion, setModalEditarTransaccion] = useState(false);
+  const [transaccionSeleccionada, setTransaccionSeleccionada] = useState(null);
+  const [formEditTransaccion, setFormEditTransaccion] = useState({
+    fecha: '',
+    descripcion: '',
+    importe: '',
+    metodo_pago: '',
+    rubro: '',
+    tipo: 'GASTO' // 'GASTO' o 'INGRESO'
   });
   // ==========================================
 
@@ -198,7 +214,7 @@ export default function Finanzas({ refreshTrigger }) {
         const primerMetodoConSaldo = metodosDetectados.find(m => (mapaSaldosDetectados[m] || 0) > 0) || metodosDetectados[0];
         setForm(prev => ({ ...prev, metodo_pago: prev.metodo_pago || primerMetodoConSaldo }));
         
-        // 🟢 NUEVO: Precargar cuentas por defecto para Traspaso
+        // 🟢 Precargar cuentas por defecto para Traspaso
         setFormTraspaso(prev => ({
           cuentaOrigen: prev.cuentaOrigen || metodosDetectados[0],
           cuentaDestino: prev.cuentaDestino || (metodosDetectados[1] || metodosDetectados[0]),
@@ -291,7 +307,7 @@ export default function Finanzas({ refreshTrigger }) {
   };
 
   // ==========================================
-  // 🟢 NUEVO: EJECUTAR TRASPASO ENTRE CUENTAS
+  // 🟢 EJECUTAR TRASPASO ENTRE CUENTAS
   // ==========================================
   const ejecutarTraspaso = async (e) => {
     e.preventDefault();
@@ -321,10 +337,10 @@ export default function Finanzas({ refreshTrigger }) {
     ];
 
     // 2. Nuevos saldos actualizados
-    const saldoOrigenActual = saldosCuentas[formTraspaso.cuentaOrigen] || 0;
-    const saldoDestinoActual = saldosCuentas[formTraspaso.cuentaDestino] || 0;
-    const nuevoSaldoOrigen = saldoOrigenActual - montoNum;
-    const nuevoSaldoDestino = saldoDestinoActual + montoNum;
+    // const saldoOrigenActual = saldosCuentas[formTraspaso.cuentaOrigen] || 0;
+    // const saldoDestinoActual = saldosCuentas[formTraspaso.cuentaDestino] || 0;
+    // const nuevoSaldoOrigen = saldoOrigenActual - montoNum;
+    // const nuevoSaldoDestino = saldoDestinoActual + montoNum;
 
     try {
       // Insertar transacciones
@@ -332,10 +348,10 @@ export default function Finanzas({ refreshTrigger }) {
       if (errTrans) throw errTrans;
 
       // Actualizar cuentas bancarias en Supabase
-      //await Promise.all([
-      //  supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoOrigen }).eq('nombre', formTraspaso.cuentaOrigen),
-      //  supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoDestino }).eq('nombre', formTraspaso.cuentaDestino)
-      //]);
+      // await Promise.all([
+      //   supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoOrigen }).eq('nombre', formTraspaso.cuentaOrigen),
+      //   supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoDestino }).eq('nombre', formTraspaso.cuentaDestino)
+      // ]);
 
       setModalTraspaso(false);
       setFormTraspaso(prev => ({ ...prev, monto: '' }));
@@ -347,6 +363,100 @@ export default function Finanzas({ refreshTrigger }) {
       setGuardando(false);
     }
   };
+
+  // ==========================================
+  // 🟢 NUEVAS FUNCIONES: ABRIR, MODIFICAR Y ELIMINAR TRANSACCIÓN
+  // ==========================================
+  const abrirModalEditarTransaccion = (t) => {
+    setTransaccionSeleccionada(t);
+    const impAbsoluto = t.montoAbsoluto ?? Math.abs(parseFloat(t.Importe || t.importe || 0));
+    const importeCrudo = t.Importe || t.importe || 0;
+    const esNegativo = typeof importeCrudo === 'number' 
+      ? importeCrudo < 0 
+      : importeCrudo.toString().includes('(') || importeCrudo.toString().includes('-');
+
+    setFormEditTransaccion({
+      fecha: t.Fecha || t.fecha || '',
+      descripcion: t.Descripción || t.descripcion || '',
+      importe: impAbsoluto ? impAbsoluto.toString() : '',
+      metodo_pago: t['Metodo de pago'] || t.metodo_pago || (listaMetodos[0] || 'Efectivo'),
+      rubro: t.Rubro || t.rubro || (listadoRubros[0] || 'Varios'),
+      tipo: esNegativo ? 'INGRESO' : 'GASTO'
+    });
+    setModalEditarTransaccion(true);
+  };
+
+  const ejecutarModificarTransaccion = async (e) => {
+    e.preventDefault();
+    if (!transaccionSeleccionada || !formEditTransaccion.importe || !formEditTransaccion.descripcion.trim()) {
+      return alert("Completa los campos requeridos");
+    }
+
+    setGuardando(true);
+    const importeNumerico = Math.abs(parseFloat(formEditTransaccion.importe));
+    const finalImporte = formEditTransaccion.tipo === 'INGRESO' ? -importeNumerico : importeNumerico;
+
+    const payload = {
+      fecha: formEditTransaccion.fecha.trim(),
+      importe: finalImporte,
+      descripcion: formEditTransaccion.descripcion.toUpperCase().trim(),
+      metodo_pago: formEditTransaccion.metodo_pago,
+      rubro: formEditTransaccion.rubro
+    };
+
+    try {
+      let query = supabase.from('transacciones').update(payload);
+      if (transaccionSeleccionada.id) {
+        query = query.eq('id', transaccionSeleccionada.id);
+      } else {
+        query = query
+          .eq('fecha', transaccionSeleccionada.Fecha || transaccionSeleccionada.fecha)
+          .eq('descripcion', transaccionSeleccionada.Descripción || transaccionSeleccionada.descripcion);
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+
+      setModalEditarTransaccion(false);
+      setTransaccionSeleccionada(null);
+      await cargarDatos(false);
+    } catch (err) {
+      console.error("Error al actualizar la transacción en Supabase:", err);
+      alert("Error al actualizar la transacción");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const ejecutarEliminarTransaccion = async () => {
+    if (!transaccionSeleccionada) return;
+    if (!window.confirm("¿Estás seguro de eliminar permanentemente esta transacción?")) return;
+
+    setGuardando(true);
+    try {
+      let query = supabase.from('transacciones').delete();
+      if (transaccionSeleccionada.id) {
+        query = query.eq('id', transaccionSeleccionada.id);
+      } else {
+        query = query
+          .eq('fecha', transaccionSeleccionada.Fecha || transaccionSeleccionada.fecha)
+          .eq('descripcion', transaccionSeleccionada.Descripción || transaccionSeleccionada.descripcion);
+      }
+
+      const { error } = await query;
+      if (error) throw error;
+
+      setModalEditarTransaccion(false);
+      setTransaccionSeleccionada(null);
+      await cargarDatos(false);
+    } catch (err) {
+      console.error("Error al eliminar la transacción en Supabase:", err);
+      alert("Error al eliminar la transacción");
+    } finally {
+      setGuardando(false);
+    }
+  };
+  // ==========================================
 
   const ejecutarActualizarSaldos = async (e) => {
     e.preventDefault();
@@ -615,7 +725,7 @@ export default function Finanzas({ refreshTrigger }) {
             <TableProperties className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Tablas Presupuesto
           </button>
 
-          {/* 🟢 NUEVO BOTÓN: MOVER DINERO (TRASPASO) */}
+          {/* BOTÓN: MOVER DINERO (TRASPASO) */}
           <button 
             onClick={() => setModalTraspaso(true)} 
             className="bg-theme-bg hover:opacity-80 text-theme-accent border border-theme-border px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center transition-all cursor-pointer"
@@ -922,9 +1032,18 @@ export default function Finanzas({ refreshTrigger }) {
                     const esTraspaso = rubroUpper === "TRASPASO";
 
                     return (
-                      <tr key={idx} className="hover:bg-theme-border/10 transition-colors">
+                      /* 🟢 NUEVO: Fila clicable con hover interactivo para abrir edición */
+                      <tr 
+                        key={idx} 
+                        onClick={() => abrirModalEditarTransaccion(t)}
+                        className="hover:bg-theme-border/10 transition-colors cursor-pointer group"
+                        title="Clic para editar o eliminar esta transacción"
+                      >
                         <td className="p-4">
-                          <div className="text-xs font-black text-theme-text uppercase tracking-tight leading-tight">{t.Descripción || t.descripcion}</div>
+                          <div className="text-xs font-black text-theme-text uppercase tracking-tight leading-tight group-hover:text-theme-accent transition-colors flex items-center gap-1.5">
+                            {t.Descripción || t.descripcion}
+                            <Edit3 className="w-3 h-3 text-theme-text/30 group-hover:text-theme-accent transition-colors" />
+                          </div>
                           <div className="text-[8px] font-bold text-theme-text/40 font-mono mt-0.5 flex gap-2 items-center">
                             <span>{t.Fecha || t.fecha}</span>
                             <span className="text-theme-text/60 font-semibold">• {t['Metodo de pago'] || t.metodo_pago}</span>
@@ -965,8 +1084,158 @@ export default function Finanzas({ refreshTrigger }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🟢 NUEVO MODAL: TRANSFERENCIA / MOVER DINERO ENTRE CUENTAS */}
+      {/* 🟢 NUEVO MODAL: EDITAR / ELIMINAR TRANSACCIÓN REGISTRADA */}
       {/* ========================================================================= */}
+      {modalEditarTransaccion && transaccionSeleccionada && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border border-theme-border border-t-4 border-t-theme-accent">
+            <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-[10px] tracking-widest flex justify-between border-b border-theme-border">
+              <span className="flex items-center gap-1.5 text-theme-accent">
+                <Edit3 className="w-4 h-4" /> Editar Transacción
+              </span>
+              <button onClick={() => setModalEditarTransaccion(false)} className="cursor-pointer text-theme-text/50 hover:text-theme-text">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form onSubmit={ejecutarModificarTransaccion} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1.5">Naturaleza del Flujo</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormEditTransaccion(prev => ({ ...prev, tipo: 'GASTO' }))}
+                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${
+                      formEditTransaccion.tipo === 'GASTO' 
+                        ? 'bg-theme-casa/10 text-theme-casa border-theme-casa' 
+                        : 'bg-theme-bg text-theme-text/50 border-theme-border'
+                    }`}
+                  >
+                    🔴 Gasto Corriente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormEditTransaccion(prev => ({ ...prev, tipo: 'INGRESO' }))}
+                    className={`py-2 text-[10px] font-black uppercase rounded-xl border transition-all ${
+                      formEditTransaccion.tipo === 'INGRESO' 
+                        ? 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo' 
+                        : 'bg-theme-bg text-theme-text/50 border-theme-border'
+                    }`}
+                  >
+                    🟢 Ingreso Liquido
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Concepto / Descripción</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formEditTransaccion.descripcion} 
+                    onChange={(e) => setFormEditTransaccion(prev => ({ ...prev, descripcion: e.target.value }))} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fecha</label>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="DD/MM/AAAA"
+                    value={formEditTransaccion.fecha} 
+                    onChange={(e) => setFormEditTransaccion(prev => ({ ...prev, fecha: e.target.value }))} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent font-mono" 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Importe ($)</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  required 
+                  placeholder="0.00" 
+                  value={formEditTransaccion.importe} 
+                  onChange={(e) => setFormEditTransaccion(prev => ({ ...prev, importe: e.target.value }))} 
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text uppercase outline-none focus:border-theme-accent tabular-nums" 
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Sub-Rubro</label>
+                  {formEditTransaccion.tipo === 'INGRESO' ? (
+                    <select 
+                      value={formEditTransaccion.rubro} 
+                      onChange={(e) => setFormEditTransaccion(prev => ({ ...prev, rubro: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-black text-theme-trabajo uppercase outline-none cursor-pointer"
+                    >
+                      <option value="SUELDO">💼 SUELDO</option>
+                      <option value="SOBRANTE">📦 SOBRANTE</option>
+                      <option value="REGALO">🎁 REGALO</option>
+                      <option value="TRASPASO">🔄 TRASPASO</option>
+                    </select>
+                  ) : (
+                    <select 
+                      value={formEditTransaccion.rubro} 
+                      onChange={(e) => setFormEditTransaccion(prev => ({ ...prev, rubro: e.target.value }))} 
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer"
+                    >
+                      <option value="TRASPASO">🔄 TRASPASO</option>
+                      {listadoRubros.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Canal / Método de Pago</label>
+                  <select 
+                    value={formEditTransaccion.metodo_pago} 
+                    onChange={(e) => setFormEditTransaccion(prev => ({ ...prev, metodo_pago: e.target.value }))} 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-[11px] font-bold text-theme-text uppercase outline-none focus:border-theme-accent cursor-pointer"
+                  >
+                    {listaMetodos.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <button 
+                  type="submit" 
+                  disabled={guardando} 
+                  className="w-full bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg cursor-pointer disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {guardando ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+                
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={guardando}
+                    onClick={ejecutarEliminarTransaccion}
+                    className="flex-1 bg-theme-casa/10 border border-theme-casa/30 text-theme-casa hover:bg-theme-casa/20 py-2.5 rounded-lg text-[10px] font-black uppercase flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalEditarTransaccion(false)}
+                    className="flex-1 text-[10px] font-black uppercase text-theme-text/50 hover:text-theme-text py-2.5 cursor-pointer transition-all text-center"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+
+      {/* MODAL: TRANSFERENCIA / MOVER DINERO ENTRE CUENTAS */}
       {modalTraspaso && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border border-theme-border border-t-4 border-t-theme-accent">
