@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 // ==========================================
-// 🔴 ANTERIOR: Sin icono X para modal de edición
-// import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart } from 'lucide-react';
-// 🟢 NUEVO: Importación agregando icono X
-import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X } from 'lucide-react';
+// 🔴 ANTERIOR: Sin iconos de edición para deudas
+// import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X } from 'lucide-react';
+// 🟢 NUEVO: Importando Edit3 para edición directa de deudas
+import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3 } from 'lucide-react';
 // ==========================================
 import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -18,11 +18,22 @@ export default function Deudas({ refreshTrigger }) {
   const [formNW, setFormNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
   const [filtroPersona, setFiltroPersona] = useState('TODOS');
 
-  // ==========================================
-  // 🟢 NUEVO: Estados para Modal de Edición de Needs / Wants
+  // Modal Edición Needs / Wants
   const [mostrarModalEditarNW, setMostrarModalEditarNW] = useState(false);
   const [itemNWSeleccionado, setItemNWSeleccionado] = useState(null);
   const [formEditNW, setFormEditNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
+
+  // ==========================================
+  // 🟢 NUEVO: Estados para Modal de Edición de Deudas (Variables Esenciales)
+  const [mostrarModalEditarDeuda, setMostrarModalEditarDeuda] = useState(false);
+  const [deudaSeleccionada, setDeudaSeleccionada] = useState(null);
+  const [formEditDeuda, setFormEditDeuda] = useState({
+    tarjeta: '',
+    descripcion: '',
+    deuda_total: '',
+    monto_inicial: ''
+  });
+  const [guardandoDeuda, setGuardandoDeuda] = useState(false);
   // ==========================================
 
   const sincronizarDatos = async (silencioso = false) => {
@@ -118,8 +129,49 @@ export default function Deudas({ refreshTrigger }) {
   };
 
   // ==========================================
-  // 🟢 NUEVAS FUNCIONES: ABRIR MODAL Y GUARDAR EDICIÓN DE NEED/WANT
+  // 🟢 NUEVAS FUNCIONES: ABRIR Y GUARDAR EDICIÓN DE DEUDA
   // ==========================================
+  const abrirModalEdicionDeuda = (deuda) => {
+    setDeudaSeleccionada(deuda);
+    setFormEditDeuda({
+      tarjeta: deuda.Tarjeta || 'ORO BBVA',
+      descripcion: deuda.Descripcion || '',
+      deuda_total: deuda.Deuda_Total ?? '',
+      monto_inicial: deuda.Monto_Inicial ?? ''
+    });
+    setMostrarModalEditarDeuda(true);
+  };
+
+  const ejecutarModificarDeuda = async (e) => {
+    e.preventDefault();
+    if (!deudaSeleccionada) return;
+
+    setGuardandoDeuda(true);
+    const datosActualizados = {
+      tarjeta: formEditDeuda.tarjeta.trim().toUpperCase(),
+      descripcion: formEditDeuda.descripcion.trim().toUpperCase(),
+      deuda_total: parseFloat(formEditDeuda.deuda_total) || 0,
+      monto_inicial: parseFloat(formEditDeuda.monto_inicial) || 0
+    };
+
+    try {
+      const { error } = await supabase
+        .from('deudas')
+        .update(datosActualizados)
+        .eq('id', deudaSeleccionada.id);
+
+      if (error) throw error;
+      setMostrarModalEditarDeuda(false);
+      setDeudaSeleccionada(null);
+      await sincronizarDatos(true);
+    } catch (err) {
+      console.error("Error al modificar Deuda en Supabase:", err);
+    } finally {
+      setGuardandoDeuda(false);
+    }
+  };
+  // ==========================================
+
   const abrirModalEdicionNW = (item) => {
     setItemNWSeleccionado(item);
     setFormEditNW({
@@ -159,7 +211,6 @@ export default function Deudas({ refreshTrigger }) {
       setGuardandoNW(false);
     }
   };
-  // ==========================================
 
   const toggleStatusNW = async (item) => {
     setGuardandoNW(true);
@@ -398,17 +449,31 @@ export default function Deudas({ refreshTrigger }) {
           return (
             <div key={index} className="bg-theme-bg border border-theme-border rounded-2xl p-5 space-y-4 shadow-xl">
               <div className="flex justify-between items-start border-b border-theme-border/40 pb-3">
-                <div>
-                  <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
-                    {deuda.Tarjeta}
-                  </span>
-                  <h3 className="text-lg font-black text-theme-text uppercase tracking-tight mt-1">
-                    {deuda.Descripcion}
-                  </h3>
+                {/* 🟢 Título interactivo con botón para editar datos en Supabase */}
+                <div 
+                  onClick={() => abrirModalEdicionDeuda(deuda)}
+                  className="cursor-pointer group flex items-start gap-2"
+                  title="Clic para editar saldos y nombres de la tarjeta"
+                >
+                  <div>
+                    <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
+                      {deuda.Tarjeta}
+                    </span>
+                    <h3 className="text-lg font-black text-theme-text uppercase tracking-tight mt-1 group-hover:text-theme-accent transition-colors flex items-center gap-1.5">
+                      {deuda.Descripcion}
+                      <Edit3 className="w-3.5 h-3.5 text-theme-text/40 group-hover:text-theme-accent transition-colors" />
+                    </h3>
+                  </div>
                 </div>
-                <div className="text-right font-mono">
-                  <span className="text-[9px] text-theme-text/50 block uppercase font-bold">Saldo Actual</span>
-                  <span className="text-lg font-black text-theme-casa">
+
+                {/* 🟢 Saldo interactivo para abrir el modal */}
+                <div 
+                  onClick={() => abrirModalEdicionDeuda(deuda)}
+                  className="text-right font-mono cursor-pointer group"
+                  title="Clic para editar saldo actual"
+                >
+                  <span className="text-[9px] text-theme-text/50 block uppercase font-bold group-hover:text-theme-accent transition-colors">Saldo Actual</span>
+                  <span className="text-lg font-black text-theme-casa group-hover:brightness-125 transition-all">
                     ${limpiarMonto(deuda.Deuda_Total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -603,24 +668,7 @@ export default function Deudas({ refreshTrigger }) {
                 >
                   <CheckCircle2 className={`w-4 h-4 ${item.completado ? 'text-theme-trabajo' : ''}`} />
                 </button>
-                {/* ========================================== */}
-                {/* 🔴 ANTERIOR: Texto estático sin evento de clic */}
-                {/* <div>
-                  <span className="text-xs font-black uppercase tracking-tight block">{item.concepto}</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${
-                      item.tipo === 'NEED' 
-                        ? 'bg-theme-casa/10 text-theme-casa border-theme-casa/30' 
-                        : 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/30'
-                    }`}>
-                      {item.tipo}
-                    </span>
-                    <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${getBadgePersonaStyle(item.asignado)}`}>
-                      {item.asignado}
-                    </span>
-                  </div>
-                </div> */}
-                {/* 🟢 NUEVO: Contenedor interactivo para abrir edición al hacer clic */}
+
                 <div 
                   onClick={() => abrirModalEdicionNW(item)}
                   className="cursor-pointer flex-1 min-w-0 group"
@@ -642,7 +690,6 @@ export default function Deudas({ refreshTrigger }) {
                     </span>
                   </div>
                 </div>
-                {/* ========================================== */}
               </div>
 
               <div className="flex items-center gap-4 flex-shrink-0">
@@ -670,8 +717,105 @@ export default function Deudas({ refreshTrigger }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🟢 NUEVO: MODAL PARA EDITAR NEED / WANT */}
+      {/* 🟢 NUEVO: MODAL PARA EDITAR INFORMACIÓN ESENCIAL DE DEUDA EN SUPABASE */}
       {/* ========================================================================= */}
+      {mostrarModalEditarDeuda && deudaSeleccionada && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-theme-casa">
+            <form onSubmit={ejecutarModificarDeuda} className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
+                    {deudaSeleccionada.Tarjeta}
+                  </span>
+                  <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic mt-1">
+                    Configurar {deudaSeleccionada.Descripcion}
+                  </h4>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalEditarDeuda(false)} 
+                  className="text-theme-text/50 hover:text-theme-text cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Tarjeta (Banco)</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ej. ORO BBVA"
+                      value={formEditDeuda.tarjeta}
+                      onChange={(e) => setFormEditDeuda(prev => ({ ...prev, tarjeta: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Identificador</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ej. TDCV"
+                      value={formEditDeuda.descripcion}
+                      onChange={(e) => setFormEditDeuda(prev => ({ ...prev, descripcion: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Deuda Viva Actual ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    required
+                    placeholder="Ej. 89195.78"
+                    value={formEditDeuda.deuda_total}
+                    onChange={(e) => setFormEditDeuda(prev => ({ ...prev, deuda_total: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-casa focus:border-theme-casa tabular-nums"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Monto Inicial de Arranque ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    required
+                    placeholder="Ej. 104586.62"
+                    value={formEditDeuda.monto_inicial}
+                    onChange={(e) => setFormEditDeuda(prev => ({ ...prev, monto_inicial: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-trabajo focus:border-theme-trabajo tabular-nums"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-6">
+                <button 
+                  type="submit" 
+                  disabled={guardandoDeuda}
+                  className="w-full bg-theme-casa text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer hover:opacity-90"
+                >
+                  {guardandoDeuda ? 'Guardando...' : 'Guardar en Supabase'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalEditarDeuda(false)} 
+                  className="w-full text-center text-[10px] font-black uppercase text-theme-text/50 hover:text-theme-text cursor-pointer py-1"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARA EDITAR NEED / WANT */}
       {mostrarModalEditarNW && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-theme-accent">
@@ -700,7 +844,7 @@ export default function Deudas({ refreshTrigger }) {
 
               <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Monto ($)</label>
               <input 
-                type="number"
+                type="number" 
                 step="0.01"
                 required
                 value={formEditNW.monto}
