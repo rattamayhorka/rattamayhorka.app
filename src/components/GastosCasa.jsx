@@ -644,8 +644,21 @@ export default function Finanzas({ refreshTrigger }) {
       ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
     }
 
+    /*
     if (rubroUpper === "TRASPASO") {
       if (t.importe < 0 || (typeof t.Importe === 'string' && t.Importe.includes('('))) {
+        ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
+      } else {
+        gastosPorMetodo[metodo] = (gastosPorMetodo[metodo] || 0) + t.montoAbsoluto;
+      }
+    }
+    */
+
+    if (rubroUpper === "TRASPASO") {
+      const valorNumerico = parseFloat(t.Importe ?? t.importe ?? 0);
+      const esNegativo = valorNumerico < 0 || (typeof t.Importe === 'string' && t.Importe.includes('('));
+
+      if (esNegativo) {
         ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
       } else {
         gastosPorMetodo[metodo] = (gastosPorMetodo[metodo] || 0) + t.montoAbsoluto;
