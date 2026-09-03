@@ -528,7 +528,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v1.0.4 "jetbrains"
+            rattamayhorka v2.0.5 "alldeudas"
           </div>
         </div>
       </div>
