@@ -36,6 +36,18 @@ export default function Deudas({ refreshTrigger }) {
   const [guardandoDeuda, setGuardandoDeuda] = useState(false);
   // ==========================================
 
+  // ==========================================
+  // 🟢 NUEVO: Estados para Modal de Registro / Creación de Préstamo o Pasivo
+  const [mostrarModalCrearDeuda, setMostrarModalCrearDeuda] = useState(false);
+  const [formCrearDeuda, setFormCrearDeuda] = useState({
+    tarjeta: '',
+    descripcion: '',
+    deuda_total: '',
+    monto_inicial: ''
+  });
+  const [creandoDeuda, setCreandoDeuda] = useState(false);
+  // ==========================================
+
   const sincronizarDatos = async (silencioso = false) => {
     try {
       if (!silencioso) setCargando(true);
@@ -172,6 +184,48 @@ export default function Deudas({ refreshTrigger }) {
   };
   // ==========================================
 
+  // ==========================================
+  // 🟢 NUEVAS FUNCIONES: CREAR NUEVA DEUDA / PRÉSTAMO
+  // ==========================================
+  const abrirModalCrearDeuda = () => {
+    setFormCrearDeuda({
+      tarjeta: '',
+      descripcion: '',
+      deuda_total: '',
+      monto_inicial: ''
+    });
+    setMostrarModalCrearDeuda(true);
+  };
+
+  const ejecutarCrearDeuda = async (e) => {
+    e.preventDefault();
+    if (!formCrearDeuda.tarjeta.trim() || !formCrearDeuda.descripcion.trim() || !formCrearDeuda.deuda_total) return;
+
+    setCreandoDeuda(true);
+    const montoInicialFinal = formCrearDeuda.monto_inicial ? parseFloat(formCrearDeuda.monto_inicial) : parseFloat(formCrearDeuda.deuda_total);
+
+    const payload = {
+      tarjeta: formCrearDeuda.tarjeta.trim().toUpperCase(),
+      descripcion: formCrearDeuda.descripcion.trim().toUpperCase(),
+      deuda_total: parseFloat(formCrearDeuda.deuda_total) || 0,
+      monto_inicial: montoInicialFinal || 0,
+      status: 'ACTIVA'
+    };
+
+    try {
+      const { error } = await supabase.from('deudas').insert([payload]);
+      if (error) throw error;
+      setMostrarModalCrearDeuda(false);
+      setFormCrearDeuda({ tarjeta: '', descripcion: '', deuda_total: '', monto_inicial: '' });
+      await sincronizarDatos(true);
+    } catch (err) {
+      console.error("Error al registrar deuda/préstamo en Supabase:", err);
+    } finally {
+      setCreandoDeuda(false);
+    }
+  };
+  // ==========================================
+
   const abrirModalEdicionNW = (item) => {
     setItemNWSeleccionado(item);
     setFormEditNW({
@@ -253,12 +307,19 @@ export default function Deudas({ refreshTrigger }) {
     return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left p-4">Actualizando...</p>;
   }
 
-  const deudasPermitidas = ['TDCV', 'TDCE'];
-
+  // ==========================================
+  // 🔴 ANTERIOR: Filtro estricto exclusivo para dos tarjetas
+  // const deudasPermitidas = ['TDCV', 'TDCE'];
+  // const deudasVigentes = deudas.filter(d => {
+  //   const descripcion = (d.Descripcion || '').toString().trim().toUpperCase();
+  //   return deudasPermitidas.includes(descripcion);
+  // });
+  // 🟢 NUEVO: Permitir tarjetas y préstamos vigentes (no liquidados)
   const deudasVigentes = deudas.filter(d => {
-    const descripcion = (d.Descripcion || '').toString().trim().toUpperCase();
-    return deudasPermitidas.includes(descripcion);
+    const status = (d.Status || '').toString().trim().toUpperCase();
+    return status !== 'LIQUIDADO' && status !== 'COMPLETADO';
   });
+  // ==========================================
 
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
 
@@ -278,13 +339,35 @@ export default function Deudas({ refreshTrigger }) {
     const actual = limpiarMonto(deuda.Deuda_Total);
     const inicial = limpiarMonto(deuda.Monto_Inicial) || actual;
     
-    const rubroBuscado = `Pago de ${deuda.Descripcion}`.toUpperCase().trim();
+    // ==========================================
+    // 🔴 ANTERIOR: Coincidencia única por formato "PAGO DE ..."
+    // const rubroBuscado = `Pago de ${deuda.Descripcion}`.toUpperCase().trim();
+    // const abonosReales = transacciones
+    //   .filter(t => (t.Rubro || t.rubro || "").toString().trim().toUpperCase() === rubroBuscado)
+    //   .map(t => ({
+    //     fecha: t.Fecha || t.fecha || 'Abono',
+    //     monto: limpiarMonto(t.Importe || t.importe || 0)
+    //   }));
+    // 🟢 NUEVO: Reconoce tanto "Pago de [Descripcion]" como el rubro o descripción directa del préstamo
+    const descUpper = (deuda.Descripcion || '').toUpperCase().trim();
+    const rubroFormatoPago = `PAGO DE ${descUpper}`;
+    
     const abonosReales = transacciones
-      .filter(t => (t.Rubro || t.rubro || "").toString().trim().toUpperCase() === rubroBuscado)
+      .filter(t => {
+        const rubroT = (t.Rubro || t.rubro || "").toString().trim().toUpperCase();
+        const descT = (t.Descripción || t.descripcion || "").toString().trim().toUpperCase();
+        
+        return (
+          rubroT === rubroFormatoPago || 
+          rubroT === `PAGO A ${descUpper}` ||
+          (descT.startsWith('PAGO') && descT.includes(descUpper))
+        );
+      })
       .map(t => ({
         fecha: t.Fecha || t.fecha || 'Abono',
         monto: limpiarMonto(t.Importe || t.importe || 0)
       }));
+    // ==========================================
 
     const dataPuntos = [];
     let saldoFlujoReal = inicial;
@@ -413,9 +496,26 @@ export default function Deudas({ refreshTrigger }) {
           </p>
         </div>
         
-        <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
+        {/* ========================================== */}
+        {/* 🔴 ANTERIOR: Solo botón de refresco */}
+        {/* <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
           <RefreshCw className="w-4 h-4" />
-        </button>
+        </button> */}
+        {/* 🟢 NUEVO: Contenedor con botón para Agregar Préstamo/Deuda y botón de refresco */}
+        <div className="flex items-center gap-2">
+          <button 
+            type="button" 
+            onClick={abrirModalCrearDeuda}
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
+            title="Registrar nuevo préstamo o tarjeta"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Registrar Pasivo
+          </button>
+          <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+        {/* ========================================== */}
       </div>
 
       {/* CUADROS CONSOLIDADOS */}
@@ -715,6 +815,104 @@ export default function Deudas({ refreshTrigger }) {
           )}
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 🟢 NUEVO: MODAL PARA REGISTRAR NUEVO PASIVO / PRÉSTAMO EN SUPABASE */}
+      {/* ========================================================================= */}
+      {mostrarModalCrearDeuda && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden text-left border-t-4 border-t-theme-accent">
+            <form onSubmit={ejecutarCrearDeuda} className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
+                    NUEVO REGISTRO
+                  </span>
+                  <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic mt-1">
+                    Registrar Pasivo / Préstamo
+                  </h4>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalCrearDeuda(false)} 
+                  className="text-theme-text/50 hover:text-theme-text cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Entidad / Banco</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ej. BBVA o FAMILIAR"
+                      value={formCrearDeuda.tarjeta}
+                      onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, tarjeta: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Identificador Clave</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="Ej. PRESTAMO NOMINA"
+                      value={formCrearDeuda.descripcion}
+                      onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, descripcion: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Saldo Vivo Actual ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    required
+                    placeholder="Ej. 15000.00"
+                    value={formCrearDeuda.deuda_total}
+                    onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, deuda_total: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-casa focus:border-theme-casa tabular-nums"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Monto Original Prestado ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    placeholder="Si se omite, toma el saldo actual"
+                    value={formCrearDeuda.monto_inicial}
+                    onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, monto_inicial: e.target.value }))}
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-trabajo focus:border-theme-trabajo tabular-nums"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 mt-6">
+                <button 
+                  type="submit" 
+                  disabled={creandoDeuda}
+                  className="w-full bg-theme-accent text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer hover:opacity-90"
+                >
+                  {creandoDeuda ? 'Guardando...' : 'Crear en Supabase'}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setMostrarModalCrearDeuda(false)} 
+                  className="w-full text-center text-[10px] font-black uppercase text-theme-text/50 hover:text-theme-text cursor-pointer py-1"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 🟢 NUEVO: MODAL PARA EDITAR INFORMACIÓN ESENCIAL DE DEUDA EN SUPABASE */}
