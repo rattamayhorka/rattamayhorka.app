@@ -461,6 +461,10 @@ export function GestionProyectosContenido() {
   const nodesRef = useRef([]);
   const edgesRef = useRef([]);
   const tabActivaRef = useRef('principal');
+  // ==========================================
+  // 🟢 NUEVO: Ref síncrona para proyectos y evitar sobrescribir con 'Proyecto'
+  const proyectosRef = useRef([]);
+  // ==========================================
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -473,6 +477,13 @@ export function GestionProyectosContenido() {
   useEffect(() => {
     tabActivaRef.current = tabActiva;
   }, [tabActiva]);
+
+  // ==========================================
+  // 🟢 NUEVO: Sincronizar referencia de proyectos
+  useEffect(() => {
+    proyectosRef.current = proyectos;
+  }, [proyectos]);
+  // ==========================================
 
   // 🟢 BLOQUEO GLOBAL DEL AUTOSCROLL DEL NAVEGADOR
   useEffect(() => {
@@ -523,18 +534,39 @@ export function GestionProyectosContenido() {
         markerEnd: e.markerEnd
       }));
 
-      const proyectoActual = proyectos.find(p => p.id === tabActivaRef.current);
-      const nombreActual = proyectoActual ? proyectoActual.nombre : 'Proyecto';
+      // ==========================================
+      // 🔴 ANTERIOR: Tomaba el nombre de 'proyectos' desfasado o 'Proyecto' por default:
+      // const proyectoActual = proyectos.find(p => p.id === tabActivaRef.current);
+      // const nombreActual = proyectoActual ? proyectoActual.nombre : 'Proyecto';
+      //
+      // await supabase
+      //   .from('mapa_proyectos')
+      //   .upsert({
+      //     id: tabActivaRef.current,
+      //     nombre: nombreActual,
+      //     nodes: nodosSerializables,
+      //     edges: edgesSerializables,
+      //     updated_at: new Date().toISOString()
+      //   });
+      //
+      // 🟢 NUEVO: Busca primero en la ref síncrona; si no tiene nombre, NO sobrescribe la columna 'nombre'
+      const proyectoActual = proyectosRef.current.find(p => p.id === tabActivaRef.current);
+      
+      const payloadUpsert = {
+        id: tabActivaRef.current,
+        nodes: nodosSerializables,
+        edges: edgesSerializables,
+        updated_at: new Date().toISOString()
+      };
+
+      if (proyectoActual && proyectoActual.nombre && proyectoActual.nombre.trim() !== '') {
+        payloadUpsert.nombre = proyectoActual.nombre.trim();
+      }
 
       await supabase
         .from('mapa_proyectos')
-        .upsert({
-          id: tabActivaRef.current,
-          nombre: nombreActual,
-          nodes: nodosSerializables,
-          edges: edgesSerializables,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(payloadUpsert);
+      // ==========================================
     } catch (err) {
       console.error('Error al guardar mapa en Supabase:', err);
     }
@@ -697,9 +729,11 @@ export function GestionProyectosContenido() {
         const inicial = { id: 'principal', nombre: 'Principal' };
         await supabase.from('mapa_proyectos').insert([{ id: 'principal', nombre: 'Principal', nodes: [], edges: [] }]);
         setProyectos([inicial]);
+        proyectosRef.current = [inicial];
         setTabActiva('principal');
       } else {
         setProyectos(data);
+        proyectosRef.current = data;
         if (!data.some(p => p.id === tabActivaRef.current)) {
           setTabActiva(data[0].id);
         }
@@ -783,7 +817,9 @@ export function GestionProyectosContenido() {
 
     try {
       await supabase.from('mapa_proyectos').insert([payload]);
-      setProyectos(prev => [...prev, { id: idNuevo, nombre: nombre.trim() }]);
+      const nuevaLista = [...proyectosRef.current, { id: idNuevo, nombre: nombre.trim() }];
+      setProyectos(nuevaLista);
+      proyectosRef.current = nuevaLista;
       setTabActiva(idNuevo);
     } catch (err) {
       console.error("Error al crear pestaña:", err);
@@ -796,7 +832,9 @@ export function GestionProyectosContenido() {
 
     const nombreLimpio = nuevoNombre.trim();
 
-    setProyectos(prev => prev.map(p => p.id === idProyecto ? { ...p, nombre: nombreLimpio } : p));
+    const actualizados = proyectosRef.current.map(p => p.id === idProyecto ? { ...p, nombre: nombreLimpio } : p);
+    setProyectos(actualizados);
+    proyectosRef.current = actualizados;
 
     try {
       const { error } = await supabase
@@ -821,8 +859,9 @@ export function GestionProyectosContenido() {
 
     try {
       await supabase.from('mapa_proyectos').delete().eq('id', idAEliminar);
-      const restantes = proyectos.filter(p => p.id !== idAEliminar);
+      const restantes = proyectosRef.current.filter(p => p.id !== idAEliminar);
       setProyectos(restantes);
+      proyectosRef.current = restantes;
       setTabActiva(restantes[0].id);
     } catch (err) {
       console.error("Error al borrar pestaña:", err);
@@ -1286,7 +1325,7 @@ export function GestionProyectosContenido() {
             size={1.5} 
           />
           <Controls className="!bg-theme-bg !border !border-theme-border !shadow-2xl [&_button]:!bg-theme-bg [&_button]:!border-b [&_button]:!border-theme-border [&_button]:!fill-theme-accent [&_button_svg]:!fill-theme-accent [&_button:hover]:!bg-theme-border/30 transition-all" />
-                 {/*<Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-80 hover:opacity-100 transition-opacity" /> */}
+       {/*<Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-80 hover:opacity-100 transition-opacity" /> */}
 
         </ReactFlow> 
       </div>

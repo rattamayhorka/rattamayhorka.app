@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 // ==========================================
-// 🔴 ANTERIOR: Sin iconos de edición para deudas
-// import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X } from 'lucide-react';
-// 🟢 NUEVO: Importando Edit3 para edición directa de deudas
-import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3 } from 'lucide-react';
+// 🔴 ANTERIOR: Sin iconos de Grip, filtros de fase ni ShieldCheck
+// import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3 } from 'lucide-react';
+// 🟢 NUEVO: Importación completa incluyendo ShieldCheck, GripVertical y Flame
+import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3, GripVertical, Eye, EyeOff, Flame, ShieldCheck } from 'lucide-react';
 // ==========================================
 import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
@@ -18,32 +18,47 @@ export default function Deudas({ refreshTrigger }) {
   const [formNW, setFormNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
   const [filtroPersona, setFiltroPersona] = useState('TODOS');
 
+  // ==========================================
+  // 🟢 ESTADO: Filtro por Fase / Urgencia de Deudas
+  const [filtroFaseDeuda, setFiltroFaseDeuda] = useState('TODAS'); // 'TODAS' | 'URGENTES' | 'CONTROLADAS'
+  // ==========================================
+
+  // ==========================================
+  // 🟢 ESTADOS: Drag and Drop para Needs vs Wants
+  const [draggedNWId, setDraggedNWId] = useState(null);
+  const [dragOverNWId, setDragOverNWId] = useState(null);
+  // ==========================================
+
   // Modal Edición Needs / Wants
   const [mostrarModalEditarNW, setMostrarModalEditarNW] = useState(false);
   const [itemNWSeleccionado, setItemNWSeleccionado] = useState(null);
   const [formEditNW, setFormEditNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
 
   // ==========================================
-  // 🟢 NUEVO: Estados para Modal de Edición de Deudas (Variables Esenciales)
+  // 🟢 ESTADOS: Modal Edición de Deudas
   const [mostrarModalEditarDeuda, setMostrarModalEditarDeuda] = useState(false);
   const [deudaSeleccionada, setDeudaSeleccionada] = useState(null);
   const [formEditDeuda, setFormEditDeuda] = useState({
     tarjeta: '',
     descripcion: '',
     deuda_total: '',
-    monto_inicial: ''
+    monto_inicial: '',
+    fecha_inicial: '',
+    fase: 'URGENTE'
   });
   const [guardandoDeuda, setGuardandoDeuda] = useState(false);
   // ==========================================
 
   // ==========================================
-  // 🟢 NUEVO: Estados para Modal de Registro / Creación de Préstamo o Pasivo
+  // 🟢 ESTADOS: Modal Creación de Deuda / Préstamo
   const [mostrarModalCrearDeuda, setMostrarModalCrearDeuda] = useState(false);
   const [formCrearDeuda, setFormCrearDeuda] = useState({
     tarjeta: '',
     descripcion: '',
     deuda_total: '',
-    monto_inicial: ''
+    monto_inicial: '',
+    fecha_inicial: '',
+    fase: 'URGENTE'
   });
   const [creandoDeuda, setCreandoDeuda] = useState(false);
   // ==========================================
@@ -52,11 +67,20 @@ export default function Deudas({ refreshTrigger }) {
     try {
       if (!silencioso) setCargando(true);
 
+      // ==========================================
+      // 🔴 ANTERIOR: Consulta vulnerable si no existía columna prioridad
+      // const [resDeudas, resTransacciones, resNW] = await Promise.all([
+      //   supabase.from('deudas').select('*').order('id', { ascending: true }),
+      //   supabase.from('transacciones').select('*').order('id', { ascending: false }),
+      //   supabase.from('needs_wants').select('*').order('prioridad', { ascending: true, nullsFirst: false }).order('id', { ascending: false })
+      // ]);
+      // 🟢 NUEVO: Consulta segura resiliente
       const [resDeudas, resTransacciones, resNW] = await Promise.all([
         supabase.from('deudas').select('*').order('id', { ascending: true }),
         supabase.from('transacciones').select('*').order('id', { ascending: false }),
         supabase.from('needs_wants').select('*').order('id', { ascending: false })
       ]);
+      // ==========================================
 
       const rawDeudas = resDeudas.data || [];
       const rawTransacciones = resTransacciones.data || [];
@@ -68,11 +92,13 @@ export default function Deudas({ refreshTrigger }) {
         Descripcion: d.descripcion,
         Fecha_Limite_de_Pago: d.fecha_limite,
         Fecha_De_Corte: d.fecha_corte,
+        Fecha_Inicial: d.fecha_corte || '',
         Deuda_Total: d.deuda_total,
         Monto_Inicial: d.monto_inicial,
         Monto_Minimo: d.monto_minimo,
         Pago_No_Intereses: d.pago_no_intereses,
-        Status: d.status
+        Status: d.status,
+        Fase: (d.status || '').toUpperCase() === 'CONTROLADA' ? 'CONTROLADA' : 'URGENTE'
       }));
       setDeudas(deudasMapeadas);
 
@@ -86,14 +112,17 @@ export default function Deudas({ refreshTrigger }) {
       }));
       setTransacciones(transaccionesMapeadas);
 
-      const extraidosNW = rawNW.map(nw => ({
+      const extraidosNW = rawNW.map((nw, idx) => ({
         id: nw.id,
         concepto: nw.concepto,
         monto: limpiarMonto(nw.monto),
         tipo: nw.tipo || 'NEED',
         asignado: nw.asignado || 'ENRIQUE',
-        completado: (nw.status || '').toUpperCase() === 'COMPLETADO'
+        completado: (nw.status || '').toUpperCase() === 'COMPLETADO',
+        prioridad: nw.prioridad !== null && nw.prioridad !== undefined ? Number(nw.prioridad) : idx + 1
       }));
+      
+      extraidosNW.sort((a, b) => (a.prioridad || 0) - (b.prioridad || 0));
       setItemsNW(extraidosNW);
 
     } catch (error) {
@@ -120,12 +149,14 @@ export default function Deudas({ refreshTrigger }) {
     if (!formNW.concepto.trim() || !formNW.monto) return;
 
     setGuardandoNW(true);
+    const siguientePrioridad = itemsNW.length > 0 ? Math.max(...itemsNW.map(i => i.prioridad || 0)) + 1 : 1;
     const nuevo = {
       concepto: formNW.concepto.toUpperCase().trim(),
       monto: parseFloat(formNW.monto) || 0,
       tipo: formNW.tipo,
       asignado: formNW.asignado,
-      status: 'PENDIENTE'
+      status: 'PENDIENTE',
+      prioridad: siguientePrioridad
     };
 
     try {
@@ -141,7 +172,57 @@ export default function Deudas({ refreshTrigger }) {
   };
 
   // ==========================================
-  // 🟢 NUEVAS FUNCIONES: ABRIR Y GUARDAR EDICIÓN DE DEUDA
+  // 🟢 CONTROLADORES DE REORDENAMIENTO DRAG & DROP
+  // ==========================================
+  const handleDragStartNW = (e, id) => {
+    e.dataTransfer.setData('text/plain', id);
+    setDraggedNWId(id);
+  };
+
+  const handleDragOverNW = (e, id) => {
+    e.preventDefault();
+    if (dragOverNWId !== id) {
+      setDragOverNWId(id);
+    }
+  };
+
+  const handleDropNW = async (e, targetId) => {
+    e.preventDefault();
+    setDragOverNWId(null);
+    if (!draggedNWId || draggedNWId === targetId) return;
+
+    const copia = [...itemsNW];
+    const indexOrigen = copia.findIndex(i => i.id === draggedNWId);
+    const indexDestino = copia.findIndex(i => i.id === targetId);
+
+    if (indexOrigen === -1 || indexDestino === -1) return;
+
+    const [itemMovido] = copia.splice(indexOrigen, 1);
+    copia.splice(indexDestino, 0, itemMovido);
+
+    const reordenados = copia.map((item, idx) => ({
+      ...item,
+      prioridad: idx + 1
+    }));
+
+    setItemsNW(reordenados);
+    setDraggedNWId(null);
+
+    try {
+      for (const item of reordenados) {
+        await supabase
+          .from('needs_wants')
+          .update({ prioridad: item.prioridad })
+          .eq('id', item.id);
+      }
+    } catch (err) {
+      console.error('Error al guardar prioridades reordenadas en Supabase:', err);
+    }
+  };
+  // ==========================================
+
+  // ==========================================
+  // 🟢 EDICIÓN DE DEUDA
   // ==========================================
   const abrirModalEdicionDeuda = (deuda) => {
     setDeudaSeleccionada(deuda);
@@ -149,7 +230,9 @@ export default function Deudas({ refreshTrigger }) {
       tarjeta: deuda.Tarjeta || 'ORO BBVA',
       descripcion: deuda.Descripcion || '',
       deuda_total: deuda.Deuda_Total ?? '',
-      monto_inicial: deuda.Monto_Inicial ?? ''
+      monto_inicial: deuda.Monto_Inicial ?? '',
+      fecha_inicial: deuda.Fecha_Inicial || '',
+      fase: deuda.Fase || 'URGENTE'
     });
     setMostrarModalEditarDeuda(true);
   };
@@ -163,7 +246,9 @@ export default function Deudas({ refreshTrigger }) {
       tarjeta: formEditDeuda.tarjeta.trim().toUpperCase(),
       descripcion: formEditDeuda.descripcion.trim().toUpperCase(),
       deuda_total: parseFloat(formEditDeuda.deuda_total) || 0,
-      monto_inicial: parseFloat(formEditDeuda.monto_inicial) || 0
+      monto_inicial: parseFloat(formEditDeuda.monto_inicial) || 0,
+      fecha_corte: formEditDeuda.fecha_inicial.trim(),
+      status: formEditDeuda.fase === 'CONTROLADA' ? 'CONTROLADA' : 'ACTIVA'
     };
 
     try {
@@ -185,14 +270,16 @@ export default function Deudas({ refreshTrigger }) {
   // ==========================================
 
   // ==========================================
-  // 🟢 NUEVAS FUNCIONES: CREAR NUEVA DEUDA / PRÉSTAMO
+  // 🟢 CREAR NUEVA DEUDA
   // ==========================================
   const abrirModalCrearDeuda = () => {
     setFormCrearDeuda({
       tarjeta: '',
       descripcion: '',
       deuda_total: '',
-      monto_inicial: ''
+      monto_inicial: '',
+      fecha_inicial: new Date().toISOString().split('T')[0],
+      fase: 'URGENTE'
     });
     setMostrarModalCrearDeuda(true);
   };
@@ -209,14 +296,15 @@ export default function Deudas({ refreshTrigger }) {
       descripcion: formCrearDeuda.descripcion.trim().toUpperCase(),
       deuda_total: parseFloat(formCrearDeuda.deuda_total) || 0,
       monto_inicial: montoInicialFinal || 0,
-      status: 'ACTIVA'
+      fecha_corte: formCrearDeuda.fecha_inicial.trim(),
+      status: formCrearDeuda.fase === 'CONTROLADA' ? 'CONTROLADA' : 'ACTIVA'
     };
 
     try {
       const { error } = await supabase.from('deudas').insert([payload]);
       if (error) throw error;
       setMostrarModalCrearDeuda(false);
-      setFormCrearDeuda({ tarjeta: '', descripcion: '', deuda_total: '', monto_inicial: '' });
+      setFormCrearDeuda({ tarjeta: '', descripcion: '', deuda_total: '', monto_inicial: '', fecha_inicial: '', fase: 'URGENTE' });
       await sincronizarDatos(true);
     } catch (err) {
       console.error("Error al registrar deuda/préstamo en Supabase:", err);
@@ -307,21 +395,24 @@ export default function Deudas({ refreshTrigger }) {
     return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left p-4">Actualizando...</p>;
   }
 
-  // ==========================================
-  // 🔴 ANTERIOR: Filtro estricto exclusivo para dos tarjetas
-  // const deudasPermitidas = ['TDCV', 'TDCE'];
-  // const deudasVigentes = deudas.filter(d => {
-  //   const descripcion = (d.Descripcion || '').toString().trim().toUpperCase();
-  //   return deudasPermitidas.includes(descripcion);
-  // });
-  // 🟢 NUEVO: Permitir tarjetas y préstamos vigentes (no liquidados)
+  // Deudas activas filtradas por fase (Urgentes vs Controladas)
   const deudasVigentes = deudas.filter(d => {
     const status = (d.Status || '').toString().trim().toUpperCase();
-    return status !== 'LIQUIDADO' && status !== 'COMPLETADO';
+    if (status === 'LIQUIDADO' || status === 'COMPLETADO') return false;
+    if (filtroFaseDeuda === 'URGENTES') return d.Fase === 'URGENTE';
+    if (filtroFaseDeuda === 'CONTROLADAS') return d.Fase === 'CONTROLADA';
+    return true;
   });
-  // ==========================================
 
+  // ==========================================
+  // 🔴 ANTERIOR: Sumaba todas las deudas sin importar la fase activa
+  // const totalDeudaActual = deudas
+  //   .filter(d => (d.Status || '').toString().trim().toUpperCase() !== 'LIQUIDADO')
+  //   .reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
+  //
+  // 🟢 NUEVO: Se calcula directamente sobre las deudas filtradas por la fase seleccionada
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
+  // ==========================================
 
   const totalAhorrado = transacciones
     .filter(t => {
@@ -329,6 +420,11 @@ export default function Deudas({ refreshTrigger }) {
       return rubroT === "AHORRO" || rubroT === "AHORROS";
     })
     .reduce((acc, curr) => acc + limpiarMonto(curr.Importe || curr.importe || 0), 0);
+
+  // ==========================================
+  // 🟢 CÁLCULO DE PATRIMONIO REAL DINÁMICO SEGÚN FASE
+  // ==========================================
+  const patrimonioNetoReal = totalAhorrado - totalDeudaActual;
 
   const formatearMonedaCompleta = (valor) => {
     if (valor === null || valor === undefined || isNaN(valor)) return '';
@@ -338,17 +434,8 @@ export default function Deudas({ refreshTrigger }) {
   const generarDatosGrafica = (deuda) => {
     const actual = limpiarMonto(deuda.Deuda_Total);
     const inicial = limpiarMonto(deuda.Monto_Inicial) || actual;
+    const etiquetaInicio = deuda.Fecha_Inicial ? `Inicio (${deuda.Fecha_Inicial})` : 'Inicio';
     
-    // ==========================================
-    // 🔴 ANTERIOR: Coincidencia única por formato "PAGO DE ..."
-    // const rubroBuscado = `Pago de ${deuda.Descripcion}`.toUpperCase().trim();
-    // const abonosReales = transacciones
-    //   .filter(t => (t.Rubro || t.rubro || "").toString().trim().toUpperCase() === rubroBuscado)
-    //   .map(t => ({
-    //     fecha: t.Fecha || t.fecha || 'Abono',
-    //     monto: limpiarMonto(t.Importe || t.importe || 0)
-    //   }));
-    // 🟢 NUEVO: Reconoce tanto "Pago de [Descripcion]" como el rubro o descripción directa del préstamo
     const descUpper = (deuda.Descripcion || '').toUpperCase().trim();
     const rubroFormatoPago = `PAGO DE ${descUpper}`;
     
@@ -367,13 +454,12 @@ export default function Deudas({ refreshTrigger }) {
         fecha: t.Fecha || t.fecha || 'Abono',
         monto: limpiarMonto(t.Importe || t.importe || 0)
       }));
-    // ==========================================
 
     const dataPuntos = [];
     let saldoFlujoReal = inicial;
     
     dataPuntos.push({
-      name: 'Inicio',
+      name: etiquetaInicio,
       'Historial Real': saldoFlujoReal,
       'Proyección Proporcionada': null,
       montoPagoReal: 0
@@ -486,7 +572,7 @@ export default function Deudas({ refreshTrigger }) {
     <div className="space-y-8 text-left p-4 bg-theme-bg text-theme-text font-mono min-h-screen">
       
       {/* HEADER */}
-      <div className="border-b border-theme-border/40 pb-5 flex justify-between items-end">
+      <div className="border-b border-theme-border/40 pb-5 flex justify-between items-end flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-black tracking-tighter uppercase italic text-theme-text flex items-center gap-2">
             <Landmark className="text-theme-accent w-6 h-6 stroke-[2.5]" /> Dashboard de Tendencias
@@ -497,12 +583,8 @@ export default function Deudas({ refreshTrigger }) {
         </div>
         
         {/* ========================================== */}
-        {/* 🔴 ANTERIOR: Solo botón de refresco */}
-        {/* <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
-          <RefreshCw className="w-4 h-4" />
-        </button> */}
-        {/* 🟢 NUEVO: Contenedor con botón para Agregar Préstamo/Deuda y botón de refresco */}
-        <div className="flex items-center gap-2">
+        {/* 🔴 ANTERIOR: Solo botón de crear deuda y refresco */}
+        {/* <div className="flex items-center gap-2">
           <button 
             type="button" 
             onClick={abrirModalCrearDeuda}
@@ -514,31 +596,152 @@ export default function Deudas({ refreshTrigger }) {
           <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
             <RefreshCw className="w-4 h-4" />
           </button>
+        </div> */}
+        {/* 🟢 NUEVO: Filtros de fase integrados junto al botón de Registrar Pasivo */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Selector de Fases Integrado Arriba */}
+          <div className="flex items-center gap-1 bg-theme-bg p-1 rounded-xl border border-theme-border/60">
+            <span className="text-[8px] font-black uppercase text-theme-text/50 px-1.5 hidden sm:inline">Fase:</span>
+            <button
+              type="button"
+              onClick={() => setFiltroFaseDeuda('TODAS')}
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                filtroFaseDeuda === 'TODAS'
+                  ? 'bg-theme-accent text-theme-bg shadow'
+                  : 'text-theme-text/60 hover:text-theme-text'
+              }`}
+            >
+              Todas ({deudas.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroFaseDeuda('URGENTES')}
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                filtroFaseDeuda === 'URGENTES'
+                  ? 'bg-theme-casa text-theme-bg shadow'
+                  : 'text-theme-casa/80 hover:text-theme-casa'
+              }`}
+            >
+              <Flame className="w-3 h-3" /> Urgentes ({deudas.filter(d => d.Fase === 'URGENTE').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroFaseDeuda('CONTROLADAS')}
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                filtroFaseDeuda === 'CONTROLADAS'
+                  ? 'bg-theme-trabajo text-theme-bg shadow'
+                  : 'text-theme-trabajo/80 hover:text-theme-trabajo'
+              }`}
+            >
+              <ShieldCheck className="w-3 h-3" /> Controladas ({deudas.filter(d => d.Fase === 'CONTROLADA').length})
+            </button>
+          </div>
+
+          <button 
+            type="button" 
+            onClick={abrirModalCrearDeuda}
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-9"
+            title="Registrar nuevo préstamo o tarjeta"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Registrar Pasivo
+          </button>
+          <button 
+            onClick={() => sincronizarDatos(false)} 
+            className="bg-theme-bg border border-theme-border p-2 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer h-9 flex items-center justify-center"
+            title="Sincronizar datos"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
         {/* ========================================== */}
       </div>
 
-      {/* CUADROS CONSOLIDADOS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl">
-        <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 border-l-4 border-l-theme-casa shadow-2xl backdrop-blur-md">
-          <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">Capital Total de Pasivos Activos</span>
-          <div className="text-3xl sm:text-4xl font-black text-theme-text tabular-nums tracking-tight mt-1 font-mono">
+      {/* ========================================== */}
+      {/* 🔴 ANTERIOR: Selector de Fases situado abajo del Header
+      <div className="flex justify-between items-center bg-theme-bg p-2 rounded-xl border border-theme-border/60 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase text-theme-text/50 pl-2">Fase de Enfoque:</span>
+          <button
+            type="button"
+            onClick={() => setFiltroFaseDeuda('TODAS')}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              filtroFaseDeuda === 'TODAS'
+                ? 'bg-theme-accent text-theme-bg shadow'
+                : 'text-theme-text/60 hover:text-theme-text'
+            }`}
+          >
+            Todas ({deudas.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroFaseDeuda('URGENTES')}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+              filtroFaseDeuda === 'URGENTES'
+                ? 'bg-theme-casa text-theme-bg shadow'
+                : 'text-theme-casa/80 hover:text-theme-casa'
+            }`}
+          >
+            <Flame className="w-3 h-3" /> Bola de Nieve / Urgentes ({deudas.filter(d => d.Fase === 'URGENTE').length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroFaseDeuda('CONTROLADAS')}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+              filtroFaseDeuda === 'CONTROLADAS'
+                ? 'bg-theme-trabajo text-theme-bg shadow'
+                : 'text-theme-trabajo/80 hover:text-theme-trabajo'
+            }`}
+          >
+            <ShieldCheck className="w-3 h-3" /> Controladas / Estables ({deudas.filter(d => d.Fase === 'CONTROLADA').length})
+          </button>
+        </div>
+      </div>
+      */}
+      {/* ========================================== */}
+
+      {/* CUADROS CONSOLIDADOS (CON PASIVOS Y PATRIMONIO AJUSTADOS A LA FASE) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        {/* 1. Deuda Viva / Capital Total de Pasivos ajustado a la fase */}
+        <div className="bg-theme-bg border border-theme-border rounded-2xl p-5 border-l-4 border-l-theme-casa shadow-xl">
+          <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">
+            Capital Total de Pasivos ({filtroFaseDeuda})
+          </span>
+          <div className="text-2xl sm:text-3xl font-black text-theme-text tabular-nums tracking-tight mt-1 font-mono">
             ${totalDeudaActual.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-theme-casa font-bold uppercase tracking-tight">
-            <TrendingDown className="w-3.5 h-3.5" /> Portafolio de deuda viva analizado
+            <TrendingDown className="w-3.5 h-3.5" /> 
+            {filtroFaseDeuda === 'TODAS' && 'Deuda viva consolidada'}
+            {filtroFaseDeuda === 'URGENTES' && 'Deuda crítica / Bola de nieve'}
+            {filtroFaseDeuda === 'CONTROLADAS' && 'Deuda estable / Controlada'}
           </div>
         </div>
 
-        <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 border-l-4 border-l-theme-trabajo shadow-2xl backdrop-blur-md">
+        {/* 2. Ahorro Acumulado */}
+        <div className="bg-theme-bg border border-theme-border rounded-2xl p-5 border-l-4 border-l-theme-trabajo shadow-xl">
           <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">Fondo de Ahorro Acumulado</span>
-          <div className="text-3xl sm:text-4xl font-black text-theme-trabajo tabular-nums tracking-tight mt-1 font-mono">
+          <div className="text-2xl sm:text-3xl font-black text-theme-trabajo tabular-nums tracking-tight mt-1 font-mono">
             ${totalAhorrado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-theme-trabajo font-bold uppercase tracking-tight">
-            <PiggyBank className="w-3.5 h-3.5 text-theme-trabajo" /> Registros vinculados al Rubro AHORRO
+            <PiggyBank className="w-3.5 h-3.5 text-theme-trabajo" /> Fondos en cuenta de ahorro
           </div>
         </div>
+
+        {/* 3. REALIDAD FINANCIERA (PATRIMONIO NETO REAL) */}
+        <div className={`bg-theme-bg border rounded-2xl p-5 shadow-xl border-l-4 ${patrimonioNetoReal < 0 ? 'border-l-red-500 bg-red-500/5' : 'border-l-theme-accent'}`}>
+          <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">
+            Realidad Financiera ({filtroFaseDeuda})
+          </span>
+          <div className={`text-2xl sm:text-3xl font-black tabular-nums tracking-tight mt-1 font-mono ${patrimonioNetoReal < 0 ? 'text-red-400' : 'text-theme-trabajo'}`}>
+            {patrimonioNetoReal < 0 ? '-' : ''}${Math.abs(patrimonioNetoReal).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-tight text-theme-text/60">
+            <span>Ahorro (${totalAhorrado.toLocaleString('es-MX', { maximumFractionDigits: 0 })}) - Deuda (${totalDeudaActual.toLocaleString('es-MX', { maximumFractionDigits: 0 })})</span>
+          </div>
+        </div>
+
       </div>
 
       {/* SECCIÓN DE GRÁFICAS */}
@@ -549,16 +752,24 @@ export default function Deudas({ refreshTrigger }) {
           return (
             <div key={index} className="bg-theme-bg border border-theme-border rounded-2xl p-5 space-y-4 shadow-xl">
               <div className="flex justify-between items-start border-b border-theme-border/40 pb-3">
-                {/* 🟢 Título interactivo con botón para editar datos en Supabase */}
                 <div 
                   onClick={() => abrirModalEdicionDeuda(deuda)}
                   className="cursor-pointer group flex items-start gap-2"
-                  title="Clic para editar saldos y nombres de la tarjeta"
+                  title="Clic para editar saldos, fecha inicial y fase"
                 >
                   <div>
-                    <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
-                      {deuda.Tarjeta}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black bg-theme-bg px-2 py-0.5 rounded border border-theme-border text-theme-accent uppercase font-mono tracking-wider">
+                        {deuda.Tarjeta}
+                      </span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                        deuda.Fase === 'URGENTE' 
+                          ? 'bg-theme-casa/10 text-theme-casa border-theme-casa/30' 
+                          : 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/30'
+                      }`}>
+                        {deuda.Fase === 'URGENTE' ? '🔴 FASE CRÍTICA' : '🟢 CONTROLADA'}
+                      </span>
+                    </div>
                     <h3 className="text-lg font-black text-theme-text uppercase tracking-tight mt-1 group-hover:text-theme-accent transition-colors flex items-center gap-1.5">
                       {deuda.Descripcion}
                       <Edit3 className="w-3.5 h-3.5 text-theme-text/40 group-hover:text-theme-accent transition-colors" />
@@ -566,7 +777,6 @@ export default function Deudas({ refreshTrigger }) {
                   </div>
                 </div>
 
-                {/* 🟢 Saldo interactivo para abrir el modal */}
                 <div 
                   onClick={() => abrirModalEdicionDeuda(deuda)}
                   className="text-right font-mono cursor-pointer group"
@@ -638,14 +848,19 @@ export default function Deudas({ refreshTrigger }) {
                 </ResponsiveContainer>
               </div>
 
-              <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-wider pt-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 bg-theme-trabajo rounded-full block border border-theme-bg"></span>
-                  <span className="text-theme-text/70">Puntos de Pago Realizados</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-0.5 border-b-2 border-dashed border-theme-text/50 block"></span>
-                  <span className="text-theme-text/50">Proyección Estimada</span>
+              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider pt-1">
+                <span className="text-[8px] font-mono text-theme-text/40">
+                  {deuda.Fecha_Inicial ? `Arranque: ${deuda.Fecha_Inicial}` : 'Fecha inicial: No fijada'}
+                </span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 bg-theme-trabajo rounded-full block border border-theme-bg"></span>
+                    <span className="text-theme-text/70">Abonos</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-0.5 border-b-2 border-dashed border-theme-text/50 block"></span>
+                    <span className="text-theme-text/50">Proyección</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -654,15 +869,15 @@ export default function Deudas({ refreshTrigger }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🛡️ MODULO INTEGRADO: NEEDS VS WANTS */}
+      {/* 🛡️ MODULO INTEGRADO: NEEDS VS WANTS CON DRAG & DROP DE PRIORIDADES */}
       {/* ========================================================================= */}
       <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 space-y-6 shadow-2xl backdrop-blur-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-theme-border/40 pb-4 gap-3">
           <div>
             <h3 className="text-lg font-black uppercase italic tracking-tighter text-theme-text flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-theme-accent" /> Needs vs Wants
+              <ShieldAlert className="w-5 h-5 text-theme-accent" /> Needs vs Wants (Prioridades Arrastrables)
             </h3>
-            <p className="text-[10px] font-bold text-theme-text/60 uppercase mt-0.5">Priorización de Compras Futuras</p>
+            <p className="text-[10px] font-bold text-theme-text/60 uppercase mt-0.5">Arrastra las tarjetas para subir o bajar su urgencia</p>
           </div>
 
           <div className="flex items-center gap-2 bg-theme-bg p-1 border border-theme-border rounded-xl">
@@ -748,18 +963,27 @@ export default function Deudas({ refreshTrigger }) {
           </div>
         </form>
 
-        {/* LISTADO DE ELEMENTOS */}
-        <div className="space-y-2 max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
-          {itemsNWFiltrados.length > 0 ? itemsNWFiltrados.map(item => (
+        {/* LISTADO DE ELEMENTOS CON SOPORTE DRAG & DROP */}
+        <div className="space-y-2 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
+          {itemsNWFiltrados.length > 0 ? itemsNWFiltrados.map((item, index) => (
             <div
               key={item.id}
-              className={`flex justify-between items-center p-3 rounded-xl border transition-all ${
+              draggable
+              onDragStart={(e) => handleDragStartNW(e, item.id)}
+              onDragOver={(e) => handleDragOverNW(e, item.id)}
+              onDrop={(e) => handleDropNW(e, item.id)}
+              className={`flex justify-between items-center p-3 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
+                dragOverNWId === item.id ? 'border-t-4 border-t-theme-accent bg-theme-accent/10' : ''
+              } ${
                 item.completado
                   ? 'bg-theme-bg/40 border-theme-border/40 text-theme-text/40 line-through'
                   : 'bg-theme-bg border-theme-border text-theme-text hover:border-theme-accent/60'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Agarradera visual */}
+                <GripVertical className="w-4 h-4 text-theme-text/30 flex-shrink-0" />
+                
                 <button
                   type="button"
                   onClick={() => toggleStatusNW(item)}
@@ -774,9 +998,12 @@ export default function Deudas({ refreshTrigger }) {
                   className="cursor-pointer flex-1 min-w-0 group"
                   title="Clic para editar"
                 >
-                  <span className="text-xs font-black uppercase tracking-tight block truncate group-hover:text-theme-accent transition-colors">
-                    {item.concepto}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-mono text-theme-text/40 font-bold">#{index + 1}</span>
+                    <span className="text-xs font-black uppercase tracking-tight block truncate group-hover:text-theme-accent transition-colors">
+                      {item.concepto}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border inline-block ${
                       item.tipo === 'NEED' 
@@ -817,7 +1044,7 @@ export default function Deudas({ refreshTrigger }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🟢 NUEVO: MODAL PARA REGISTRAR NUEVO PASIVO / PRÉSTAMO EN SUPABASE */}
+      {/* 🟢 MODAL REGISTRAR NUEVA DEUDA / PRÉSTAMO */}
       {/* ========================================================================= */}
       {mostrarModalCrearDeuda && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -867,29 +1094,53 @@ export default function Deudas({ refreshTrigger }) {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Saldo Vivo Actual ($)</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    required
-                    placeholder="Ej. 15000.00"
-                    value={formCrearDeuda.deuda_total}
-                    onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, deuda_total: e.target.value }))}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-casa focus:border-theme-casa tabular-nums"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Saldo Vivo ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      required
+                      placeholder="Ej. 15000.00"
+                      value={formCrearDeuda.deuda_total}
+                      onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, deuda_total: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-casa focus:border-theme-casa tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Monto Inicial ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      placeholder="Monto original"
+                      value={formCrearDeuda.monto_inicial}
+                      onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, monto_inicial: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-trabajo focus:border-theme-trabajo tabular-nums"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Monto Original Prestado ($)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    placeholder="Si se omite, toma el saldo actual"
-                    value={formCrearDeuda.monto_inicial}
-                    onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, monto_inicial: e.target.value }))}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-trabajo focus:border-theme-trabajo tabular-nums"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fecha Inicial</label>
+                    <input 
+                      type="date" 
+                      value={formCrearDeuda.fecha_inicial}
+                      onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, fecha_inicial: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-mono font-bold text-theme-text outline-none focus:border-theme-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fase / Urgencia</label>
+                    <select
+                      value={formCrearDeuda.fase}
+                      onChange={(e) => setFormCrearDeuda(prev => ({ ...prev, fase: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                    >
+                      <option value="URGENTE">🔴 CRÍTICA / BOLA DE NIEVE</option>
+                      <option value="CONTROLADA">🟢 CONTROLADA</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -915,7 +1166,7 @@ export default function Deudas({ refreshTrigger }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 🟢 NUEVO: MODAL PARA EDITAR INFORMACIÓN ESENCIAL DE DEUDA EN SUPABASE */}
+      {/* 🟢 MODAL EDITAR DEUDA (INCLUYE FECHA INICIAL Y FASE) */}
       {/* ========================================================================= */}
       {mostrarModalEditarDeuda && deudaSeleccionada && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -965,30 +1216,53 @@ export default function Deudas({ refreshTrigger }) {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Deuda Viva Actual ($)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    placeholder="Ej. 89195.78"
-                    value={formEditDeuda.deuda_total}
-                    onChange={(e) => setFormEditDeuda(prev => ({ ...prev, deuda_total: e.target.value }))}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-casa focus:border-theme-casa tabular-nums"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Deuda Viva ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      required
+                      value={formEditDeuda.deuda_total}
+                      onChange={(e) => setFormEditDeuda(prev => ({ ...prev, deuda_total: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-casa focus:border-theme-casa tabular-nums"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Monto Inicial ($)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      required
+                      value={formEditDeuda.monto_inicial}
+                      onChange={(e) => setFormEditDeuda(prev => ({ ...prev, monto_inicial: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-trabajo focus:border-theme-trabajo tabular-nums"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-[9px] font-black uppercase text-theme-trabajo mb-1">Monto Inicial de Arranque ($)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    required
-                    placeholder="Ej. 104586.62"
-                    value={formEditDeuda.monto_inicial}
-                    onChange={(e) => setFormEditDeuda(prev => ({ ...prev, monto_inicial: e.target.value }))}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold outline-none text-theme-trabajo focus:border-theme-trabajo tabular-nums"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fecha Inicial (Arranque)</label>
+                    <input 
+                      type="text" 
+                      placeholder="DD/MM/AAAA o YYYY-MM-DD"
+                      value={formEditDeuda.fecha_inicial}
+                      onChange={(e) => setFormEditDeuda(prev => ({ ...prev, fecha_inicial: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-mono font-bold text-theme-text outline-none focus:border-theme-accent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fase</label>
+                    <select
+                      value={formEditDeuda.fase}
+                      onChange={(e) => setFormEditDeuda(prev => ({ ...prev, fase: e.target.value }))}
+                      className="w-full bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                    >
+                      <option value="URGENTE">🔴 BOLA DE NIEVE (URGENTE)</option>
+                      <option value="CONTROLADA">🟢 CONTROLADA</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -1043,7 +1317,7 @@ export default function Deudas({ refreshTrigger }) {
               <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Monto ($)</label>
               <input 
                 type="number" 
-                step="0.01"
+                step="0.01" 
                 required
                 value={formEditNW.monto}
                 onChange={(e) => setFormEditNW(prev => ({ ...prev, monto: e.target.value }))}
