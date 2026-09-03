@@ -117,6 +117,20 @@ export default function Kanban({ refreshTrigger }) {
   const [editFechaSnooze, setEditFechaSnooze] = useState(hoyISO);
   const [guardando, setGuardando] = useState(false);
 
+  // ==========================================
+  // 🔴 ANTERIOR: Botón directo sin sincronización de filtro
+  // <button onClick={() => setMostrarModalNuevo(true)} ...>
+  // 🟢 NUEVO: Función auxiliar para abrir el modal sincronizando el entorno por default según el filtro activo
+  const abrirModalCreacion = () => {
+    if (filtoEntorno === 'Casa') {
+      setNuevoTipo('Casa');
+    } else {
+      setNuevoTipo('Trabajo');
+    }
+    setMostrarModalNuevo(true);
+  };
+  // ==========================================
+
   const parseFechaSheets = (str) => {
     if (!str || !str.includes('/')) return new Date(2099, 1, 1);
     const [dia, mes, anio] = str.split('/');
@@ -519,12 +533,22 @@ export default function Kanban({ refreshTrigger }) {
           </button>
           {/* ========================================== */}
 
-          <button 
+          {/* ========================================== */}
+          {/* 🔴 ANTERIOR: Abre modal directamente sin adaptar entorno por defecto */}
+          {/* <button 
             onClick={() => setMostrarModalNuevo(true)}
             className="bg-theme-border hover:opacity-80 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Nueva Tarea
+          </button> */}
+          {/* 🟢 NUEVO: Abre modal aplicando por default la opción del filtro seleccionado */}
+          <button 
+            onClick={abrirModalCreacion}
+            className="bg-theme-border hover:opacity-80 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" /> Nueva Tarea
           </button>
+          {/* ========================================== */}
         </div>
       </div>
 
@@ -730,7 +754,7 @@ export default function Kanban({ refreshTrigger }) {
                     <Calendar className="w-3 h-3" /> ¿Qué día deseas que despierte la tarea?
                   </label>
                   <input 
-                    type="date"
+                    type="date" 
                     required
                     value={editFechaSnooze}
                     onChange={(e) => setEditFechaSnooze(e.target.value)}
@@ -914,7 +938,7 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
   };
 
   return (
-    <div
+    <div 
       ref={cardRef}
       draggable
       style={{ touchAction: 'none' }}
