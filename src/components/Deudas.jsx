@@ -875,9 +875,8 @@ export default function Deudas({ refreshTrigger }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-theme-border/40 pb-4 gap-3">
           <div>
             <h3 className="text-lg font-black uppercase italic tracking-tighter text-theme-text flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-theme-accent" /> Needs vs Wants (Prioridades Arrastrables)
+              <ShieldAlert className="w-5 h-5 text-theme-accent" /> Needs vs Wants
             </h3>
-            <p className="text-[10px] font-bold text-theme-text/60 uppercase mt-0.5">Arrastra las tarjetas para subir o bajar su urgencia</p>
           </div>
 
           <div className="flex items-center gap-2 bg-theme-bg p-1 border border-theme-border rounded-xl">
