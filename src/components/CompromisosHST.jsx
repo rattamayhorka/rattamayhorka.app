@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react';
-// ==========================================
-// 🔴 ANTERIOR: API de Google Apps Script
-// import { database } from '../api';
-// 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
-// ==========================================
 import { AlertTriangle, Calendar, CheckCircle2, User, Filter, X, ExternalLink, Clock, Plus, Trash2 } from 'lucide-react';
 
 // --- COMPONENTE: LÍNEA DE TIEMPO VISUAL ESTILO TIMELINE ---
@@ -165,10 +160,6 @@ export default function Proyectos() {
 
   const cargarAcuerdos = async () => {
     setCargando(true);
-    
-    // ==========================================
-    // 🔴 ANTERIOR: database.obtenerSeccion('proyectos');
-    // 🟢 NUEVO: Lectura directa desde Supabase
     try {
       const { data, error } = await supabase
         .from('minutas_compromisos')
@@ -196,8 +187,6 @@ export default function Proyectos() {
     } catch (err) {
       console.error("Error al cargar compromisos desde Supabase:", err);
     }
-    // ==========================================
-    
     setCargando(false);
   };
 
@@ -269,9 +258,6 @@ export default function Proyectos() {
         : item
     ));
 
-    // ==========================================
-    // 🔴 ANTERIOR: database.guardarDatos('modificarProyecto', ...);
-    // 🟢 NUEVO: Actualización en Supabase
     try {
       const { error } = await supabase
         .from('minutas_compromisos')
@@ -288,8 +274,6 @@ export default function Proyectos() {
     } catch (error) {
       console.error("Error al actualizar compromiso en Supabase:", error);
     }
-    // ==========================================
-
     setMostrarModal(false);
     setAcuerdoSeleccionado(null);
     setGuardando(false);

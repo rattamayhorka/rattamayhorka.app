@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react';
-// ==========================================
-// 🔴 ANTERIOR: API de Google Apps Script
-// import { database } from '../api';
-// 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
-// ==========================================
 import { X, Calendar, MapPin, Clock, Trash2, Filter, Repeat, Edit2, Plus, Save } from 'lucide-react';
 
 export default function Reuniones() {

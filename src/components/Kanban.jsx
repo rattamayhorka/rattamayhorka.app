@@ -1,18 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-// ==========================================
-// 🔴 ANTERIOR: API de Google Apps Script
-// import { database } from '../api';
-// 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
-// ==========================================
-// 🔴 ANTERIOR: Sin icono de papelera
-// import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter } from 'lucide-react';
-// 🟢 NUEVO: Importación con icono Trash2 agregado
 import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter, Trash2 } from 'lucide-react';
 
-// =========================================================================
-// 🚀 COMPONENTE INTERNO: RUTINA DE INICIO
-// =========================================================================
 function RutinaControl() {
   const [paso, setPaso] = useState(() => {
     const guardado = localStorage.getItem('bunker_paso_rutina');
@@ -87,22 +76,17 @@ export default function Kanban({ refreshTrigger }) {
   const [tareasFiltradas, setTareasFiltradas] = useState([]);
   const [cargando, setCargando] = useState(true);
   
-  // 🎯 Estado: Filtro superior (Todos, Trabajo, Casa)
   const [filtoEntorno, setFiltroEntorno] = useState('Trabajo');
 
-  // 🎯 Nuevo estado para resaltar la tarjeta objetivo durante el drag
   const [tarjetaTargetId, setTarjetaTargetId] = useState(null);
 
   // Modales
   const [mostrarModalNuevo, setMostrarModalNuevo] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
 
-  // ==========================================
-  // 🟢 NUEVO: Estados para Modal de Papelera (Trash Bin)
   const [mostrarModalTrash, setMostrarModalTrash] = useState(false);
   const [tareasArchivadas, setTareasArchivadas] = useState([]);
   const [cargandoTrash, setCargandoTrash] = useState(false);
-  // ==========================================
 
   // Formulario Nuevo
   const [nuevaTareaTexto, setNuevaTareaTexto] = useState('');
@@ -117,10 +101,6 @@ export default function Kanban({ refreshTrigger }) {
   const [editFechaSnooze, setEditFechaSnooze] = useState(hoyISO);
   const [guardando, setGuardando] = useState(false);
 
-  // ==========================================
-  // 🔴 ANTERIOR: Botón directo sin sincronización de filtro
-  // <button onClick={() => setMostrarModalNuevo(true)} ...>
-  // 🟢 NUEVO: Función auxiliar para abrir el modal sincronizando el entorno por default según el filtro activo
   const abrirModalCreacion = () => {
     if (filtoEntorno === 'Casa') {
       setNuevoTipo('Casa');
@@ -129,7 +109,6 @@ export default function Kanban({ refreshTrigger }) {
     }
     setMostrarModalNuevo(true);
   };
-  // ==========================================
 
   const parseFechaSheets = (str) => {
     if (!str || !str.includes('/')) return new Date(2099, 1, 1);
@@ -140,11 +119,6 @@ export default function Kanban({ refreshTrigger }) {
   const cargarTareas = async () => {
     setCargando(true);
 
-    // ==========================================
-    // 🔴 ANTERIOR: Lectura en Google Sheets
-    // const data = await database.obtenerSeccion('pendientes');
-    //
-    // 🟢 NUEVO: Lectura directa desde PostgreSQL en Supabase
     let data = [];
     try {
       const { data: dataSupabase, error } = await supabase
@@ -166,7 +140,6 @@ export default function Kanban({ refreshTrigger }) {
     } catch (err) {
       console.error('Error al cargar kanban desde Supabase:', err);
     }
-    // ==========================================
     
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -176,11 +149,8 @@ export default function Kanban({ refreshTrigger }) {
       const esValido = tipoLower === 'trabajo' || tipoLower === 'casa';
       if (!esValido) return false;
 
-      // ==========================================
-      // 🟢 NUEVO: Oculta elementos terminados/archivados del tablero activo
       const statusLower = (t.Status || '').toLowerCase().trim();
       if (statusLower === 'terminado' || statusLower === 'archivado') return false;
-      // ==========================================
 
       if ((t.Status || '').trim().toUpperCase() === 'PROGRAMADO') {
         const fechaDespertar = parseFechaSheets(t.Fecha);
@@ -260,7 +230,6 @@ export default function Kanban({ refreshTrigger }) {
       setCargandoTrash(false);
     }
   };
-  // ==========================================
 
   const manejarDragStart = (e, tareaTexto) => {
     if (e.dataTransfer) {
@@ -317,18 +286,6 @@ export default function Kanban({ refreshTrigger }) {
         return t;
       });
 
-      // ==========================================
-      // 🔴 ANTERIOR: Envío a Apps Script para reordenar en la hoja
-      // const tareasActualizadasConPrioridad = resultadoFinal
-      //   .filter(t => (t.Status || '').toLowerCase().trim() === nuevoStatus.toLowerCase().trim())
-      //   .map(t => ({ tareaTexto: t.Tarea, prioridad: t.Prioridad, status: t.Status }));
-      //
-      // database.guardarDatos('reordenarPrioridadesKanban', { 
-      //   nuevoStatus, 
-      //   tareasConPrioridad: tareasActualizadasConPrioridad 
-      // }).catch(() => {});
-      //
-      // 🟢 NUEVO: Actualización asíncrona por lote en Supabase
       (async () => {
         const tareasAActualizar = resultadoFinal.filter(
           t => (t.Status || '').toLowerCase().trim() === nuevoStatus.toLowerCase().trim()
@@ -341,7 +298,6 @@ export default function Kanban({ refreshTrigger }) {
             .eq('tarea', t.Tarea);
         }
       })().catch(err => console.error('Error al sincronizar drag & drop en Supabase:', err));
-      // ==========================================
 
       return resultadoFinal;
     });
@@ -381,17 +337,11 @@ export default function Kanban({ refreshTrigger }) {
     setMostrarModalNuevo(false);
     setGuardando(false);
 
-    // ==========================================
-    // 🔴 ANTERIOR: Guardado en Google Sheets
-    // await database.guardarDatos('guardarTarea', { datos });
-    //
-    // 🟢 NUEVO: Inserción directa en tabla 'kanban' de Supabase
     try {
       await supabase.from('kanban').insert([datos]);
     } catch (err) {
       console.error('Error al insertar tarea en Supabase:', err);
     }
-    // ==========================================
   };
 
   const ejecutarModificarTarea = async (e) => {
@@ -424,19 +374,6 @@ export default function Kanban({ refreshTrigger }) {
     setTareaSeleccionada(null);
     setGuardando(false);
 
-    // ==========================================
-    // 🔴 ANTERIOR: Modificación en Google Sheets
-    // await database.guardarDatos('modificarTarea', { 
-    //   datos: {
-    //     tareaOriginal: tareaOriginal, 
-    //     nuevaTarea: nuevaTarea, 
-    //     nuevoStatus: nuevoStatus, 
-    //     nuevaFecha: fechaFinal, 
-    //     nuevoTipo: editTipo 
-    //   }
-    // });
-    //
-    // 🟢 NUEVO: Actualización directa por nombre o ID en Supabase
     try {
       await supabase
         .from('kanban')
@@ -450,7 +387,6 @@ export default function Kanban({ refreshTrigger }) {
     } catch (err) {
       console.error('Error al modificar tarea en Supabase:', err);
     }
-    // ==========================================
   };
 
   const ejecutarArchivarTarea = async () => {
@@ -465,11 +401,6 @@ export default function Kanban({ refreshTrigger }) {
     setTareaSeleccionada(null);
     setGuardando(false);
 
-    // ==========================================
-    // 🔴 ANTERIOR: Cambio de estatus a 'Terminado' en Google Sheets
-    // await database.guardarDatos('statusKanban', { tareaTexto, nuevoStatus });
-    //
-    // 🟢 NUEVO: Actualización de estatus en Supabase (o DELETE si no deseas conservar archivados)
     try {
       await supabase
         .from('kanban')
@@ -522,8 +453,6 @@ export default function Kanban({ refreshTrigger }) {
         <div className="flex gap-2 items-center">
           <RutinaControl />
           
-          {/* ========================================== */}
-          {/* 🟢 NUEVO: Botón para abrir la Papelera de tareas archivadas */}
           <button 
             onClick={abrirPapelera}
             title="Ver tareas archivadas / terminadas"
@@ -531,24 +460,13 @@ export default function Kanban({ refreshTrigger }) {
           >
             <Trash2 className="w-3.5 h-3.5 mr-1 text-theme-casa" /> Papelera
           </button>
-          {/* ========================================== */}
-
-          {/* ========================================== */}
-          {/* 🔴 ANTERIOR: Abre modal directamente sin adaptar entorno por defecto */}
-          {/* <button 
-            onClick={() => setMostrarModalNuevo(true)}
-            className="bg-theme-border hover:opacity-80 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Nueva Tarea
-          </button> */}
-          {/* 🟢 NUEVO: Abre modal aplicando por default la opción del filtro seleccionado */}
+     
           <button 
             onClick={abrirModalCreacion}
             className="bg-theme-border hover:opacity-80 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Nueva Tarea
           </button>
-          {/* ========================================== */}
         </div>
       </div>
 
@@ -852,7 +770,6 @@ export default function Kanban({ refreshTrigger }) {
           </div>
         </div>
       )}
-      {/* ========================================== */}
 
     </div>
   );

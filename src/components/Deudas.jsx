@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-// ==========================================
-// 🔴 ANTERIOR: Sin iconos de Grip, filtros de fase ni ShieldCheck
-// import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3 } from 'lucide-react';
-// 🟢 NUEVO: Importación completa incluyendo ShieldCheck, GripVertical y Flame
 import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3, GripVertical, Eye, EyeOff, Flame, ShieldCheck } from 'lucide-react';
-// ==========================================
 import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function Deudas({ refreshTrigger }) {
@@ -18,23 +13,18 @@ export default function Deudas({ refreshTrigger }) {
   const [formNW, setFormNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
   const [filtroPersona, setFiltroPersona] = useState('TODOS');
 
-  // ==========================================
   // 🟢 ESTADO: Filtro por Fase / Urgencia de Deudas
   const [filtroFaseDeuda, setFiltroFaseDeuda] = useState('TODAS'); // 'TODAS' | 'URGENTES' | 'CONTROLADAS'
-  // ==========================================
 
-  // ==========================================
   // 🟢 ESTADOS: Drag and Drop para Needs vs Wants
   const [draggedNWId, setDraggedNWId] = useState(null);
   const [dragOverNWId, setDragOverNWId] = useState(null);
-  // ==========================================
 
   // Modal Edición Needs / Wants
   const [mostrarModalEditarNW, setMostrarModalEditarNW] = useState(false);
   const [itemNWSeleccionado, setItemNWSeleccionado] = useState(null);
   const [formEditNW, setFormEditNW] = useState({ concepto: '', monto: '', tipo: 'NEED', asignado: 'ENRIQUE' });
 
-  // ==========================================
   // 🟢 ESTADOS: Modal Edición de Deudas
   const [mostrarModalEditarDeuda, setMostrarModalEditarDeuda] = useState(false);
   const [deudaSeleccionada, setDeudaSeleccionada] = useState(null);
@@ -47,9 +37,7 @@ export default function Deudas({ refreshTrigger }) {
     fase: 'URGENTE'
   });
   const [guardandoDeuda, setGuardandoDeuda] = useState(false);
-  // ==========================================
 
-  // ==========================================
   // 🟢 ESTADOS: Modal Creación de Deuda / Préstamo
   const [mostrarModalCrearDeuda, setMostrarModalCrearDeuda] = useState(false);
   const [formCrearDeuda, setFormCrearDeuda] = useState({
@@ -61,27 +49,17 @@ export default function Deudas({ refreshTrigger }) {
     fase: 'URGENTE'
   });
   const [creandoDeuda, setCreandoDeuda] = useState(false);
-  // ==========================================
-
+ 
   const sincronizarDatos = async (silencioso = false) => {
     try {
       if (!silencioso) setCargando(true);
 
-      // ==========================================
-      // 🔴 ANTERIOR: Consulta vulnerable si no existía columna prioridad
-      // const [resDeudas, resTransacciones, resNW] = await Promise.all([
-      //   supabase.from('deudas').select('*').order('id', { ascending: true }),
-      //   supabase.from('transacciones').select('*').order('id', { ascending: false }),
-      //   supabase.from('needs_wants').select('*').order('prioridad', { ascending: true, nullsFirst: false }).order('id', { ascending: false })
-      // ]);
-      // 🟢 NUEVO: Consulta segura resiliente
       const [resDeudas, resTransacciones, resNW] = await Promise.all([
         supabase.from('deudas').select('*').order('id', { ascending: true }),
         supabase.from('transacciones').select('*').order('id', { ascending: false }),
         supabase.from('needs_wants').select('*').order('id', { ascending: false })
       ]);
-      // ==========================================
-
+ 
       const rawDeudas = resDeudas.data || [];
       const rawTransacciones = resTransacciones.data || [];
       const rawNW = resNW.data || [];
@@ -219,11 +197,7 @@ export default function Deudas({ refreshTrigger }) {
       console.error('Error al guardar prioridades reordenadas en Supabase:', err);
     }
   };
-  // ==========================================
-
-  // ==========================================
   // 🟢 EDICIÓN DE DEUDA
-  // ==========================================
   const abrirModalEdicionDeuda = (deuda) => {
     setDeudaSeleccionada(deuda);
     setFormEditDeuda({
@@ -267,11 +241,8 @@ export default function Deudas({ refreshTrigger }) {
       setGuardandoDeuda(false);
     }
   };
-  // ==========================================
 
-  // ==========================================
   // 🟢 CREAR NUEVA DEUDA
-  // ==========================================
   const abrirModalCrearDeuda = () => {
     setFormCrearDeuda({
       tarjeta: '',
@@ -312,7 +283,6 @@ export default function Deudas({ refreshTrigger }) {
       setCreandoDeuda(false);
     }
   };
-  // ==========================================
 
   const abrirModalEdicionNW = (item) => {
     setItemNWSeleccionado(item);
@@ -404,15 +374,7 @@ export default function Deudas({ refreshTrigger }) {
     return true;
   });
 
-  // ==========================================
-  // 🔴 ANTERIOR: Sumaba todas las deudas sin importar la fase activa
-  // const totalDeudaActual = deudas
-  //   .filter(d => (d.Status || '').toString().trim().toUpperCase() !== 'LIQUIDADO')
-  //   .reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
-  //
-  // 🟢 NUEVO: Se calcula directamente sobre las deudas filtradas por la fase seleccionada
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
-  // ==========================================
 
   const totalAhorrado = transacciones
     .filter(t => {
@@ -421,9 +383,7 @@ export default function Deudas({ refreshTrigger }) {
     })
     .reduce((acc, curr) => acc + limpiarMonto(curr.Importe || curr.importe || 0), 0);
 
-  // ==========================================
   // 🟢 CÁLCULO DE PATRIMONIO REAL DINÁMICO SEGÚN FASE
-  // ==========================================
   const patrimonioNetoReal = totalAhorrado - totalDeudaActual;
 
   const formatearMonedaCompleta = (valor) => {
@@ -582,22 +542,6 @@ export default function Deudas({ refreshTrigger }) {
           </p>
         </div>
         
-        {/* ========================================== */}
-        {/* 🔴 ANTERIOR: Solo botón de crear deuda y refresco */}
-        {/* <div className="flex items-center gap-2">
-          <button 
-            type="button" 
-            onClick={abrirModalCrearDeuda}
-            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
-            title="Registrar nuevo préstamo o tarjeta"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Registrar Pasivo
-          </button>
-          <button onClick={() => sincronizarDatos(false)} className="bg-theme-bg border border-theme-border p-2.5 rounded-xl text-theme-text/60 hover:text-theme-text transition-all cursor-pointer">
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div> */}
-        {/* 🟢 NUEVO: Filtros de fase integrados junto al botón de Registrar Pasivo */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Selector de Fases Integrado Arriba */}
           <div className="flex items-center gap-1 bg-theme-bg p-1 rounded-xl border border-theme-border/60">
@@ -653,51 +597,7 @@ export default function Deudas({ refreshTrigger }) {
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
-        {/* ========================================== */}
       </div>
-
-      {/* ========================================== */}
-      {/* 🔴 ANTERIOR: Selector de Fases situado abajo del Header
-      <div className="flex justify-between items-center bg-theme-bg p-2 rounded-xl border border-theme-border/60 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black uppercase text-theme-text/50 pl-2">Fase de Enfoque:</span>
-          <button
-            type="button"
-            onClick={() => setFiltroFaseDeuda('TODAS')}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-              filtroFaseDeuda === 'TODAS'
-                ? 'bg-theme-accent text-theme-bg shadow'
-                : 'text-theme-text/60 hover:text-theme-text'
-            }`}
-          >
-            Todas ({deudas.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltroFaseDeuda('URGENTES')}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-              filtroFaseDeuda === 'URGENTES'
-                ? 'bg-theme-casa text-theme-bg shadow'
-                : 'text-theme-casa/80 hover:text-theme-casa'
-            }`}
-          >
-            <Flame className="w-3 h-3" /> Bola de Nieve / Urgentes ({deudas.filter(d => d.Fase === 'URGENTE').length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFiltroFaseDeuda('CONTROLADAS')}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-              filtroFaseDeuda === 'CONTROLADAS'
-                ? 'bg-theme-trabajo text-theme-bg shadow'
-                : 'text-theme-trabajo/80 hover:text-theme-trabajo'
-            }`}
-          >
-            <ShieldCheck className="w-3 h-3" /> Controladas / Estables ({deudas.filter(d => d.Fase === 'CONTROLADA').length})
-          </button>
-        </div>
-      </div>
-      */}
-      {/* ========================================== */}
 
       {/* CUADROS CONSOLIDADOS (CON PASIVOS Y PATRIMONIO AJUSTADOS A LA FASE) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -43,13 +43,6 @@ const defaultEdgeOptions = {
     strokeWidth: 1.7,
   },
 
-  //markerEnd: {
-  //  type: MarkerType.ArrowClosed,
-  //  width: 16,
-  //  height: 16,
-  //  color: 'var(--color-theme-accent)'
-  //}
-
   markerEnd: undefined,
   markerStart: undefined,
 
@@ -94,9 +87,7 @@ function CustomMenuEdge({
 
   return (
     <>
-      {/* 🟢 Línea invisible con pointerEvents garantizado para capturar clic fácil */}
-      {/* 🔴 ANTERIOR: strokeWidth={30} */}
-      {/* 🟢 NUEVO: strokeWidth={36} para facilitar toque táctil */}
+
       <path
         d={edgePath}
         fill="none"
@@ -251,8 +242,6 @@ function NodoGrupoExpandible(props) {
         }}
       />
 
-      {/* 🔴 ANTERIOR: <div className="opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-200"> */}
-      {/* 🟢 NUEVO: Handles visibles en hover o al seleccionar la tarjeta en tablet */}
       <div className={`${selected ? 'opacity-100' : 'opacity-0 group-hover/groupnode:opacity-100'} transition-opacity duration-200`}>
         <Handle type="target" position={Position.Top} id="g-t-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
         <Handle type="source" position={Position.Top} id="g-t-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
@@ -267,7 +256,6 @@ function NodoGrupoExpandible(props) {
       <div 
         className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50 cursor-pointer"
         onClick={(e) => {
-          // 🟢 NUEVO: Un toque sobre la etiqueta permite editar en tablet
           e.stopPropagation();
           const nuevoNombre = prompt("Editar nombre del grupo:", data.label);
           if (nuevoNombre && nuevoNombre.trim() && nuevoNombre.trim() !== data.label) {
@@ -288,9 +276,6 @@ function NodoGrupoExpandible(props) {
           {data.label}
         </span>
       </div>
-
-      {/* 🔴 ANTERIOR: <div className="absolute top-full left-4 pt-2 z-[100] nodrag pointer-events-none opacity-0 group-hover/groupnode:opacity-100 transition-opacity duration-150"> */}
-      {/* 🟢 NUEVO: Menú visible por hover O al tocar/seleccionar el nodo en tablet */}
       <div className={`absolute top-full left-4 pt-2 z-[100] nodrag transition-opacity duration-150 ${
         selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/groupnode:opacity-100 group-hover/groupnode:pointer-events-auto'
       }`}>
@@ -342,9 +327,6 @@ function NodoMetaAutonomo(props) {
   if (data.status === 'Completado') {
     statusColor = 'border-2 border-theme-trabajo/50 bg-theme-bg text-theme-trabajo';
   }
-
-  // 🔴 ANTERIOR: const handleClass = "w-1.5 h-1.5 !bg-theme-border !opacity-0 group-hover/node:!opacity-100 transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-6 before:h-6 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]";
-  // 🟢 NUEVO: Área táctil ampliada y visible al seleccionar en tablet
   const handleClass = `w-2 h-2 !bg-theme-border ${selected ? '!opacity-100' : '!opacity-0 group-hover/node:!opacity-100'} transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-8 before:h-8 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]`;
 
   return (
@@ -373,8 +355,6 @@ function NodoMetaAutonomo(props) {
         </p>
       </div>
 
-      {/* 🔴 ANTERIOR: <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 z-[50] nodrag pointer-events-none opacity-0 group-hover/node:opacity-100 transition-all duration-150 ease-out"> */}
-      {/* 🟢 NUEVO: Menú contextual visible por hover O al tocar/seleccionar la tarjeta en tablet */}
       <div className={`absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag transition-all duration-150 ease-out ${
         selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto'
       }`}>
@@ -461,10 +441,8 @@ export function GestionProyectosContenido() {
   const nodesRef = useRef([]);
   const edgesRef = useRef([]);
   const tabActivaRef = useRef('principal');
-  // ==========================================
-  // 🟢 NUEVO: Ref síncrona para proyectos y evitar sobrescribir con 'Proyecto'
+
   const proyectosRef = useRef([]);
-  // ==========================================
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -478,14 +456,10 @@ export function GestionProyectosContenido() {
     tabActivaRef.current = tabActiva;
   }, [tabActiva]);
 
-  // ==========================================
-  // 🟢 NUEVO: Sincronizar referencia de proyectos
   useEffect(() => {
     proyectosRef.current = proyectos;
   }, [proyectos]);
-  // ==========================================
 
-  // 🟢 BLOQUEO GLOBAL DEL AUTOSCROLL DEL NAVEGADOR
   useEffect(() => {
     const prevenirAutoScrollGlobal = (e) => {
       if (e.button === 1) {
@@ -505,7 +479,6 @@ export function GestionProyectosContenido() {
   const contadorMetasLocal = useRef(0);
   const contadorGruposLocal = useRef(0);
 
-  // 🟢 PERSISTENCIA EN SUPABASE
   const guardarEnSupabase = async (nodosAGuardar, edgesAGuardar) => {
     try {
       const nodosSerializables = nodosAGuardar.map(n => ({
@@ -534,22 +507,6 @@ export function GestionProyectosContenido() {
         markerEnd: e.markerEnd
       }));
 
-      // ==========================================
-      // 🔴 ANTERIOR: Tomaba el nombre de 'proyectos' desfasado o 'Proyecto' por default:
-      // const proyectoActual = proyectos.find(p => p.id === tabActivaRef.current);
-      // const nombreActual = proyectoActual ? proyectoActual.nombre : 'Proyecto';
-      //
-      // await supabase
-      //   .from('mapa_proyectos')
-      //   .upsert({
-      //     id: tabActivaRef.current,
-      //     nombre: nombreActual,
-      //     nodes: nodosSerializables,
-      //     edges: edgesSerializables,
-      //     updated_at: new Date().toISOString()
-      //   });
-      //
-      // 🟢 NUEVO: Busca primero en la ref síncrona; si no tiene nombre, NO sobrescribe la columna 'nombre'
       const proyectoActual = proyectosRef.current.find(p => p.id === tabActivaRef.current);
       
       const payloadUpsert = {
@@ -566,7 +523,6 @@ export function GestionProyectosContenido() {
       await supabase
         .from('mapa_proyectos')
         .upsert(payloadUpsert);
-      // ==========================================
     } catch (err) {
       console.error('Error al guardar mapa en Supabase:', err);
     }
@@ -701,7 +657,6 @@ export function GestionProyectosContenido() {
     });
   }, []);
 
-  // 🟢 Actualizar el edgeMenuAbiertoId en la data de cada edge
   useEffect(() => {
     setEdges(eds => eds.map(e => ({
       ...e,
@@ -1292,17 +1247,13 @@ export function GestionProyectosContenido() {
           onNodeDragStop={onNodeDragStop} 
           onEdgesChange={onEdgesChange} 
           onConnect={onConnect} 
-          // 🟢 Cerrar menú al hacer clic en el lienzo
           onPaneClick={onPaneClick}
-          // 🟢 Abrir menú de opciones al hacer clic en la flecha
           onEdgeClick={(e, edge) => {
             e.stopPropagation();
             toggleMenuEdge(edge.id);
           }}
           onDoubleClick={onPaneDoubleClick} 
           zoomOnDoubleClick={false}
-          /* 🔴 ANTERIOR: panOnDrag={[1, 2]} selectionOnDrag={true} */
-          /* 🟢 NUEVO: Soporte táctil para arrastrar lienzo con 1 dedo/toque */
           panOnDrag={[0, 1, 2]}
           selectionOnDrag={false}
           selectionMode="partial"
@@ -1325,8 +1276,6 @@ export function GestionProyectosContenido() {
             size={1.5} 
           />
           <Controls className="!bg-theme-bg !border !border-theme-border !shadow-2xl [&_button]:!bg-theme-bg [&_button]:!border-b [&_button]:!border-theme-border [&_button]:!fill-theme-accent [&_button_svg]:!fill-theme-accent [&_button:hover]:!bg-theme-border/30 transition-all" />
-       {/*<Controls className="!bg-theme-bg !border-theme-border !shadow-2xl opacity-80 hover:opacity-100 transition-opacity" /> */}
-
         </ReactFlow> 
       </div>
     </div>

@@ -1,15 +1,7 @@
 import { useState } from 'react';
-// ==========================================
-// 🔴 ANTERIOR: API de Google Apps Script
-// import { database } from '../api';
-// 🟢 NUEVO: Cliente oficial de Supabase
 import { supabase } from '../supabase';
-// ==========================================
 import { CheckCircle2, AlertCircle, ArrowLeft, Terminal, Send, Database } from 'lucide-react';
 
-// =========================================================================
-// 🧠 HELPER: PARSER DE FECHA Y DÍA/HORA PARA CLASIFICACIÓN (CASA / TRABAJO)
-// =========================================================================
 const MESES_MAP = {
   ene: 0, jan: 0, feb: 1, mar: 2, abr: 3, apr: 3, may: 4, jun: 5,
   jul: 6, ago: 7, aug: 7, sep: 8, oct: 9, nov: 10, dic: 11, dec: 11

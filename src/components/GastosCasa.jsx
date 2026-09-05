@@ -4,7 +4,6 @@ import {
   X, Plus, CreditCard, ChevronDown, ChevronRight, AlertTriangle, 
   ShieldCheck, Flame, Wallet, CheckCircle2, Settings, Trash2, TableProperties, Save,
   ArrowRightLeft,
-  // 🟢 NUEVO: Icono para editar transacciones
   Edit3
 } from 'lucide-react';
 
@@ -21,7 +20,6 @@ export default function Finanzas({ refreshTrigger }) {
   const [modalSettingsTabla, setModalSettingsTabla] = useState(false);
   const [tabSettings, setTabSettings] = useState('macros'); // 'macros' | 'cuentas' | 'mapeo'
 
-  // ==========================================
   // 🟢 ESTADO PARA TRASPASO ENTRE CUENTAS
   const [modalTraspaso, setModalTraspaso] = useState(false);
   const [formTraspaso, setFormTraspaso] = useState({
@@ -29,9 +27,7 @@ export default function Finanzas({ refreshTrigger }) {
     cuentaDestino: '',
     monto: ''
   });
-  // ==========================================
 
-  // ==========================================
   // 🟢 NUEVO: ESTADOS PARA EDICIÓN DE TRANSACCIONES
   const [modalEditarTransaccion, setModalEditarTransaccion] = useState(false);
   const [transaccionSeleccionada, setTransaccionSeleccionada] = useState(null);
@@ -43,8 +39,9 @@ export default function Finanzas({ refreshTrigger }) {
     rubro: '',
     tipo: 'GASTO' // 'GASTO' o 'INGRESO'
   });
-  // ==========================================
 
+  // 🟢 NUEVO: Estado para datos de corte/pago de tarjetas desde tabla 'deudas'
+  const [deudasInfo, setDeudasInfo] = useState([]);
   const [saldosCuentas, setSaldosCuentas] = useState({}); 
   const [listaMetodos, setListaMetodos] = useState([]);  
 
@@ -58,6 +55,9 @@ export default function Finanzas({ refreshTrigger }) {
   
   // FILTRO POR MACRO
   const [macroFiltroSeleccionado, setMacroFiltroSeleccionado] = useState(null);
+  
+  // 🟢 NUEVO: FILTRO POR TIPO DE MEDIO DE PAGO EN TABLA (TODOS | DEBITO | CREDITO)
+  const [filtroTipoPago, setFiltroTipoPago] = useState('TODOS');
   
   const [macrosAbiertas, setMacrosAbiertas] = useState({ "Facturas / Vivienda": true, "Deudas / Tarjetas": true });
   const [paginaActual, setPaginaActual] = useState(1);
@@ -128,6 +128,19 @@ export default function Finanzas({ refreshTrigger }) {
     return `${añoFinal}-${String(mesFinal).padStart(2, '0')}-${qId}`;
   }
 
+  // 🟢 NUEVO: Helper para convertir string de fecha a objeto Date seguro
+  function convertirADate(fechaStr) {
+    if (!fechaStr) return new Date(0);
+    const partes = fechaStr.includes('-') ? fechaStr.split('-') : fechaStr.split('/');
+    let año, mes, dia;
+    if (partes[0].length === 4) { 
+      [año, mes, dia] = partes.map(Number);
+    } else { 
+      [dia, mes, año] = partes.map(Number);
+    }
+    return new Date(año, mes - 1, dia);
+  }
+
   function calcularProgresoTiempoQuincena() {
     const hoy = new Date();
     const dia = hoy.getDate();
@@ -170,12 +183,12 @@ export default function Finanzas({ refreshTrigger }) {
   const cargarDatos = async (silencioso = false) => {
     try {
       if (!silencioso) setCargando(true);
-
-      const [resTransacciones, resCuentas, resCategorias, resMapeo] = await Promise.all([
+      const [resTransacciones, resCuentas, resCategorias, resMapeo, resDeudas] = await Promise.all([
         supabase.from('transacciones').select('*').order('id', { ascending: false }),
         supabase.from('cuentas_bancarias').select('*').order('id', { ascending: true }),
         supabase.from('categorias_presupuesto').select('*').order('id', { ascending: true }),
-        supabase.from('mapeo_rubros').select('*').order('id', { ascending: true })
+        supabase.from('mapeo_rubros').select('*').order('id', { ascending: true }),
+        supabase.from('deudas').select('*').order('id', { ascending: true })
       ]);
 
       const dataTransacciones = (resTransacciones.data || []).map(row => ({
@@ -190,10 +203,12 @@ export default function Finanzas({ refreshTrigger }) {
       const rawCuentas = resCuentas.data || [];
       const rawCategorias = resCategorias.data || [];
       const rawMapeo = resMapeo.data || [];
+      const rawDeudas = resDeudas.data || [];
 
       setEditCategorias(rawCategorias);
       setEditCuentas(rawCuentas);
       setEditMapeo(rawMapeo);
+      setDeudasInfo(rawDeudas);
 
       if (Array.isArray(dataTransacciones)) setTransacciones(dataTransacciones);
       
@@ -336,22 +351,9 @@ export default function Finanzas({ refreshTrigger }) {
       }
     ];
 
-    // 2. Nuevos saldos actualizados
-    // const saldoOrigenActual = saldosCuentas[formTraspaso.cuentaOrigen] || 0;
-    // const saldoDestinoActual = saldosCuentas[formTraspaso.cuentaDestino] || 0;
-    // const nuevoSaldoOrigen = saldoOrigenActual - montoNum;
-    // const nuevoSaldoDestino = saldoDestinoActual + montoNum;
-
     try {
-      // Insertar transacciones
       const { error: errTrans } = await supabase.from('transacciones').insert(registrosTraspaso);
       if (errTrans) throw errTrans;
-
-      // Actualizar cuentas bancarias en Supabase
-      // await Promise.all([
-      //   supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoOrigen }).eq('nombre', formTraspaso.cuentaOrigen),
-      //   supabase.from('cuentas_bancarias').update({ saldo_actual: nuevoSaldoDestino }).eq('nombre', formTraspaso.cuentaDestino)
-      // ]);
 
       setModalTraspaso(false);
       setFormTraspaso(prev => ({ ...prev, monto: '' }));
@@ -456,7 +458,6 @@ export default function Finanzas({ refreshTrigger }) {
       setGuardando(false);
     }
   };
-  // ==========================================
 
   const ejecutarActualizarSaldos = async (e) => {
     e.preventDefault();
@@ -479,9 +480,7 @@ export default function Finanzas({ refreshTrigger }) {
     cargarDatos(false);
   };
 
-  // -------------------------------------------------------------
-  // ⚙️ CONTROLADORES DEL EDITOR DE TABLAS (GRID SETTINGS)
-  // -------------------------------------------------------------
+  // CONTROLADORES DEL EDITOR DE TABLAS (GRID SETTINGS)
   const agregarFilaCategoria = () => {
     setEditCategorias(prev => [...prev, { categoria_macro: 'Nueva Categoría', asignacion_quincenal: 0, _esNuevo: true }]);
   };
@@ -549,6 +548,67 @@ export default function Finanzas({ refreshTrigger }) {
   // =========================================================================
   //  🧠 MOTOR DE PROCESAMIENTO UNIFICADO
   // =========================================================================
+
+  // 🟢 IDENTIFICADOR EXACTO DE TARJETAS DE CRÉDITO
+  const esMetodoTDC = (metodo) => {
+    if (!metodo) return false;
+    const m = metodo.toString().toUpperCase().trim();
+    return m.includes('TDC') || m.includes('CREDITO') || m.includes('CRÉDITO') || m.includes('TARJETA');
+  };
+
+  // =========================================================================
+  // 🟢 NUEVO: CÁLCULO ACUMULADO DESDE EL ÚLTIMO CORTE A LA FECHA
+  // =========================================================================
+  const calcularGastoDesdeUltimoCorte = (nombreTarjeta) => {
+    const info = deudasInfo.find(d => 
+      (d.descripcion || '').toUpperCase().trim() === nombreTarjeta.toUpperCase().trim() ||
+      (d.tarjeta || '').toUpperCase().trim() === nombreTarjeta.toUpperCase().trim()
+    );
+
+    // Extraer día de corte numérico (ej. "17 de cada mes" -> 17 o default 17)
+    let diaCorte = 17;
+    if (info && info.fecha_corte) {
+      const match = info.fecha_corte.toString().match(/\d+/);
+      if (match) diaCorte = parseInt(match[0], 10);
+    } else if (nombreTarjeta.toUpperCase().includes('TDCV')) {
+      diaCorte = 6;
+    }
+
+    const hoy = new Date();
+    let fechaInicioCorte;
+
+    if (hoy.getDate() >= diaCorte) {
+      // El corte fue este mes en el día especificado
+      fechaInicioCorte = new Date(hoy.getFullYear(), hoy.getMonth(), diaCorte);
+    } else {
+      // El corte fue el mes anterior en el día especificado
+      fechaInicioCorte = new Date(hoy.getFullYear(), hoy.getMonth() - 1, diaCorte);
+    }
+
+    // Sumar todas las transacciones históricas realizadas con esta tarjeta desde la fecha de corte
+    const acumulado = transacciones
+      .filter(t => {
+        const metodoT = (t['Metodo de pago'] || t.metodo_pago || '').toString().toUpperCase().trim();
+        if (metodoT !== nombreTarjeta.toUpperCase().trim()) return false;
+
+        const rubroT = (t.Rubro || t.rubro || '').toString().toUpperCase().trim();
+        if (rubroT === 'TRASPASO' || rubroT === 'SUELDO' || rubroT === 'SOBRANTE' || rubroT === 'REGALO') return false;
+
+        const fechaT = convertirADate(t.Fecha || t.fecha);
+        return fechaT >= fechaInicioCorte;
+      })
+      .reduce((acc, curr) => {
+        const imp = Math.abs(parseFloat((curr.Importe || curr.importe || 0).toString().replace(/[$,\s\-()]/g, ''))) || 0;
+        return acc + imp;
+      }, 0);
+
+    return {
+      acumulado,
+      diaCorte,
+      fechaLimite: info?.fecha_limite || (nombreTarjeta.toUpperCase().includes('TDCE') ? '6 de cada mes' : '27 de cada mes')
+    };
+  };
+
   let gastoGlobal = 0;
   let ingresosSueldo = 0;
   let ingresosSobrante = 0;
@@ -609,8 +669,14 @@ export default function Finanzas({ refreshTrigger }) {
       return;
     }
 
-    gastoGlobal += t.montoAbsoluto;
     const metodoActual = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
+
+    // Solo resta de la caja líquida si fue pagado con dinero real (Débito/Efectivo)
+    if (!esMetodoTDC(metodoActual)) {
+      gastoGlobal += t.montoAbsoluto;
+    }
+
+    // Acumula el gasto de cada canal para saber cuánto debe cada plástico
     gastosPorMetodo[metodoActual] = (gastosPorMetodo[metodoActual] || 0) + t.montoAbsoluto;
 
     if (!macroEstructura[t.macroFinal]) {
@@ -626,7 +692,11 @@ export default function Finanzas({ refreshTrigger }) {
 
   const ingresosTotalesFlujo = ingresosSueldo + ingresosSobrante + ingresosRegalo;
   
-  const efectivoFisicoTotal = Object.values(saldosCuentas).reduce((acc, curr) => acc + curr, 0);
+  // Solo suma el efectivo y cuentas de banco reales
+  const efectivoFisicoTotal = Object.entries(saldosCuentas)
+    .filter(([metodo]) => !esMetodoTDC(metodo))
+    .reduce((acc, [, saldo]) => acc + saldo, 0);
+
   const deudasAsignadas = macroEstructura["Deudas / Tarjetas"] ? macroEstructura["Deudas / Tarjetas"].asignado : 0;
   const bolsaDisponibleFlujoLibre = (presupuestoGlobalEstatico - deudasAsignadas) - (gastoGlobal - totalDeudaMitigada);
 
@@ -644,16 +714,6 @@ export default function Finanzas({ refreshTrigger }) {
       ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
     }
 
-    /*
-    if (rubroUpper === "TRASPASO") {
-      if (t.importe < 0 || (typeof t.Importe === 'string' && t.Importe.includes('('))) {
-        ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] || 0) + t.montoAbsoluto;
-      } else {
-        gastosPorMetodo[metodo] = (gastosPorMetodo[metodo] || 0) + t.montoAbsoluto;
-      }
-    }
-    */
-
     if (rubroUpper === "TRASPASO") {
       const valorNumerico = parseFloat(t.Importe ?? t.importe ?? 0);
       const esNegativo = valorNumerico < 0 || (typeof t.Importe === 'string' && t.Importe.includes('('));
@@ -670,6 +730,8 @@ export default function Finanzas({ refreshTrigger }) {
   let totalGastosFaltantesGlobal = 0;
 
   listaMetodos.forEach(metodo => {
+    if (esMetodoTDC(metodo)) return;
+
     const saldoActualEnSheet = saldosCuentas[metodo] || 0;
     const ingresosCuenta = ingresosPorMetodo[metodo] || 0;
     const gastosRegistradosCuenta = gastosPorMetodo[metodo] || 0;
@@ -689,8 +751,17 @@ export default function Finanzas({ refreshTrigger }) {
     }
   });
 
+  // 🟢 FILTRADO DINÁMICO: MACRO + CANAL (DEBITO VS CREDITO)
   const transaccionesParaTabla = transaccionesFiltradasYProcesadas.filter(t => {
-    return !macroFiltroSeleccionado || t.macroFinal === macroFiltroSeleccionado;
+    const cumpleMacro = !macroFiltroSeleccionado || t.macroFinal === macroFiltroSeleccionado;
+    const metodoActual = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
+    const esCredito = esMetodoTDC(metodoActual);
+
+    let cumpleTipoPago = true;
+    if (filtroTipoPago === 'DEBITO') cumpleTipoPago = !esCredito;
+    if (filtroTipoPago === 'CREDITO') cumpleTipoPago = esCredito;
+
+    return cumpleMacro && cumpleTipoPago;
   });
 
   const totalPaginas = Math.ceil(transaccionesParaTabla.length / itemsPorPagina) || 1;
@@ -777,7 +848,7 @@ export default function Finanzas({ refreshTrigger }) {
       )}
 
       {/* 📊 CUADRO DE MANDOS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* CONTROL DE INGRESOS */}
         <div className="bg-theme-bg border border-theme-border rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-theme-trabajo">
@@ -799,6 +870,43 @@ export default function Finanzas({ refreshTrigger }) {
                 <span className="text-theme-text/50 font-semibold">🎁 Extras:</span>
                 <span className="text-theme-trabajo font-mono">${ingresosRegalo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 🟢 FIRMADO EN CRÉDITO (TDC): QUINCENAL + ACUMULADO AL CORTE */}
+        <div className="bg-theme-bg border border-theme-border rounded-xl p-4 flex flex-col justify-between border-t-2 border-t-theme-accent">
+          <span className="text-[9px] font-black uppercase tracking-wider text-theme-accent flex items-center gap-1">
+            <CreditCard className="w-3 h-3" /> Firmado en Crédito (Q.)
+          </span>
+          <div className="mt-2 space-y-1">
+            <div className="text-xl font-black text-theme-accent tabular-nums">
+              ${Object.entries(gastosPorMetodo)
+                .filter(([metodo]) => esMetodoTDC(metodo))
+                .reduce((acc, [, total]) => acc + total, 0)
+                .toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+            </div>
+            <div className="pt-1.5 border-t border-theme-border/40 space-y-1.5 text-[9px] uppercase font-bold text-theme-text/70 max-h-[120px] overflow-y-auto custom-scrollbar">
+              {Object.entries(gastosPorMetodo)
+                .filter(([metodo]) => esMetodoTDC(metodo))
+                .map(([tarjeta, totalQuincenal]) => {
+                  const corteInfo = calcularGastoDesdeUltimoCorte(tarjeta);
+                  return (
+                    <div key={tarjeta} className="p-1.5 rounded-lg bg-theme-border/10 border border-theme-border/30 space-y-0.5">
+                      <div className="flex justify-between items-center">
+                        <span className="text-theme-text font-black">{tarjeta}</span>
+                        <span className="text-theme-accent font-mono font-bold">${totalQuincenal.toLocaleString('es-MX', { minimumFractionDigits: 2 })} (Q)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[7.5px] text-theme-text/60">
+                        <span>Corte día {corteInfo.diaCorte}</span>
+                        <span className="text-theme-casa font-bold">Acum. corte: ${corteInfo.acumulado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              {Object.entries(gastosPorMetodo).filter(([m]) => esMetodoTDC(m)).length === 0 && (
+                <span className="text-[8px] text-theme-text/40">Sin cargos a crédito</span>
+              )}
             </div>
           </div>
         </div>
@@ -877,7 +985,7 @@ export default function Finanzas({ refreshTrigger }) {
             </div>
             <div className="pt-1.5 border-t border-theme-border/40 space-y-0.5 text-[9px] uppercase font-bold text-theme-text/70 max-h-[60px] overflow-y-auto custom-scrollbar">
               {listaMetodos
-                .filter(metodo => (saldosCuentas[metodo] || 0) > 0)
+                .filter(metodo => !esMetodoTDC(metodo) && (saldosCuentas[metodo] || 0) > 0)
                 .map(metodo => (
                   <div key={metodo} className="flex justify-between">
                     <span className="text-theme-text/50 font-semibold truncate max-w-[110px]">{metodo}:</span>
@@ -996,13 +1104,47 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
 
         <div className="xl:col-span-2 space-y-4">
-          <h3 className="text-sm font-black text-theme-text uppercase italic tracking-tighter">Huella de Transacciones de este Periodo</h3>
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <h3 className="text-sm font-black text-theme-text uppercase italic tracking-tighter">Huella de Transacciones de este Periodo</h3>
+            
+            {/* 🟢 SUB-PESTAÑAS DE VISTA: FILTRO RÁPIDO DE MEDIO DE PAGO */}
+            <div className="flex bg-theme-bg border border-theme-border rounded-lg p-0.5 text-[9px] font-black uppercase">
+              <button
+                type="button"
+                onClick={() => { setFiltroTipoPago('TODOS'); setPaginaActual(1); }}
+                className={`px-2 py-1 rounded transition-all cursor-pointer ${
+                  filtroTipoPago === 'TODOS' ? 'bg-theme-accent text-theme-bg shadow' : 'text-theme-text/60 hover:text-theme-text'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFiltroTipoPago('DEBITO'); setPaginaActual(1); }}
+                className={`px-2 py-1 rounded transition-all cursor-pointer ${
+                  filtroTipoPago === 'DEBITO' ? 'bg-theme-trabajo text-theme-bg shadow' : 'text-theme-text/60 hover:text-theme-text'
+                }`}
+              >
+                💵 Efectivo / Débito
+              </button>
+              <button
+                type="button"
+                onClick={() => { setFiltroTipoPago('CREDITO'); setPaginaActual(1); }}
+                className={`px-2 py-1 rounded transition-all cursor-pointer ${
+                  filtroTipoPago === 'CREDITO' ? 'bg-theme-casa text-theme-bg shadow' : 'text-theme-text/60 hover:text-theme-text'
+                }`}
+              >
+                💳 Crédito (TDC)
+              </button>
+            </div>
+          </div>
+
           <div className="bg-theme-bg shadow-2xl rounded-xl overflow-hidden border border-theme-border">
             <div className="overflow-x-auto">
               <div className="flex justify-between items-center bg-theme-bg border border-theme-border rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-wider">
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-theme-text/50 italic">Mostrando {transaccionesFiltradasYProcesadas.length > 0 ? indicePrimerItem + 1 : 0}-{Math.min(indiceUltimoItem, transaccionesFiltradasYProcesadas.length)} de {transaccionesFiltradasYProcesadas.length} registros</span>
+                  <span className="text-theme-text/50 italic">Mostrando {transaccionesParaTabla.length > 0 ? indicePrimerItem + 1 : 0}-{Math.min(indiceUltimoItem, transaccionesParaTabla.length)} de {transaccionesParaTabla.length} registros</span>
                 
                   {macroFiltroSeleccionado && (
                     <div className="flex items-center gap-1.5 bg-theme-accent/10 border border-theme-accent/30 text-theme-accent px-2 py-0.5 rounded-md text-[8px] font-black tracking-wide w-fit">
@@ -1043,9 +1185,10 @@ export default function Finanzas({ refreshTrigger }) {
                     const esDeuda = macro === "Deudas / Tarjetas";
                     const esIngresoPuro = rubroUpper === "SUELDO" || rubroUpper === "SOBRANTE" || rubroUpper === "REGALO";
                     const esTraspaso = rubroUpper === "TRASPASO";
+                    const metodoFila = t['Metodo de pago'] || t.metodo_pago || "Efectivo";
+                    const esTDCFila = esMetodoTDC(metodoFila);
 
                     return (
-                      /* 🟢 NUEVO: Fila clicable con hover interactivo para abrir edición */
                       <tr 
                         key={idx} 
                         onClick={() => abrirModalEditarTransaccion(t)}
@@ -1059,7 +1202,9 @@ export default function Finanzas({ refreshTrigger }) {
                           </div>
                           <div className="text-[8px] font-bold text-theme-text/40 font-mono mt-0.5 flex gap-2 items-center">
                             <span>{t.Fecha || t.fecha}</span>
-                            <span className="text-theme-text/60 font-semibold">• {t['Metodo de pago'] || t.metodo_pago}</span>
+                            <span className={`font-semibold ${esTDCFila ? 'text-theme-accent font-bold' : 'text-theme-text/60'}`}>
+                              • {metodoFila} {esTDCFila ? '(Crédito)' : ''}
+                            </span>
                           </div>
                         </td>
                         <td className="p-4 text-transform: uppercase text-[10px] font-black text-theme-text/80 tracking-tight">
@@ -1097,7 +1242,7 @@ export default function Finanzas({ refreshTrigger }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🟢 NUEVO MODAL: EDITAR / ELIMINAR TRANSACCIÓN REGISTRADA */}
+      {/* 🟢 MODAL: EDITAR / ELIMINAR TRANSACCIÓN REGISTRADA */}
       {/* ========================================================================= */}
       {modalEditarTransaccion && transaccionSeleccionada && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
