@@ -528,7 +528,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.0.6 "deudotas"
+            rattamayhorka v2.0.7 "notas"
           </div>
         </div>
       </div>
