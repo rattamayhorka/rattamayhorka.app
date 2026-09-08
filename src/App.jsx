@@ -9,6 +9,7 @@ import RegistroRapido from './components/RegistroRapido';
 import GestionProyectos from './components/GestionProyectos';
 import GastosCasa from './components/GastosCasa';
 import Deudas from './components/Deudas';
+import Notas from './components/Notas';
 import { database } from './api';
 
 import {
@@ -35,7 +36,8 @@ import {
   Calendar as IconEvent,
   HelpCircle,
   Bot,
-  Palette
+  Palette,
+  BookOpen
 } from 'lucide-react';
 
 const LISTA_TEMAS = [
@@ -68,6 +70,7 @@ const LISTA_TEMAS = [
 const COMANDOS_NAVEGACION = [
   { cmd: 'kanban', alias: 'k', desc: 'Ir al Tablero Kanban', seccion: 'kanban', icono: Columns3 },
   { cmd: 'bullet', alias: 'b', desc: 'Ir a Rapid Logging / Bitácora', seccion: 'bullet', icono: Wrench },
+  { cmd: 'notas', alias: 'n', desc: 'Ir a Editor de Notas Markdown', seccion: 'notas', icono: BookOpen },
   { cmd: 'finanzas', alias: 'f', desc: 'Ir a Gastos y Finanzas Casa', seccion: 'casa_gastos', icono: DollarSign },
   { cmd: 'futurelog', alias: 'fl', desc: 'Ir a Future LOG Trabajo', seccion: 'futureloghst', icono: Calendar },
   { cmd: 'compromisos', alias: 'comp', desc: 'Ir a Compromisos HST', seccion: 'compromisos', icono: FileText },
@@ -212,6 +215,7 @@ export default function App() {
   const ENLACES_DATABASE = {
     kanban: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
     bullet: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
+    notas: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
     futureloghst: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1273409378',
     compromisos: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=215090502',
     compras: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1191916610',
@@ -412,6 +416,18 @@ export default function App() {
               <span className="hidden xl:inline px-1">Kanban</span>
             </button>
 
+            {/* 📝 SECCIÓN NOTAS MARKDOWN */}
+            <button 
+              onClick={() => cambiarSeccion('notas')} 
+              title="Notas Markdown"
+              className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
+                seccionActiva === 'notas' ? 'bg-theme-accent text-theme-bg' : 'text-theme-text/60 hover:bg-theme-border/20 hover:text-theme-text'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 flex-shrink-0 xl:hidden" />
+              <span className="hidden xl:inline px-1">Notas</span>
+            </button>
+
             <button
               onClick={() => cambiarSeccion('futureloghst')}
               title="Future LOG Trabajo"
@@ -479,7 +495,6 @@ export default function App() {
               <span className="hidden xl:inline px-1">Control Deudas</span>
             </button>
 
-
             <button   
               onClick={() => cambiarSeccion('proyectos_grafo')}  
               title="Mapa de Proyectos"
@@ -528,7 +543,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.0.7 "notas"
+            rattamayhorka v2.0.9 "time deudas"
           </div>
         </div>
       </div>
@@ -546,6 +561,10 @@ export default function App() {
             <Bullet key={refreshKeys['bullet'] || 0} />
           )}
           
+          {seccionActiva === 'notas' && (
+            <Notas key={refreshKeys['notas'] || 0} />
+          )}
+
           {seccionActiva === 'prompts' && (
             <Prompts key={refreshKeys['prompts'] || 0} />
           )}

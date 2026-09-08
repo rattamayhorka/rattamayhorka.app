@@ -6,6 +6,7 @@ import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, Cart
 export default function Deudas({ refreshTrigger }) {
   const [deudas, setDeudas] = useState([]);
   const [transacciones, setTransacciones] = useState([]);
+  const [historialDeudas, setHistorialDeudas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardandoNW, setGuardandoNW] = useState(false);
 
@@ -54,15 +55,18 @@ export default function Deudas({ refreshTrigger }) {
     try {
       if (!silencioso) setCargando(true);
 
-      const [resDeudas, resTransacciones, resNW] = await Promise.all([
+      const [resDeudas, resTransacciones, resNW, resHistorial] = await Promise.all([
         supabase.from('deudas').select('*').order('id', { ascending: true }),
         supabase.from('transacciones').select('*').order('id', { ascending: false }),
-        supabase.from('needs_wants').select('*').order('id', { ascending: false })
+        supabase.from('needs_wants').select('*').order('id', { ascending: false }),
+        supabase.from('historial_deudas').select('*').order('fecha', { ascending: true })
       ]);
  
       const rawDeudas = resDeudas.data || [];
       const rawTransacciones = resTransacciones.data || [];
       const rawNW = resNW.data || [];
+      const rawHistorial = resHistorial.data || [];
+      setHistorialDeudas(rawHistorial);
 
       const deudasMapeadas = rawDeudas.map(d => ({
         id: d.id,
@@ -197,6 +201,7 @@ export default function Deudas({ refreshTrigger }) {
       console.error('Error al guardar prioridades reordenadas en Supabase:', err);
     }
   };
+
   // 🟢 EDICIÓN DE DEUDA
   const abrirModalEdicionDeuda = (deuda) => {
     setDeudaSeleccionada(deuda);
@@ -205,7 +210,7 @@ export default function Deudas({ refreshTrigger }) {
       descripcion: deuda.Descripcion || '',
       deuda_total: deuda.Deuda_Total ?? '',
       monto_inicial: deuda.Monto_Inicial ?? '',
-      fecha_inicial: deuda.Fecha_Inicial || '',
+      fecha_inicial: new Date().toISOString().split('T')[0],
       fase: deuda.Fase || 'URGENTE'
     });
     setMostrarModalEditarDeuda(true);
@@ -216,22 +221,50 @@ export default function Deudas({ refreshTrigger }) {
     if (!deudaSeleccionada) return;
 
     setGuardandoDeuda(true);
+    const nuevoSaldo = parseFloat(formEditDeuda.deuda_total) || 0;
+    const saldoAnterior = limpiarMonto(deudaSeleccionada.Deuda_Total);
+    const fechaAjuste = formEditDeuda.fecha_inicial ? formEditDeuda.fecha_inicial.trim() : new Date().toISOString().split('T')[0];
+
     const datosActualizados = {
       tarjeta: formEditDeuda.tarjeta.trim().toUpperCase(),
       descripcion: formEditDeuda.descripcion.trim().toUpperCase(),
-      deuda_total: parseFloat(formEditDeuda.deuda_total) || 0,
+      deuda_total: nuevoSaldo,
       monto_inicial: parseFloat(formEditDeuda.monto_inicial) || 0,
-      fecha_corte: formEditDeuda.fecha_inicial.trim(),
+      // 🟢 fecha_corte removida para no sobreescribir el día de corte en la tabla 'deudas'
       status: formEditDeuda.fase === 'CONTROLADA' ? 'CONTROLADA' : 'ACTIVA'
     };
 
     try {
-      const { error } = await supabase
+      const { error: errorUpdate } = await supabase
         .from('deudas')
         .update(datosActualizados)
         .eq('id', deudaSeleccionada.id);
 
-      if (error) throw error;
+      if (errorUpdate) throw errorUpdate;
+
+      const snapshotsPrevios = historialDeudas.filter(h => h.deuda_id === deudaSeleccionada.id);
+      if (snapshotsPrevios.length === 0 && saldoAnterior > 0) {
+        const fechaPrevia = deudaSeleccionada.Fecha_Inicial || '2026-08-01';
+        await supabase
+          .from('historial_deudas')
+          .insert([{
+            deuda_id: deudaSeleccionada.id,
+            fecha: fechaPrevia,
+            monto_saldo: saldoAnterior
+          }]);
+      }
+
+      // 🟢 La fecha del ajuste se guarda exclusivamente aquí en 'historial_deudas'
+      const { error: errorHistorial } = await supabase
+        .from('historial_deudas')
+        .insert([{
+          deuda_id: deudaSeleccionada.id,
+          fecha: fechaAjuste,
+          monto_saldo: nuevoSaldo
+        }]);
+
+      if (errorHistorial) console.error("Error insertando en historial_deudas:", errorHistorial);
+
       setMostrarModalEditarDeuda(false);
       setDeudaSeleccionada(null);
       await sincronizarDatos(true);
@@ -241,6 +274,7 @@ export default function Deudas({ refreshTrigger }) {
       setGuardandoDeuda(false);
     }
   };
+
 
   // 🟢 CREAR NUEVA DEUDA
   const abrirModalCrearDeuda = () => {
@@ -261,19 +295,30 @@ export default function Deudas({ refreshTrigger }) {
 
     setCreandoDeuda(true);
     const montoInicialFinal = formCrearDeuda.monto_inicial ? parseFloat(formCrearDeuda.monto_inicial) : parseFloat(formCrearDeuda.deuda_total);
+    const saldoTotalNumerico = parseFloat(formCrearDeuda.deuda_total) || 0;
+    const fechaArranque = formCrearDeuda.fecha_inicial.trim() || new Date().toISOString().split('T')[0];
 
     const payload = {
       tarjeta: formCrearDeuda.tarjeta.trim().toUpperCase(),
       descripcion: formCrearDeuda.descripcion.trim().toUpperCase(),
-      deuda_total: parseFloat(formCrearDeuda.deuda_total) || 0,
+      deuda_total: saldoTotalNumerico,
       monto_inicial: montoInicialFinal || 0,
-      fecha_corte: formCrearDeuda.fecha_inicial.trim(),
+      fecha_corte: fechaArranque,
       status: formCrearDeuda.fase === 'CONTROLADA' ? 'CONTROLADA' : 'ACTIVA'
     };
 
     try {
-      const { error } = await supabase.from('deudas').insert([payload]);
+      const { data: creada, error } = await supabase.from('deudas').insert([payload]).select();
       if (error) throw error;
+
+      if (creada && creada.length > 0) {
+        await supabase.from('historial_deudas').insert([{
+          deuda_id: creada[0].id,
+          fecha: fechaArranque,
+          monto_saldo: saldoTotalNumerico
+        }]);
+      }
+
       setMostrarModalCrearDeuda(false);
       setFormCrearDeuda({ tarjeta: '', descripcion: '', deuda_total: '', monto_inicial: '', fecha_inicial: '', fase: 'URGENTE' });
       await sincronizarDatos(true);
@@ -361,6 +406,23 @@ export default function Deudas({ refreshTrigger }) {
     }
   };
 
+  // 🟢 OBTENER EL SALDO MÁS RECIENTE SEGÚN LA FECHA DE LA BD
+  const obtenerSaldoMasReciente = (deuda) => {
+    const snapshots = historialDeudas
+      .filter(h => h.deuda_id === deuda.id)
+      .map(h => ({
+        fecha: h.fecha,
+        monto: limpiarMonto(h.monto_saldo)
+      }));
+
+    if (snapshots.length === 0) {
+      return limpiarMonto(deuda.Deuda_Total);
+    }
+
+    snapshots.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    return snapshots[snapshots.length - 1].monto;
+  };
+
   if (cargando) {
     return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left p-4">Actualizando...</p>;
   }
@@ -374,7 +436,8 @@ export default function Deudas({ refreshTrigger }) {
     return true;
   });
 
-  const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + limpiarMonto(curr.Deuda_Total), 0);
+  // Calculamos el total de deuda viva tomando el saldo más reciente por fecha de cada deuda
+  const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + obtenerSaldoMasReciente(curr), 0);
 
   const totalAhorrado = transacciones
     .filter(t => {
@@ -383,7 +446,6 @@ export default function Deudas({ refreshTrigger }) {
     })
     .reduce((acc, curr) => acc + limpiarMonto(curr.Importe || curr.importe || 0), 0);
 
-  // 🟢 CÁLCULO DE PATRIMONIO REAL DINÁMICO SEGÚN FASE
   const patrimonioNetoReal = totalAhorrado - totalDeudaActual;
 
   const formatearMonedaCompleta = (valor) => {
@@ -392,7 +454,7 @@ export default function Deudas({ refreshTrigger }) {
   };
 
   const generarDatosGrafica = (deuda) => {
-    const actual = limpiarMonto(deuda.Deuda_Total);
+    const actual = obtenerSaldoMasReciente(deuda);
     const inicial = limpiarMonto(deuda.Monto_Inicial) || actual;
     const etiquetaInicio = deuda.Fecha_Inicial ? `Inicio (${deuda.Fecha_Inicial})` : 'Inicio';
     
@@ -411,19 +473,10 @@ export default function Deudas({ refreshTrigger }) {
         );
       })
       .map(t => ({
+        tipoEvento: 'ABONO',
         fecha: t.Fecha || t.fecha || 'Abono',
         monto: limpiarMonto(t.Importe || t.importe || 0)
       }));
-
-    const dataPuntos = [];
-    let saldoFlujoReal = inicial;
-    
-    dataPuntos.push({
-      name: etiquetaInicio,
-      'Historial Real': saldoFlujoReal,
-      'Proyección Proporcionada': null,
-      montoPagoReal: 0
-    });
 
     const abonosAgrupados = [];
     abonosReales.forEach((abono) => {
@@ -435,17 +488,49 @@ export default function Deudas({ refreshTrigger }) {
       }
     });
 
-    abonosAgrupados.forEach((abono) => {
-      saldoFlujoReal = Math.max(actual, saldoFlujoReal - abono.monto);
-      dataPuntos.push({
-        name: abono.fecha,
-        'Historial Real': saldoFlujoReal,
-        'Proyección Proporcionada': null,
-        montoPagoReal: abono.monto
-      });
+    const snapshotsManuales = historialDeudas
+      .filter(h => h.deuda_id === deuda.id)
+      .map(h => ({
+        tipoEvento: 'SNAPSHOT',
+        fecha: h.fecha,
+        monto: limpiarMonto(h.monto_saldo)
+      }));
+
+    const todosLosEventos = [...abonosAgrupados, ...snapshotsManuales].sort((a, b) => {
+      return new Date(a.fecha) - new Date(b.fecha);
     });
 
-    if (abonosAgrupados.length === 0) {
+    const dataPuntos = [];
+    let saldoFlujo = inicial;
+    
+    dataPuntos.push({
+      name: etiquetaInicio,
+      'Historial Real': saldoFlujo,
+      'Proyección Proporcionada': null,
+      montoPagoReal: 0
+    });
+
+    todosLosEventos.forEach((ev) => {
+      if (ev.tipoEvento === 'SNAPSHOT') {
+        saldoFlujo = ev.monto;
+        dataPuntos.push({
+          name: ev.fecha,
+          'Historial Real': saldoFlujo,
+          'Proyección Proporcionada': null,
+          montoPagoReal: 0
+        });
+      } else if (ev.tipoEvento === 'ABONO') {
+        saldoFlujo = Math.max(0, saldoFlujo - ev.monto);
+        dataPuntos.push({
+          name: ev.fecha,
+          'Historial Real': saldoFlujo,
+          'Proyección Proporcionada': null,
+          montoPagoReal: ev.monto
+        });
+      }
+    });
+
+    if (todosLosEventos.length === 0) {
       dataPuntos.push({
         name: 'Actual',
         'Historial Real': actual,
@@ -454,14 +539,15 @@ export default function Deudas({ refreshTrigger }) {
       });
     } else {
       const ultimoPunto = dataPuntos[dataPuntos.length - 1];
-      ultimoPunto['Proyección Proporcionada'] = saldoFlujoReal;
+      ultimoPunto['Proyección Proporcionada'] = saldoFlujo;
     }
 
-    const pagoPromedio = abonosReales.length > 0 
-      ? abonosReales.reduce((acc, curr) => acc + curr.monto, 0) / abonosReales.length 
+    const totalAbonado = abonosAgrupados.reduce((acc, c) => acc + c.monto, 0);
+    const pagoPromedio = abonosAgrupados.length > 0 
+      ? totalAbonado / abonosAgrupados.length 
       : inicial * 0.15;
 
-    let saldoSimulado = actual;
+    let saldoSimulado = saldoFlujo;
     let periodosProyectados = 1;
     const hoy = new Date();
     
@@ -599,10 +685,10 @@ export default function Deudas({ refreshTrigger }) {
         </div>
       </div>
 
-      {/* CUADROS CONSOLIDADOS (CON PASIVOS Y PATRIMONIO AJUSTADOS A LA FASE) */}
+      {/* CUADROS CONSOLIDADOS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
-        {/* 1. Deuda Viva / Capital Total de Pasivos ajustado a la fase */}
+        {/* 1. Deuda Viva / Capital Total de Pasivos */}
         <div className="bg-theme-bg border border-theme-border rounded-2xl p-5 border-l-4 border-l-theme-casa shadow-xl">
           <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">
             Capital Total de Pasivos ({filtroFaseDeuda})
@@ -629,7 +715,7 @@ export default function Deudas({ refreshTrigger }) {
           </div>
         </div>
 
-        {/* 3. REALIDAD FINANCIERA (PATRIMONIO NETO REAL) */}
+        {/* 3. REALIDAD FINANCIERA */}
         <div className={`bg-theme-bg border rounded-2xl p-5 shadow-xl border-l-4 ${patrimonioNetoReal < 0 ? 'border-l-red-500 bg-red-500/5' : 'border-l-theme-accent'}`}>
           <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">
             Realidad Financiera ({filtroFaseDeuda})
@@ -648,6 +734,7 @@ export default function Deudas({ refreshTrigger }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {deudasVigentes.map((deuda, index) => {
           const datosGrafica = generarDatosGrafica(deuda);
+          const saldoVivoMasReciente = obtenerSaldoMasReciente(deuda);
           
           return (
             <div key={index} className="bg-theme-bg border border-theme-border rounded-2xl p-5 space-y-4 shadow-xl">
@@ -683,8 +770,9 @@ export default function Deudas({ refreshTrigger }) {
                   title="Clic para editar saldo actual"
                 >
                   <span className="text-[9px] text-theme-text/50 block uppercase font-bold group-hover:text-theme-accent transition-colors">Saldo Actual</span>
+                  {/* 🟢 Muestra el saldo según la fecha más reciente de la BD */}
                   <span className="text-lg font-black text-theme-casa group-hover:brightness-125 transition-all">
-                    ${limpiarMonto(deuda.Deuda_Total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    ${saldoVivoMasReciente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -769,7 +857,7 @@ export default function Deudas({ refreshTrigger }) {
       </div>
 
       {/* ========================================================================= */}
-      {/* 🛡️ MODULO INTEGRADO: NEEDS VS WANTS CON DRAG & DROP DE PRIORIDADES */}
+      {/* 🛡️ MODULO INTEGRADO: NEEDS VS WANTS */}
       {/* ========================================================================= */}
       <div className="bg-theme-bg border border-theme-border rounded-2xl p-6 space-y-6 shadow-2xl backdrop-blur-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-theme-border/40 pb-4 gap-3">
@@ -862,7 +950,7 @@ export default function Deudas({ refreshTrigger }) {
           </div>
         </form>
 
-        {/* LISTADO DE ELEMENTOS CON SOPORTE DRAG & DROP */}
+        {/* LISTADO DE ELEMENTOS */}
         <div className="space-y-2 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
           {itemsNWFiltrados.length > 0 ? itemsNWFiltrados.map((item, index) => (
             <div
@@ -880,7 +968,6 @@ export default function Deudas({ refreshTrigger }) {
               }`}
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                {/* Agarradera visual */}
                 <GripVertical className="w-4 h-4 text-theme-text/30 flex-shrink-0" />
                 
                 <button
@@ -1065,7 +1152,7 @@ export default function Deudas({ refreshTrigger }) {
       )}
 
       {/* ========================================================================= */}
-      {/* 🟢 MODAL EDITAR DEUDA (INCLUYE FECHA INICIAL Y FASE) */}
+      {/* 🟢 MODAL EDITAR DEUDA */}
       {/* ========================================================================= */}
       {mostrarModalEditarDeuda && deudaSeleccionada && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1117,7 +1204,7 @@ export default function Deudas({ refreshTrigger }) {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Deuda Viva ($)</label>
+                    <label className="block text-[9px] font-black uppercase text-theme-casa mb-1">Nuevo Saldo Vivo ($)</label>
                     <input 
                       type="number" 
                       step="0.01" 
@@ -1142,10 +1229,9 @@ export default function Deudas({ refreshTrigger }) {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fecha Inicial (Arranque)</label>
+                    <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fecha de este Saldo</label>
                     <input 
-                      type="text" 
-                      placeholder="DD/MM/AAAA o YYYY-MM-DD"
+                      type="date" 
                       value={formEditDeuda.fecha_inicial}
                       onChange={(e) => setFormEditDeuda(prev => ({ ...prev, fecha_inicial: e.target.value }))}
                       className="w-full bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-mono font-bold text-theme-text outline-none focus:border-theme-accent"
@@ -1153,7 +1239,7 @@ export default function Deudas({ refreshTrigger }) {
                   </div>
                   <div>
                     <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">Fase</label>
-                    <select
+                    <select 
                       value={formEditDeuda.fase}
                       onChange={(e) => setFormEditDeuda(prev => ({ ...prev, fase: e.target.value }))}
                       className="w-full bg-theme-bg border border-theme-border rounded-lg p-2 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
@@ -1171,7 +1257,7 @@ export default function Deudas({ refreshTrigger }) {
                   disabled={guardandoDeuda}
                   className="w-full bg-theme-casa text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer hover:opacity-90"
                 >
-                  {guardandoDeuda ? 'Guardando...' : 'Guardar en Supabase'}
+                  {guardandoDeuda ? 'Guardando...' : 'Guardar y Registrar Avance'}
                 </button>
                 <button 
                   type="button" 
