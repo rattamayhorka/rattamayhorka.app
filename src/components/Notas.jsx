@@ -1,410 +1,1086 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
+import {
+  ReactFlow,
+  Controls,
+  Background,
+  applyNodeChanges,
+  applyEdgeChanges,
+  addEdge,
+  Handle,
+  Position,
+  NodeResizer,
+  useReactFlow,
+  useViewport,
+  ReactFlowProvider,
+  BaseEdge,
+  getBezierPath,
+  EdgeLabelRenderer,
+  MarkerType,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import getStroke from 'perfect-freehand';
 import { supabase } from '../supabase';
-import { 
-  Plus, Trash2, Save, Search, 
-  Bold, Italic, Heading1, Heading2, List, 
-  CheckSquare, Eye, Edit3, Loader2, BookOpen, Check 
+import {
+  Layers,
+  Trash2,
+  Plus,
+  X,
+  FolderKanban,
+  ArrowRight,
+  ArrowLeftRight,
+  Minus,
+  PenTool,
+  Move,
 } from 'lucide-react';
 
-export default function Notas({ refreshTrigger }) {
-  const [notas, setNotas] = useState([]);
-  const [notaActiva, setNotaActiva] = useState(null);
-  const [titulo, setTitulo] = useState('');
-  const [contenido, setContenido] = useState('');
-  
-  // Modos de visualización en 1 sola columna:
-  // 'live' = formateado y editable en tiempo real (Obsidian / Typora)
-  // 'raw'  = código Markdown plano
-  // 'read' = solo lectura
-  const [modo, setModo] = useState('live');
-  const [busqueda, setBusqueda] = useState('');
-  const [cargando, setCargando] = useState(false);
-  const [guardando, setGuardando] = useState(false);
-  const [guardadoExitoso, setGuardadoExitoso] = useState(false);
+// =========================================================
+// UTILIDADES SVG PARA EL TRAZO LIBRE
+// =========================================================
+function getSvgPathFromStroke(stroke) {
+  if (!stroke || stroke.length === 0) return '';
 
-  const editableRef = useRef(null);
-  const textareaRef = useRef(null);
-  const autoGuardadoRef = useRef(null);
-
-  useEffect(() => {
-    cargarNotas(false);
-  }, [refreshTrigger]);
-
-  // Sincronizar el contenedor en vivo cuando cambia la nota o el modo
-  useEffect(() => {
-    if (modo === 'live' && editableRef.current) {
-      if (editableRef.current.innerText !== contenido) {
-        editableRef.current.innerHTML = formatearMarkdownAHtml(contenido);
-      }
-    }
-  }, [notaActiva?.id, modo]);
-
-  // Cargar notas desde Supabase
-  const cargarNotas = async (silencioso = false) => {
-    if (!silencioso) setCargando(true);
-    try {
-      const { data, error } = await supabase
-        .from('notas')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-
-      const lista = data || [];
-      setNotas(lista);
-      if (lista.length > 0) {
-        seleccionarNota(lista[0]);
-      } else {
-        crearNuevaNota();
-      }
-    } catch (err) {
-      console.error('Error al sincronizar notas con Supabase:', err);
-    } finally {
-      if (!silencioso) setCargando(false);
-    }
-  };
-
-  const seleccionarNota = (nota) => {
-    setNotaActiva(nota);
-    setTitulo(nota.titulo || '');
-    setContenido(nota.contenido || '');
-    if (editableRef.current) {
-      editableRef.current.innerHTML = formatearMarkdownAHtml(nota.contenido || '');
-    }
-  };
-
-  // Crear nueva nota en Supabase
-  const crearNuevaNota = async () => {
-    setGuardando(true);
-    const nueva = {
-      titulo: 'Nota sin título',
-      contenido: '# Nueva Nota\n\nComienza a escribir aquí...',
-      updated_at: new Date().toISOString()
-    };
-
-    try {
-      const { data, error } = await supabase
-        .from('notas')
-        .insert([nueva])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setNotas(prev => [data, ...prev]);
-      seleccionarNota(data);
-    } catch (err) {
-      console.error('Error al crear nota en Supabase:', err);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  // Eliminar nota de Supabase
-  const eliminarNota = async (id, e) => {
-    e.stopPropagation();
-    if (!window.confirm('¿Seguro que deseas eliminar esta nota?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('notas')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      const restantes = notas.filter(n => n.id !== id);
-      setNotas(restantes);
-      if (notaActiva?.id === id) {
-        if (restantes.length > 0) seleccionarNota(restantes[0]);
-        else crearNuevaNota();
-      }
-    } catch (err) {
-      console.error('Error al eliminar nota en Supabase:', err);
-    }
-  };
-
-  // Guardar cambios en Supabase
-  const guardarNota = async (nuevoTitulo = titulo, nuevoContenido = contenido) => {
-    if (!notaActiva) return;
-    setGuardando(true);
-
-    try {
-      const payload = {
-        titulo: nuevoTitulo.trim() || 'Nota sin título',
-        contenido: nuevoContenido,
-        updated_at: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase
-        .from('notas')
-        .update(payload)
-        .eq('id', notaActiva.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setNotas(prev => prev.map(n => (n.id === data.id ? data : n)));
-      setGuardadoExitoso(true);
-      setTimeout(() => setGuardadoExitoso(false), 2000);
-    } catch (err) {
-      console.error('Error al guardar nota en Supabase:', err);
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  // Auto-guardado con debounce
-  const programarAutoGuardado = (t, c) => {
-    if (autoGuardadoRef.current) clearTimeout(autoGuardadoRef.current);
-    autoGuardadoRef.current = setTimeout(() => {
-      guardarNota(t, c);
-    }, 1200);
-  };
-
-  const manejarCambioTitulo = (e) => {
-    const val = e.target.value;
-    setTitulo(val);
-    programarAutoGuardado(val, contenido);
-  };
-
-  const manejarCambioRaw = (e) => {
-    const val = e.target.value;
-    setContenido(val);
-    programarAutoGuardado(titulo, val);
-  };
-
-  const manejarInputLive = () => {
-    if (!editableRef.current) return;
-    const nuevoTexto = editableRef.current.innerText;
-    setContenido(nuevoTexto);
-    programarAutoGuardado(titulo, nuevoTexto);
-  };
-
-  // Botones de formato
-  const insertarSintaxis = (simbolo) => {
-    if (modo === 'raw' && textareaRef.current) {
-      const el = textareaRef.current;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const texto = el.value;
-      const sel = texto.substring(start, end);
-      const res = `${simbolo}${sel || 'texto'}${simbolo}`;
-      const final = texto.substring(0, start) + res + texto.substring(end);
-      setContenido(final);
-      guardarNota(titulo, final);
-    } else {
-      const nuevo = contenido + `\n${simbolo} Texto`;
-      setContenido(nuevo);
-      if (editableRef.current) {
-        editableRef.current.innerHTML = formatearMarkdownAHtml(nuevo);
-      }
-      guardarNota(titulo, nuevo);
-    }
-  };
-
-  const formatearMarkdownAHtml = (texto) => {
-    if (!texto) return '';
-    return texto
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/^### (.*$)/gim, '<h3 class="text-base font-black text-theme-accent mt-3 mb-1">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-lg font-black text-theme-accent mt-4 mb-2">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-black text-theme-accent border-b border-theme-border/60 pb-2 mb-3">$1</h1>')
-      .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold text-theme-accent">$1</strong>')
-      .replace(/\*(.*?)\*/gim, '<em class="italic text-theme-text/80">$1</em>')
-      .replace(/^\> (.*$)/gim, '<blockquote class="border-l-2 border-theme-accent pl-3 py-1 my-2 italic bg-theme-border/10 rounded-r text-theme-text/70">$1</blockquote>')
-      .replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 my-1"><input type="checkbox" disabled class="rounded accent-theme-accent" /> <span>$1</span></div>')
-      .replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 my-1"><input type="checkbox" checked disabled class="rounded accent-theme-accent" /> <span class="line-through opacity-40">$1</span></div>')
-      .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
-      .replace(/```([\s\S]*?)```/gim, '<pre class="bg-theme-border/20 p-3 rounded font-mono text-xs my-2 overflow-x-auto text-theme-accent"><code>$1</code></pre>')
-      .replace(/`(.*?)`/gim, '<code class="bg-theme-border/30 px-1.5 py-0.5 rounded font-mono text-xs text-theme-accent">$1</code>')
-      .replace(/\n/g, '<br/>');
-  };
-
-  const notasFiltradas = notas.filter(n => 
-    (n.titulo || '').toLowerCase().includes(busqueda.toLowerCase()) ||
-    (n.contenido || '').toLowerCase().includes(busqueda.toLowerCase())
+  const d = stroke.reduce(
+    (acc, [x0, y0], i, arr) => {
+      const [x1, y1] = arr[(i + 1) % arr.length];
+      acc.push(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+      return acc;
+    },
+    ['M', ...stroke[0], 'Q']
   );
 
+  d.push('Z');
+  return d.join(' ');
+}
+
+// =========================================================
+// NODO PERSONALIZADO: DIBUJO LIBRE (SVG)
+// =========================================================
+const NodoDibujoLibre = memo(({ data }) => {
+  const points = data?.points || [];
+  if (points.length === 0) return null;
+
+  const stroke = getStroke(points, {
+    size: data.size || 6,
+    thinning: 0.5,
+    smoothing: 0.5,
+    streamline: 0.5,
+  });
+
+  const pathData = getSvgPathFromStroke(stroke);
+
   return (
-    <div className="flex h-[calc(100vh-5rem)] bg-theme-bg text-theme-text border border-theme-border rounded-2xl overflow-hidden shadow-2xl font-mono">
-      
-      {/* PANEL LATERAL: LISTA DE NOTAS */}
-      <aside className="w-64 bg-theme-card border-r border-theme-border flex flex-col flex-shrink-0">
-        <div className="p-3.5 border-b border-theme-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-theme-accent" />
-            <span className="font-black text-xs uppercase tracking-wider">Vault</span>
-          </div>
-          <button 
-            onClick={crearNuevaNota}
-            className="p-1.5 bg-theme-accent text-theme-bg rounded-lg hover:opacity-90 transition-all cursor-pointer"
-            title="Nueva Nota"
+    <div className="pointer-events-none relative">
+      <svg className="overflow-visible absolute top-0 left-0">
+        <path d={pathData} fill={data.color || 'var(--color-theme-accent)'} />
+      </svg>
+    </div>
+  );
+});
+
+NodoDibujoLibre.displayName = 'NodoDibujoLibre';
+
+// =========================================================
+// PALETA Y CONSTANTES DE TEMA
+// =========================================================
+const connectionLineStyle = { stroke: 'var(--color-theme-border)', strokeWidth: 1.5 };
+
+const defaultEdgeOptions = {
+  type: 'customMenuEdge',
+  animated: false,
+  style: {
+    stroke: 'var(--color-theme-accent)',
+    strokeWidth: 1.7,
+  },
+  markerEnd: undefined,
+  markerStart: undefined,
+};
+
+const OPCIONES_COLOR_GRUPO = [
+  { id: 'purple',  nombre: 'Morado',    bg: 'bg-purple-500/5',  border: 'border-purple-500/50',  dot: 'bg-purple-500',  text: 'text-purple-400' },
+  { id: 'blue',    nombre: 'Azul',      bg: 'bg-blue-500/5',    border: 'border-blue-500/50',    dot: 'bg-blue-500',    text: 'text-blue-400' },
+  { id: 'emerald', nombre: 'Esmeralda', bg: 'bg-emerald-500/5', border: 'border-emerald-500/50', dot: 'bg-emerald-500', text: 'text-emerald-400' },
+  { id: 'amber',   nombre: 'Ámbar',     bg: 'bg-amber-500/5',   border: 'border-amber-500/50',   dot: 'bg-amber-500',   text: 'text-amber-400' },
+  { id: 'rose',    nombre: 'Rosa',      bg: 'bg-rose-500/5',    border: 'border-rose-500/50',    dot: 'bg-rose-500',    text: 'text-rose-400' },
+  { id: 'zinc',    nombre: 'Gris',      bg: 'bg-zinc-500/5',    border: 'border-zinc-500/40',    dot: 'bg-zinc-400',    text: 'text-zinc-400' },
+];
+
+const PALETA_DIBUJO = [
+  { id: 'accent',  color: 'var(--color-theme-accent)',  bgClass: 'bg-theme-accent' },
+  { id: 'trabajo', color: 'var(--color-theme-trabajo)', bgClass: 'bg-theme-trabajo' },
+  { id: 'casa',    color: 'var(--color-theme-casa)',    bgClass: 'bg-theme-casa' },
+  { id: 'text',    color: 'var(--color-theme-text)',    bgClass: 'bg-theme-text' },
+];
+
+// =========================================================
+// CUSTOM EDGE INTERACTIVO CON MENÚ FLOTANTE
+// =========================================================
+function CustomMenuEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  markerStart,
+  selected,
+  data,
+}) {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  const menuVisible = data?.edgeMenuAbiertoId === id;
+
+  return (
+    <>
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={36}
+        style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+        onClick={(e) => {
+          e.stopPropagation();
+          data?.onToggleMenuEdge?.(id);
+        }}
+      />
+
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        markerStart={markerStart}
+        style={{
+          ...style,
+          cursor: 'pointer',
+          stroke: selected || menuVisible ? 'var(--color-theme-accent)' : style.stroke || 'var(--color-theme-accent)',
+        }}
+      />
+
+      <EdgeLabelRenderer>
+        {menuVisible && (
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'all',
+            }}
+            className="nodrag nopan z-[100]"
           >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <div
+              className="bg-theme-bg border border-theme-border rounded-lg shadow-2xl p-1.5 flex items-center gap-1 text-[10px] font-mono whitespace-nowrap backdrop-blur-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  data?.onModificarEdge?.(id, {
+                    markerStart: undefined,
+                    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' },
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer"
+                title="Flecha en un sentido"
+              >
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  data?.onModificarEdge?.(id, {
+                    markerStart: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' },
+                    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--color-theme-accent)' },
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer"
+                title="Flecha en ambos sentidos"
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  data?.onModificarEdge?.(id, {
+                    markerStart: undefined,
+                    markerEnd: undefined,
+                    style: { ...style, strokeDasharray: undefined },
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer"
+                title="Línea sólida simple"
+              >
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const tieneDash = !!style.strokeDasharray;
+                  data?.onModificarEdge?.(id, {
+                    style: {
+                      ...style,
+                      strokeDasharray: tieneDash ? undefined : '5,5',
+                    },
+                  });
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="px-1.5 py-0.5 hover:bg-theme-border/30 rounded text-theme-text/80 hover:text-theme-accent cursor-pointer font-bold"
+                title="Alternar línea punteada / sólida"
+              >
+                Punteada
+              </button>
+
+              <div className="w-[1px] h-3 bg-theme-border/60 mx-0.5" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  data?.onEliminarEdge?.(id);
+                  data?.onCerrarMenuEdge?.();
+                }}
+                className="p-1 hover:bg-theme-casa/20 rounded text-theme-text/80 hover:text-theme-casa cursor-pointer"
+                title="Eliminar conexión"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+// =========================================================
+// NODO GRUPO
+// =========================================================
+function NodoGrupoExpandible(props) {
+  const { id, data, selected } = props;
+  const colorActual = OPCIONES_COLOR_GRUPO.find((c) => c.id === data.color) || OPCIONES_COLOR_GRUPO[0];
+
+  return (
+    <div
+      className={`w-full h-full border-[3px] rounded-2xl p-4 font-mono text-left relative min-w-[200px] min-h-[150px] transition-all duration-200 group/groupnode ${colorActual.bg} ${
+        selected ? 'border-solid ring-1 ring-theme-text/20 ' + colorActual.border : colorActual.border + ' hover:brightness-125'
+      }`}
+    >
+      <NodeResizer
+        color="var(--color-theme-accent)"
+        minWidth={200}
+        minHeight={150}
+        isVisible={selected}
+        lineClassName="border-theme-accent/30"
+        handleClassName="!w-3 !h-3 !bg-theme-bg !border !border-theme-accent !rounded-sm"
+        onResizeEnd={(event, params) => {
+          if (data.onResizeGrupo) {
+            data.onResizeGrupo(id, params.width, params.height);
+          }
+        }}
+      />
+
+      <div className={`${selected ? 'opacity-100' : 'opacity-0 group-hover/groupnode:opacity-100'} transition-opacity duration-200`}>
+        <Handle type="target" position={Position.Top} id="g-t-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Top} id="g-t-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Bottom} id="g-b-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Bottom} id="g-b-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Left} id="g-l-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Left} id="g-l-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+        <Handle type="target" position={Position.Right} id="g-r-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
+        <Handle type="source" position={Position.Right} id="g-r-out" className="w-2 h-2 !bg-theme-accent border-none z-50" />
+      </div>
+
+      <div
+        className="absolute top-3 left-4 flex items-center gap-2 nodrag select-none z-50 cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          const nuevoNombre = prompt('Editar nombre del grupo:', data.label);
+          if (nuevoNombre && nuevoNombre.trim() && nuevoNombre.trim() !== data.label) {
+            data.onEditarNombreGrupo && data.onEditarNombreGrupo(id, nuevoNombre.trim());
+          }
+        }}
+        title="Doble clic para editar nombre del grupo"
+      >
+        <Layers className={`w-4 h-4 ${colorActual.text}`} />
+        <span className="text-[12px] font-semibold tracking-wider text-theme-text uppercase bg-theme-bg/80 px-2 py-0.5 rounded border border-theme-border shadow-md hover:border-theme-accent transition-colors">
+          {data.label}
+        </span>
+      </div>
+
+      <div
+        className={`absolute top-full left-4 pt-2 z-[100] nodrag transition-opacity duration-150 ${
+          selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/groupnode:opacity-100 group-hover/groupnode:pointer-events-auto'
+        }`}
+      >
+        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2.5 py-1.5 flex items-center gap-2 pointer-events-auto antialiased [transform:translateZ(0)]">
+          <div className="flex items-center gap-1">
+            {OPCIONES_COLOR_GRUPO.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onCambiarColorGrupo && data.onCambiarColorGrupo(id, c.id);
+                }}
+                className={`w-3.5 h-3.5 rounded-full ${c.dot} transition-transform hover:scale-125 cursor-pointer ${
+                  (data.color || 'purple') === c.id ? 'ring-2 ring-theme-text scale-110' : 'opacity-60 hover:opacity-100'
+                }`}
+                title={c.nombre || `Color ${c.id}`}
+              />
+            ))}
+          </div>
+          <div className="w-[1px] h-3 bg-theme-border/60" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onEliminarNodo && data.onEliminarNodo(id);
+            }}
+            className="text-theme-text/80 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer flex items-center gap-1 font-mono"
+          >
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="text-[11px] font-medium leading-none select-none">Eliminar</span>
           </button>
         </div>
-
-        <div className="p-2.5 border-b border-theme-border/40">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-text/40" />
-            <input 
-              type="text"
-              placeholder="Buscar..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full bg-theme-bg border border-theme-border rounded-lg pl-8 pr-2.5 py-1 text-xs text-theme-text outline-none focus:border-theme-accent"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {cargando && (
-            <div className="flex justify-center p-4">
-              <Loader2 className="w-4 h-4 animate-spin text-theme-accent" />
-            </div>
-          )}
-
-          {!cargando && notasFiltradas.length === 0 && (
-            <p className="text-[10px] text-center text-theme-text/40 py-6">Sin notas</p>
-          )}
-
-          {notasFiltradas.map((n) => {
-            const activa = notaActiva?.id === n.id;
-            return (
-              <div
-                key={n.id}
-                onClick={() => seleccionarNota(n)}
-                className={`group flex items-center justify-between p-2 rounded-xl cursor-pointer text-left transition-all ${
-                  activa 
-                    ? 'bg-theme-accent/15 border border-theme-accent/30 text-theme-accent font-bold' 
-                    : 'hover:bg-theme-border/20 text-theme-text/80'
-                }`}
-              >
-                <div className="truncate pr-2">
-                  <p className="text-xs truncate">{n.titulo || 'Sin título'}</p>
-                  <span className="text-[8px] text-theme-text/40 block truncate">
-                    {new Date(n.updated_at || n.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <button
-                  onClick={(e) => eliminarNota(n.id, e)}
-                  className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-1 transition-opacity cursor-pointer"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </aside>
-
-      {/* ÁREA DE EDICIÓN: 1 SOLA COLUMNA */}
-      <main className="flex-1 flex flex-col min-w-0 bg-theme-bg">
-        
-        {/* BARRA SUPERIOR */}
-        <header className="h-12 border-b border-theme-border px-4 flex items-center justify-between gap-3 bg-theme-card/30">
-          <input 
-            type="text"
-            value={titulo}
-            onChange={manejarCambioTitulo}
-            placeholder="Título..."
-            className="bg-transparent text-sm font-black text-theme-text outline-none focus:border-b focus:border-theme-accent flex-1 max-w-sm"
-          />
-
-          <div className="hidden sm:flex items-center gap-1">
-            <button onClick={() => insertarSintaxis('**')} className="p-1 hover:bg-theme-border/30 rounded text-theme-text/70 hover:text-theme-accent" title="Negrita"><Bold className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertarSintaxis('*')} className="p-1 hover:bg-theme-border/30 rounded text-theme-text/70 hover:text-theme-accent" title="Cursiva"><Italic className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertarSintaxis('# ')} className="p-1 hover:bg-theme-border/30 rounded text-theme-text/70 hover:text-theme-accent" title="Encabezado"><Heading1 className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertarSintaxis('- ')} className="p-1 hover:bg-theme-border/30 rounded text-theme-text/70 hover:text-theme-accent" title="Lista"><List className="w-3.5 h-3.5" /></button>
-            <button onClick={() => insertarSintaxis('- [ ] ')} className="p-1 hover:bg-theme-border/30 rounded text-theme-text/70 hover:text-theme-accent" title="Tarea"><CheckSquare className="w-3.5 h-3.5" /></button>
-          </div>
-
-          {/* CONMUTADOR DE VISTAS (EN LA MISMA COLUMNA) */}
-          <div className="flex items-center gap-2">
-            <div className="flex bg-theme-bg border border-theme-border rounded-lg p-0.5 text-[10px] font-bold">
-              <button
-                onClick={() => setModo('live')}
-                className={`px-2.5 py-1 rounded-md transition-all ${modo === 'live' ? 'bg-theme-accent text-theme-bg shadow' : 'text-theme-text/60'}`}
-                title="Modo editable con formato activo"
-              >
-                En Vivo
-              </button>
-              <button
-                onClick={() => setModo('raw')}
-                className={`px-2.5 py-1 rounded-md transition-all ${modo === 'raw' ? 'bg-theme-accent text-theme-bg shadow' : 'text-theme-text/60'}`}
-                title="Modo Markdown plano"
-              >
-                Markdown
-              </button>
-              <button
-                onClick={() => setModo('read')}
-                className={`px-2 py-1 rounded-md transition-all ${modo === 'read' ? 'bg-theme-accent text-theme-bg shadow' : 'text-theme-text/60'}`}
-                title="Solo lectura"
-              >
-                <Eye className="w-3 h-3" />
-              </button>
-            </div>
-
-            <button
-              onClick={() => guardarNota()}
-              disabled={guardando}
-              className="flex items-center gap-1.5 bg-theme-accent hover:opacity-90 text-theme-bg px-2.5 py-1 rounded-lg text-xs font-black uppercase shadow transition-all cursor-pointer disabled:opacity-50"
-            >
-              {guardando ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : guardadoExitoso ? (
-                <Check className="w-3 h-3 stroke-[3]" />
-              ) : (
-                <Save className="w-3 h-3" />
-              )}
-              <span className="hidden sm:inline">
-                {guardando ? '...' : guardadoExitoso ? 'OK' : 'Guardar'}
-              </span>
-            </button>
-          </div>
-        </header>
-
-        {/* LIENZO ÚNICO */}
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto max-w-4xl w-full mx-auto">
-          
-          {/* 1. MODO EN VIVO (Formato interactivo editable) */}
-          {modo === 'live' && (
-            <div
-              ref={editableRef}
-              contentEditable
-              suppressContentEditableWarning
-              onInput={manejarInputLive}
-              className="outline-none min-h-[500px] leading-relaxed text-sm text-theme-text empty:before:content-['Escribe_aquí...'] empty:before:text-theme-text/30"
-            />
-          )}
-
-          {/* 2. MODO RAW (Markdown plano) */}
-          {modo === 'raw' && (
-            <textarea
-              ref={textareaRef}
-              value={contenido}
-              onChange={manejarCambioRaw}
-              placeholder="Escribe en Markdown..."
-              className="w-full h-full min-h-[500px] bg-transparent resize-none outline-none font-mono text-sm leading-relaxed text-theme-text placeholder:text-theme-text/30"
-              spellCheck="false"
-            />
-          )}
-
-          {/* 3. MODO SOLO LECTURA */}
-          {modo === 'read' && (
-            <div 
-              className="min-h-[500px] leading-relaxed text-sm text-theme-text select-text"
-              dangerouslySetInnerHTML={{ __html: formatearMarkdownAHtml(contenido) }}
-            />
-          )}
-
-        </div>
-
-      </main>
+      </div>
     </div>
+  );
+}
+
+// =========================================================
+// NODO NOTA / META
+// =========================================================
+function NodoMetaAutonomo(props) {
+  const { id, data, selected } = props;
+
+  let statusColor = 'border-2 border-theme-border bg-theme-bg text-theme-text';
+  if (data.status === 'En Progreso') {
+    statusColor = 'border-2 border-theme-accent/50 bg-theme-bg text-theme-accent';
+  }
+  if (data.status === 'Completado') {
+    statusColor = 'border-2 border-theme-trabajo/50 bg-theme-bg text-theme-trabajo';
+  }
+  const handleClass = `w-2 h-2 !bg-theme-border ${
+    selected ? '!opacity-100' : '!opacity-0 group-hover/node:!opacity-100'
+  } transition-opacity !cursor-crosshair before:content-[''] before:absolute before:w-8 before:h-8 before:bg-transparent before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:z-[80]`;
+
+  return (
+    <div
+      className={`border rounded-lg p-3 w-56 shadow-2xl font-mono text-left transition-all duration-200 relative group/node ${statusColor} ${
+        selected ? 'ring-2 ring-theme-accent border-theme-accent shadow-2xl' : ''
+      }`}
+    >
+      <Handle type="target" position={Position.Top} id="t" className={`${handleClass} z-[60]`} />
+      <Handle type="source" position={Position.Top} id="t-o" className={`${handleClass} z-[60]`} />
+      <Handle type="target" position={Position.Bottom} id="b" className={`${handleClass} z-[70]`} style={{ bottom: '-4px' }} />
+      <Handle type="source" position={Position.Bottom} id="b-o" className={`${handleClass} z-[70]`} style={{ bottom: '-4px' }} />
+      <Handle type="target" position={Position.Left} id="l" className={`${handleClass} z-[60]`} />
+      <Handle type="source" position={Position.Left} id="l-o" className={`${handleClass} z-[60]`} />
+      <Handle type="target" position={Position.Right} id="r" className={`${handleClass} z-[60]`} />
+      <Handle type="source" position={Position.Right} id="r-o" className={`${handleClass} z-[60]`} />
+
+      <div
+        className="min-w-0 cursor-pointer select-none"
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          const nuevoTexto = prompt('Editar contenido de la nota:', data.label);
+          if (nuevoTexto && nuevoTexto.trim() && nuevoTexto.trim() !== data.label) {
+            data.onEditarTexto && data.onEditarTexto(id, nuevoTexto.trim());
+          }
+        }}
+      >
+        <p
+          className={`font-normal text-[13px] leading-snug tracking-wide break-words text-theme-text ${
+            data.status === 'Completado' ? 'line-through opacity-50' : ''
+          }`}
+        >
+          {data.label}
+        </p>
+      </div>
+
+      <div
+        className={`absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag transition-all duration-150 ease-out ${
+          selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto'
+        }`}
+      >
+        <div className="bg-theme-bg border border-theme-border rounded-md shadow-2xl px-2 py-1.5 flex items-center gap-1.5 backdrop-blur-md pointer-events-auto whitespace-nowrap">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onCambiarEstado && data.onCambiarEstado(id, 'Por Hacer');
+            }}
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
+              data.status === 'Por Hacer' ? 'bg-theme-border text-theme-bg font-bold' : 'text-theme-text/50 hover:text-theme-text'
+            }`}
+          >
+            Nota
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onCambiarEstado && data.onCambiarEstado(id, 'En Progreso');
+            }}
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
+              data.status === 'En Progreso' ? 'bg-theme-accent text-theme-bg font-bold' : 'text-theme-text/50 hover:text-theme-text'
+            }`}
+          >
+            Progreso
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onCambiarEstado && data.onCambiarEstado(id, 'Completado');
+            }}
+            className={`text-[9px] font-medium px-1.5 py-0.5 rounded transition-colors cursor-pointer ${
+              data.status === 'Completado' ? 'bg-theme-trabajo text-theme-bg font-bold' : 'text-theme-text/50 hover:text-theme-text'
+            }`}
+          >
+            Listo
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              const nuevoTexto = prompt('Editar contenido de la nota:', data.label);
+              if (nuevoTexto && nuevoTexto.trim() && nuevoTexto.trim() !== data.label) {
+                data.onEditarTexto && data.onEditarTexto(id, nuevoTexto.trim());
+              }
+            }}
+            className="text-[9px] font-medium px-1.5 py-0.5 rounded text-theme-accent hover:bg-theme-accent/10 transition-colors cursor-pointer"
+          >
+            Editar
+          </button>
+
+          <div className="w-[1px] h-3 bg-theme-border/60" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              data.onEliminarNodo && data.onEliminarNodo(id);
+            }}
+            className="text-theme-text/50 hover:text-theme-casa p-1 rounded transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// REGISTRO DE TIPOS DE NODO Y LÍNEA
+// =========================================================
+const nodeTypes = {
+  nodoMeta: NodoMetaAutonomo,
+  nodoGrupo: NodoGrupoExpandible,
+  drawing: NodoDibujoLibre,
+};
+
+const edgeTypes = {
+  customMenuEdge: CustomMenuEdge,
+};
+
+// =========================================================
+// COMPONENTE PRINCIPAL (INTERNO)
+// =========================================================
+export function GestionProyectosContenido() {
+  const [proyectos, setProyectos] = useState([]);
+  const [tabActiva, setTabActiva] = useState('principal');
+
+  const [nodes, setNodes] = useState([]);
+  const [edges, setEdges] = useState([]);
+  const [edgeMenuAbiertoId, setEdgeMenuAbiertoId] = useState(null);
+
+  // Estados para dibujo libre
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [strokeColor, setStrokeColor] = useState('var(--color-theme-accent)');
+  const [strokeSize, setStrokeSize] = useState(6);
+  const [currentStroke, setCurrentStroke] = useState([]);
+
+  const isPointerDownRef = useRef(false);
+  const flowWrapper = useRef(null);
+  const nodesRef = useRef([]);
+  const edgesRef = useRef([]);
+  const tabActivaRef = useRef('principal');
+  const proyectosRef = useRef([]);
+
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
+  useEffect(() => { tabActivaRef.current = tabActiva; }, [tabActiva]);
+  useEffect(() => { proyectosRef.current = proyectos; }, [proyectos]);
+
+  useEffect(() => {
+    const prevenirAutoScrollGlobal = (e) => {
+      if (e.button === 1) e.preventDefault();
+    };
+    window.addEventListener('mousedown', prevenirAutoScrollGlobal, { capture: true, passive: false });
+    window.addEventListener('auxclick', prevenirAutoScrollGlobal, { capture: true, passive: false });
+
+    return () => {
+      window.removeEventListener('mousedown', prevenirAutoScrollGlobal, { capture: true });
+      window.removeEventListener('auxclick', prevenirAutoScrollGlobal, { capture: true });
+    };
+  }, []);
+
+  const contadorMetasLocal = useRef(0);
+  const contadorGruposLocal = useRef(0);
+
+  // Instancias directas de coordenadas y viewport de React Flow
+  const { screenToFlowPosition } = useReactFlow();
+  const { x: vpX, y: vpY, zoom: vpZoom } = useViewport();
+
+  // Handlers de dibujo libre con transformación directa
+  const onPointerDown = useCallback(
+    (e) => {
+      if (!isDrawingMode || e.button !== 0) return;
+
+      const target = e.target;
+      if (target.closest('.react-flow__controls') || target.closest('button')) return;
+
+      isPointerDownRef.current = true;
+      const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      setCurrentStroke([[point.x, point.y, e.pressure || 0.5]]);
+    },
+    [isDrawingMode, screenToFlowPosition]
+  );
+
+  const onPointerMove = useCallback(
+    (e) => {
+      if (!isDrawingMode || !isPointerDownRef.current) return;
+      const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      setCurrentStroke((prev) => [...prev, [point.x, point.y, e.pressure || 0.5]]);
+    },
+    [isDrawingMode, screenToFlowPosition]
+  );
+
+  const onPointerUp = useCallback(() => {
+    if (!isDrawingMode || !isPointerDownRef.current) return;
+    isPointerDownRef.current = false;
+
+    if (currentStroke.length > 1) {
+      const [originX, originY] = currentStroke[0];
+      const relativePoints = currentStroke.map(([x, y, p]) => [x - originX, y - originY, p]);
+
+      const newNode = {
+        id: `draw_${Date.now()}`,
+        type: 'drawing',
+        position: { x: originX, y: originY },
+        data: {
+          points: relativePoints,
+          color: strokeColor,
+          size: strokeSize,
+        },
+      };
+
+      setNodes((nds) => {
+        const actualizados = [...nds, newNode];
+        nodesRef.current = actualizados;
+        return actualizados;
+      });
+    }
+
+    setCurrentStroke([]);
+  }, [isDrawingMode, currentStroke, strokeColor, strokeSize]);
+
+  // Manejo de nodos grupales y notas
+  const cambiarColorGrupo = useCallback((idGrupo, nuevoColor) => {
+    setNodes((nds) => nds.map((n) => (n.id === idGrupo ? { ...n, data: { ...n.data, color: nuevoColor } } : n)));
+  }, []);
+
+  const editarNombreGrupo = useCallback((idGrupo, nuevoNombre) => {
+    setNodes((nds) => nds.map((n) => (n.id === idGrupo ? { ...n, data: { ...n.data, label: nuevoNombre } } : n)));
+  }, []);
+
+  const resizeGrupo = useCallback((idGrupo, width, height) => {
+    setNodes((nds) => nds.map((n) => (n.id === idGrupo ? { ...n, style: { ...n.style, width, height } } : n)));
+  }, []);
+
+  const cambiarEstadoMeta = useCallback((idNodo, nuevoEstado) => {
+    setNodes((nds) => nds.map((n) => (n.id === idNodo ? { ...n, data: { ...n.data, status: nuevoEstado } } : n)));
+  }, []);
+
+  const editarTextoMeta = useCallback((idNodo, nuevoTexto) => {
+    setNodes((nds) => nds.map((n) => (n.id === idNodo ? { ...n, data: { ...n.data, label: nuevoTexto } } : n)));
+  }, []);
+
+  const eliminarNodo = useCallback((idNodo) => {
+    setNodes((nds) => {
+      const nodoABorrar = nds.find((n) => n.id === idNodo);
+      const esGrupo = nodoABorrar?.type === 'nodoGrupo';
+      const nodosFiltrados = nds.filter((n) => n.id !== idNodo);
+
+      let actualizadosNodos = [];
+      if (esGrupo) {
+        actualizadosNodos = nodosFiltrados.map((n) => {
+          if (n.parentId === idNodo) {
+            const posXAbs = n.position.x + (nodoABorrar.position?.x || 0);
+            const posYAbs = n.position.y + (nodoABorrar.position?.y || 0);
+            return { ...n, parentId: undefined, position: { x: posXAbs, y: posYAbs } };
+          }
+          return n;
+        });
+      } else {
+        actualizadosNodos = nodosFiltrados;
+      }
+
+      setEdges((eds) => eds.filter((e) => e.source !== idNodo && e.target !== idNodo));
+      return actualizadosNodos;
+    });
+  }, []);
+
+  const toggleMenuEdge = useCallback((idEdge) => {
+    setEdgeMenuAbiertoId((prev) => (prev === idEdge ? null : idEdge));
+  }, []);
+
+  const cerrarMenuEdge = useCallback(() => {
+    setEdgeMenuAbiertoId(null);
+  }, []);
+
+  const modificarEdge = useCallback((idEdge, nuevosProps) => {
+    setEdges((eds) =>
+      eds.map((e) => {
+        if (e.id === idEdge) {
+          return {
+            ...e,
+            ...nuevosProps,
+            style: { ...e.style, ...(nuevosProps.style || {}) },
+          };
+        }
+        return e;
+      })
+    );
+  }, []);
+
+  const eliminarEdge = useCallback((idEdge) => {
+    setEdges((eds) => eds.filter((e) => e.id !== idEdge));
+  }, []);
+
+  useEffect(() => {
+    setEdges((eds) =>
+      eds.map((e) => ({
+        ...e,
+        data: {
+          ...e.data,
+          edgeMenuAbiertoId,
+          onToggleMenuEdge: toggleMenuEdge,
+          onCerrarMenuEdge: cerrarMenuEdge,
+          onModificarEdge: modificarEdge,
+          onEliminarEdge: eliminarEdge,
+        },
+      }))
+    );
+  }, [edgeMenuAbiertoId, toggleMenuEdge, cerrarMenuEdge, modificarEdge, eliminarEdge]);
+
+  const onNodesChange = useCallback((changes) => {
+    setNodes((nds) => {
+      const actualizados = applyNodeChanges(changes, nds);
+      nodesRef.current = actualizados;
+      return actualizados;
+    });
+  }, []);
+
+  const onNodeDragStop = useCallback((event, nodoMovido) => {
+    setNodes((nds) => {
+      if (nodoMovido.type !== 'nodoMeta') return nds;
+
+      const grupos = nds.filter((n) => n.type === 'nodoGrupo');
+      let posXAbs = nodoMovido.position.x;
+      let posYAbs = nodoMovido.position.y;
+
+      if (nodoMovido.parentId) {
+        const padreAnterior = nds.find((n) => n.id === nodoMovido.parentId);
+        if (padreAnterior) {
+          posXAbs += padreAnterior.position.x;
+          posYAbs += padreAnterior.position.y;
+        }
+      }
+
+      const centroX = posXAbs + 112;
+      const centroY = posYAbs + 30;
+
+      let nuevoPadre = null;
+      for (const g of grupos) {
+        const anchoG = typeof g.style?.width === 'number' ? g.style.width : 380;
+        const altoG = typeof g.style?.height === 'number' ? g.style.height : 280;
+
+        if (
+          centroX >= g.position.x &&
+          centroX <= g.position.x + anchoG &&
+          centroY >= g.position.y &&
+          centroY <= g.position.y + altoG
+        ) {
+          nuevoPadre = g;
+          break;
+        }
+      }
+
+      const nuevoParentId = nuevoPadre ? nuevoPadre.id : undefined;
+
+      if (nodoMovido.parentId !== nuevoParentId) {
+        const nuevaX = nuevoPadre ? posXAbs - nuevoPadre.position.x : posXAbs;
+        const nuevaY = nuevoPadre ? posYAbs - nuevoPadre.position.y : posYAbs;
+
+        const actualizadosConPadre = nds.map((n) => {
+          if (n.id === nodoMovido.id) {
+            return {
+              ...n,
+              parentId: nuevoParentId,
+              position: { x: nuevaX, y: nuevaY },
+            };
+          }
+          return n;
+        });
+
+        return [...actualizadosConPadre].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1));
+      }
+
+      return nds;
+    });
+  }, []);
+
+  const onEdgesChange = useCallback((changes) => {
+    setEdges((eds) => {
+      const actualizadas = applyEdgeChanges(changes, eds);
+      edgesRef.current = actualizadas;
+      return actualizadas;
+    });
+  }, []);
+
+  const onConnect = useCallback(
+    (params) => {
+      const nuevaConexion = {
+        ...params,
+        id: `edge_${Date.now()}`,
+        type: 'customMenuEdge',
+        data: {
+          edgeMenuAbiertoId: null,
+          onToggleMenuEdge: toggleMenuEdge,
+          onCerrarMenuEdge: cerrarMenuEdge,
+          onModificarEdge: modificarEdge,
+          onEliminarEdge: eliminarEdge,
+        },
+        ...defaultEdgeOptions,
+      };
+      setEdges((eds) => addEdge(nuevaConexion, eds));
+    },
+    [toggleMenuEdge, cerrarMenuEdge, modificarEdge, eliminarEdge]
+  );
+
+  const handleCrearNuevaMetaDirecta = (posicionExplicita = null) => {
+    const texto = prompt('Contenido de la nota:');
+    if (!texto || !texto.trim()) return;
+
+    const idMeta = `meta_${Date.now()}`;
+    const textoLimpio = texto.trim();
+
+    let posicionFinal = posicionExplicita;
+    if (!posicionFinal) {
+      const desvioX = (contadorMetasLocal.current % 8) * 20;
+      const desvioY = (contadorMetasLocal.current % 8) * 35;
+      posicionFinal = { x: 250 + desvioX, y: 150 + desvioY };
+    }
+
+    let grupoPadreEncontrado = null;
+    let posRelativa = { ...posicionFinal };
+
+    const grupos = nodes.filter((n) => n.type === 'nodoGrupo');
+    for (const g of grupos) {
+      const anchoG = typeof g.style?.width === 'number' ? g.style.width : 380;
+      const altoG = typeof g.style?.height === 'number' ? g.style.height : 280;
+
+      if (
+        posicionFinal.x >= g.position.x &&
+        posicionFinal.x <= g.position.x + anchoG &&
+        posicionFinal.y >= g.position.y &&
+        posicionFinal.y <= g.position.y + altoG
+      ) {
+        grupoPadreEncontrado = g;
+        posRelativa = {
+          x: posicionFinal.x - g.position.x,
+          y: posicionFinal.y - g.position.y,
+        };
+        break;
+      }
+    }
+
+    contadorMetasLocal.current += 1;
+
+    const nuevaTarjetaMeta = {
+      id: idMeta,
+      type: 'nodoMeta',
+      position: posRelativa,
+      parentId: grupoPadreEncontrado ? grupoPadreEncontrado.id : undefined,
+      data: {
+        id: idMeta,
+        label: textoLimpio,
+        status: 'Por Hacer',
+        onCambiarEstado: cambiarEstadoMeta,
+        onEliminarNodo: eliminarNodo,
+        onEditarTexto: editarTextoMeta,
+      },
+    };
+
+    setNodes((nds) => [...nds, nuevaTarjetaMeta].sort((a, b) => (a.type === 'nodoGrupo' ? -1 : 1)));
+  };
+
+  const handleCrearContenedorGrupo = () => {
+    const nombre = prompt('Nombre del Grupo:');
+    if (!nombre || !nombre.trim()) return;
+
+    const idGrupo = `grupo_${Date.now()}`;
+    const nombreLimpio = nombre.trim();
+
+    const desvioX = (contadorGruposLocal.current % 5) * 25;
+    const desvioY = (contadorGruposLocal.current % 5) * 40;
+    const posicionCascada = { x: 150 + desvioX, y: 100 + desvioY };
+
+    contadorGruposLocal.current += 1;
+
+    const nuevoGrupo = {
+      id: idGrupo,
+      type: 'nodoGrupo',
+      position: posicionCascada,
+      style: { width: 380, height: 280 },
+      data: {
+        id: idGrupo,
+        label: nombreLimpio,
+        color: 'purple',
+        onEliminarNodo: eliminarNodo,
+        onCambiarColorGrupo: cambiarColorGrupo,
+        onEditarNombreGrupo: editarNombreGrupo,
+        onResizeGrupo: resizeGrupo,
+      },
+    };
+
+    setNodes((nds) => [nuevoGrupo, ...nds]);
+  };
+
+  const onPaneDoubleClick = useCallback(
+    (event) => {
+      if (isDrawingMode) return;
+      const sobreNota = event.target?.closest('.group\\/node');
+      const sobreBoton = event.target?.closest('button');
+      const sobreResizer = event.target?.closest('.react-flow__resize-control');
+
+      if (sobreNota || sobreBoton || sobreResizer) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const posicionMapa = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      handleCrearNuevaMetaDirecta(posicionMapa);
+    },
+    [screenToFlowPosition, handleCrearNuevaMetaDirecta, isDrawingMode]
+  );
+
+  const onPaneClick = useCallback(() => {
+    setEdgeMenuAbiertoId(null);
+  }, []);
+
+  // Previsualización de trazo en vivo
+  const liveStrokePath = currentStroke.length
+    ? getSvgPathFromStroke(
+        getStroke(currentStroke, {
+          size: strokeSize,
+          thinning: 0.5,
+          smoothing: 0.5,
+          streamline: 0.5,
+        })
+      )
+    : '';
+
+  return (
+    <div className="h-[calc(100vh-40px)] w-full flex flex-col space-y-3 text-left font-mono bg-theme-bg p-4 text-theme-text antialiased">
+      {/* BARRA SUPERIOR */}
+      <div className="flex flex-wrap items-center justify-between border-b border-theme-border/40 pb-2 gap-2">
+        {/* Pestañas */}
+        <div className="flex items-center gap-1.5 overflow-x-auto max-w-[40vw] scrollbar-none">
+          <FolderKanban className="w-4 h-4 text-theme-accent mr-1 shrink-0" />
+          {proyectos.length === 0 ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border bg-theme-accent text-theme-bg border-theme-accent">
+              Principal
+            </div>
+          ) : (
+            proyectos.map((p) => {
+              const activa = p.id === tabActiva;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setTabActiva(p.id)}
+                  className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border select-none ${
+                    activa
+                      ? 'bg-theme-accent text-theme-bg border-theme-accent shadow-md'
+                      : 'bg-theme-bg/60 text-theme-text/60 border-theme-border/60 hover:text-theme-text hover:bg-theme-border/20'
+                  }`}
+                >
+                  <span className="truncate max-w-[120px]">{p.nombre}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Barra de Dibujo y Acciones Rápidas */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 bg-theme-bg border border-theme-border/60 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setIsDrawingMode(!isDrawingMode)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition-all cursor-pointer ${
+                isDrawingMode
+                  ? 'bg-theme-accent text-theme-bg shadow'
+                  : 'text-theme-text/70 hover:text-theme-text hover:bg-theme-border/20'
+              }`}
+              title={isDrawingMode ? 'Volver a Navegación' : 'Activar Modo Lápiz'}
+            >
+              {isDrawingMode ? <PenTool className="w-3.5 h-3.5 stroke-[2.5]" /> : <Move className="w-3.5 h-3.5 stroke-[2]" />}
+              <span>{isDrawingMode ? 'Lápiz' : 'Mover'}</span>
+            </button>
+
+            {isDrawingMode && (
+              <>
+                <div className="w-[1px] h-4 bg-theme-border/60" />
+
+                {/* Paleta rápida del tema */}
+                <div className="flex items-center gap-1.5 px-1">
+                  {PALETA_DIBUJO.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setStrokeColor(item.color)}
+                      className={`w-3.5 h-3.5 rounded-full ${item.bgClass} transition-transform hover:scale-125 cursor-pointer ${
+                        strokeColor === item.color ? 'ring-2 ring-theme-text scale-110' : 'opacity-60 hover:opacity-100'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="w-[1px] h-4 bg-theme-border/60" />
+
+                {/* Grosor de trazo */}
+                <div className="flex items-center gap-1.5 px-1">
+                  <span className="text-[10px] text-theme-text/60">{strokeSize}px</span>
+                  <input
+                    type="range"
+                    min="2"
+                    max="24"
+                    step="1"
+                    value={strokeSize}
+                    onChange={(e) => setStrokeSize(Number(e.target.value))}
+                    className="w-16 accent-theme-accent cursor-pointer h-1 bg-theme-border rounded-lg"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="w-[1px] h-5 bg-theme-border/60" />
+
+          <button
+            type="button"
+            onClick={() => handleCrearNuevaMetaDirecta()}
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow transition-all cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nota
+          </button>
+          <button
+            type="button"
+            onClick={handleCrearContenedorGrupo}
+            className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow transition-all cursor-pointer"
+          >
+            <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Grupo
+          </button>
+        </div>
+      </div>
+
+      {/* LIENZO PRINCIPAL */}
+      <div
+        className="flex-1 w-full bg-theme-bg rounded-xl border border-theme-border relative overflow-hidden"
+        ref={flowWrapper}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onNodeDragStop={onNodeDragStop}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onPaneClick={onPaneClick}
+          onEdgeClick={(e, edge) => {
+            e.stopPropagation();
+            toggleMenuEdge(edge.id);
+          }}
+          onDoubleClick={onPaneDoubleClick}
+          zoomOnDoubleClick={false}
+          panOnDrag={isDrawingMode ? false : [0, 1, 2]}
+          selectionOnDrag={false}
+          nodesDraggable={!isDrawingMode}
+          elementsSelectable={!isDrawingMode}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          connectionLineStyle={connectionLineStyle}
+          minZoom={0.1}
+          maxZoom={2}
+          translateExtent={[[-7500, -3000], [7500, 3000]]}
+          nodeExtent={[[-7500, -3000], [7500, 3000]]}
+          className="z-10"
+        >
+          <Background
+            color="var(--color-theme-accent)"
+            style={{ opacity: 0.5 }}
+            gap={20}
+            size={1.5}
+          />
+          <Controls className="!bg-theme-bg !border !border-theme-border !shadow-2xl [&_button]:!bg-theme-bg [&_button]:!border-b [&_button]:!border-theme-border [&_button]:!fill-theme-accent [&_button_svg]:!fill-theme-accent [&_button:hover]:!bg-theme-border/30 transition-all" />
+
+          {/* Trazado temporal en vivo con sincronización exacta al viewport */}
+          {currentStroke.length > 0 && (
+            <svg
+              className="absolute inset-0 w-full h-full pointer-events-none z-50 overflow-visible"
+              style={{
+                transform: `translate(${vpX}px, ${vpY}px) scale(${vpZoom})`,
+                transformOrigin: '0 0',
+              }}
+            >
+              <path d={liveStrokePath} fill={strokeColor} />
+            </svg>
+          )}
+        </ReactFlow>
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// EXPORTACIÓN PRINCIPAL CON PROVIDER
+// =========================================================
+export default function GestionProyectos() {
+  return (
+    <ReactFlowProvider>
+      <GestionProyectosContenido />
+    </ReactFlowProvider>
   );
 }
