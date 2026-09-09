@@ -543,7 +543,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.0.9 "time deudas"
+            rattamayhorka v2.0.10 "trazos encimados"
           </div>
         </div>
       </div>
