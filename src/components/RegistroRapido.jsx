@@ -138,6 +138,13 @@ export default function RegistroRapido() {
 
   const deteccion = parsearSintaxis(texto);
 
+  // ==========================================
+  // 🟢 NUEVO: Función para insertar plantilla de ejemplo sin borrar manualmente
+  const insertarEjemplo = (ejemplo) => {
+    setTexto(ejemplo);
+  };
+  // ==========================================
+
   const ejecutarGuardado = async (e) => {
     e.preventDefault();
     if (!texto.trim()) return;
@@ -172,7 +179,7 @@ export default function RegistroRapido() {
           fecha: fechaFormateada,
           importe: parseFloat(deteccion.monto) || 0,
           descripcion: deteccion.concepto.toUpperCase(),
-          tarjeta: "Efectivo", // 🟢 CORREGIDO: En tu base de datos la columna es 'tarjeta' (no 'metodo_pago')
+          metodo_pago: "Efectivo",
           rubro: "Extras"
         };
 
@@ -238,12 +245,32 @@ export default function RegistroRapido() {
 
         <div className="p-5 space-y-5">
           {/* LEYENDA DE SINTAXIS */}
-          <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
+          {/* 🔴 ANTERIOR: Leyenda no clickeable */}
+          {/* <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
             <div className="text-emerald-400 bg-emerald-950/20 py-1 rounded"><b className="text-emerald-300">$</b> Gasto</div>
             <div className="text-zinc-400 bg-zinc-900/40 py-1 rounded"><b className="text-zinc-200">-</b> Nota</div>
             <div className="text-sky-400 bg-sky-950/20 py-1 rounded"><b className="text-sky-300">.</b> Tarea</div>
             <div className="text-fuchsia-400 bg-fuchsia-950/20 py-1 rounded"><b className="text-fuchsia-300">#</b> Evento</div>
             <div className="text-yellow-300 bg-yellow-950/20 py-1 rounded"><b className="text-yellow-200">!</b> Idea</div>
+          </div> */}
+
+          {/* 🟢 NUEVO: Leyenda con botones interactivos que insertan la plantilla si se te olvida */}
+          <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
+            <button type="button" onClick={() => insertarEjemplo('$ comida; 150')} className="text-emerald-400 bg-emerald-950/20 hover:bg-emerald-950/40 py-1 rounded cursor-pointer transition-all border-none">
+              <b className="text-emerald-300">$</b> Gasto
+            </button>
+            <button type="button" onClick={() => insertarEjemplo('- Nota informativa')} className="text-zinc-400 bg-zinc-900/40 hover:bg-zinc-900/70 py-1 rounded cursor-pointer transition-all border-none">
+              <b className="text-zinc-200">-</b> Nota
+            </button>
+            <button type="button" onClick={() => insertarEjemplo('. tarea pendiente; 10:00')} className="text-sky-400 bg-sky-950/20 hover:bg-sky-950/40 py-1 rounded cursor-pointer transition-all border-none">
+              <b className="text-sky-300">.</b> Tarea
+            </button>
+            <button type="button" onClick={() => insertarEjemplo('# evento; 28jul; 10:00; Lugar')} className="text-fuchsia-400 bg-fuchsia-950/20 hover:bg-fuchsia-950/40 py-1 rounded cursor-pointer transition-all border-none">
+              <b className="text-fuchsia-300">#</b> Evento
+            </button>
+            <button type="button" onClick={() => insertarEjemplo('! idea a guardar')} className="text-yellow-300 bg-yellow-950/20 hover:bg-yellow-950/40 py-1 rounded cursor-pointer transition-all border-none">
+              <b className="text-yellow-200">!</b> Idea
+            </button>
           </div>
 
           <form onSubmit={ejecutarGuardado} className="space-y-4">
@@ -272,6 +299,20 @@ export default function RegistroRapido() {
                   className="w-full bg-transparent resize-none outline-none text-xs font-mono text-zinc-100 placeholder-zinc-700 leading-relaxed"
                 />
               </div>
+
+              {/* ========================================== */}
+              {/* 🟢 NUEVO: Guía visual permanente debajo del textarea para no olvidar la sintaxis mientras escribes */}
+              <div className="mt-2 px-1 text-[8px] font-mono text-zinc-500 space-y-0.5">
+                <div className="text-[7.5px] uppercase font-bold text-zinc-600 tracking-wider">Formato:</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <span className={texto.startsWith('$') ? 'text-emerald-400 font-bold' : ''}><b>$</b> gasto; monto</span>
+                  <span className={texto.startsWith('.') ? 'text-sky-400 font-bold' : ''}><b>.</b> tarea; hora</span>
+                  <span className={texto.startsWith('#') ? 'text-fuchsia-400 font-bold' : ''}><b>#</b> evento; fecha; hora; lugar</span>
+                  <span className={texto.startsWith('!') ? 'text-yellow-300 font-bold' : ''}><b>!</b> idea</span>
+                  <span className={texto.startsWith('-') ? 'text-zinc-300 font-bold' : ''}><b>-</b> nota</span>
+                </div>
+              </div>
+              {/* ========================================== */}
             </div>
 
             <button 
