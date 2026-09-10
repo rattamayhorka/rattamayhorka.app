@@ -3,8 +3,11 @@ import { supabase } from '../supabase';
 import { 
   Send, Loader2, Trash2, Edit2, X, 
   ArrowUpRight, Clock, Calendar, 
-  DollarSign, CheckSquare, MessageSquare, Lightbulb,
-  CornerDownLeft, Sparkles, Filter, Terminal, Database, HelpCircle, Columns3
+  DollarSign, CheckSquare, BookOpen, Lightbulb,
+  CornerDownLeft, Sparkles, Filter, Terminal, Database, HelpCircle, Columns3,
+  // 🟢 ICONOS DE LOS BULLETS PERSONALIZADOS Y DE CONTEXTO
+  Plus, Square, Triangle, Home, Hourglass, Bike, Zap, Activity, Music, AtSign, AlertTriangle,
+  Building2, Users, Heart, Stethoscope
 } from 'lucide-react';
 
 const MESES_MAP = {
@@ -49,9 +52,92 @@ const determinarTipoEvento = (fechaObj, horaStr) => {
   return (horaNum >= 8.0 && horaNum <= 17.0) ? 'Trabajo' : 'Casa';
 };
 
+// =========================================================================
+// 🟢 PARSER DE MARKDOWN LIGERO NATIVO
+// =========================================================================
+const renderizarMarkdownSencillo = (texto) => {
+  if (!texto) return null;
+
+  const renderizarInline = (str, keyBase) => {
+    const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+    const partes = str.split(regex);
+
+    return partes.map((parte, i) => {
+      const subKey = `${keyBase}-${i}`;
+      if (parte.startsWith('**') && parte.endsWith('**') && parte.length >= 4) {
+        return <strong key={subKey} className="font-bold text-theme-text">{parte.slice(2, -2)}</strong>;
+      }
+      if (parte.startsWith('*') && parte.endsWith('*') && parte.length >= 2) {
+        return <em key={subKey} className="italic text-theme-text/90">{parte.slice(1, -1)}</em>;
+      }
+      if (parte.startsWith('`') && parte.endsWith('`') && parte.length >= 2) {
+        return <code key={subKey} className="px-1 py-0.5 rounded bg-theme-border/30 text-[11px] font-mono border border-theme-border/40 text-theme-accent">{parte.slice(1, -1)}</code>;
+      }
+      return parte;
+    });
+  };
+
+  const lineas = texto.split('\n');
+
+  return (
+    <div className="space-y-1 text-xs leading-relaxed break-words font-mono">
+      {lineas.map((linea, idx) => {
+        const lTrim = linea.trim();
+
+        if (lTrim.startsWith('# ')) {
+          return (
+            <h3 key={idx} className="text-sm font-black text-theme-accent uppercase tracking-tight pt-1">
+              {renderizarInline(lTrim.substring(2), `h1-${idx}`)}
+            </h3>
+          );
+        }
+        if (lTrim.startsWith('## ')) {
+          return (
+            <h4 key={idx} className="text-xs font-black text-theme-text uppercase tracking-tight pt-1">
+              {renderizarInline(lTrim.substring(3), `h2-${idx}`)}
+            </h4>
+          );
+        }
+        if (lTrim.startsWith('### ')) {
+          return (
+            <h5 key={idx} className="text-[11px] font-bold text-theme-text/80 uppercase pt-0.5">
+              {renderizarInline(lTrim.substring(4), `h3-${idx}`)}
+            </h5>
+          );
+        }
+        if (lTrim.startsWith('- ') || lTrim.startsWith('* ') || lTrim.startsWith('• ')) {
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-2 text-theme-text/90">
+              <span className="text-theme-accent font-black select-none">•</span>
+              <span className="flex-1">{renderizarInline(lTrim.substring(2), `li-${idx}`)}</span>
+            </div>
+          );
+        }
+        if (lTrim.startsWith('> ')) {
+          return (
+            <blockquote key={idx} className="pl-2.5 border-l-2 border-theme-accent text-theme-text/70 italic text-[11px]">
+              {renderizarInline(lTrim.substring(2), `bq-${idx}`)}
+            </blockquote>
+          );
+        }
+        if (linea === '') {
+          return <div key={idx} className="h-1.5" />;
+        }
+        return (
+          <p key={idx} className="text-theme-text/90">
+            {renderizarInline(linea, `p-${idx}`)}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
+
 const parsearLineaTerminal = (texto) => {
   const t = texto.trim();
+  const tLower = t.toLowerCase();
 
+  // 1. FINANZAS ($)
   if (t.startsWith('$')) {
     const sinSimbolo = t.substring(1).trim();
     let concepto = 'Gasto no especificado';
@@ -86,7 +172,10 @@ const parsearLineaTerminal = (texto) => {
       conceptoLimpio: concepto,
       montoLimpio: monto
     };
-  } else if (t.startsWith('.')) {
+  } 
+  
+  // 2. TAREAS (.)
+  else if (t.startsWith('.')) {
     const contenidoCompleto = t.substring(1).trim();
     let limpio = contenidoCompleto;
     let horaExtraida = '';
@@ -111,7 +200,10 @@ const parsearLineaTerminal = (texto) => {
       textoLimpioSinPunto: limpio,
       hora: horaExtraida
     };
-  } else if (t.startsWith('#')) {
+  } 
+  
+  // 3. EVENTOS (#)
+  else if (t.startsWith('#')) {
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
 
@@ -149,7 +241,27 @@ const parsearLineaTerminal = (texto) => {
       lugar: lugarTexto,
       tipoEvento: tipoCalculado
     };
-  } else if (t.startsWith('!')) {
+  } 
+  
+  // 4. NO LO OLVIDES / PELIGRO (!!!)
+  else if (t.startsWith('!!!')) {
+    const contenido = t.substring(3).trim();
+    return {
+      tipo: 'peligro',
+      etiqueta: 'No Lo Olvides',
+      icono: AlertTriangle,
+      color: 'text-red-500',
+      bgTag: 'bg-red-500/10 border-red-500/20 text-red-500',
+      cardStyle: 'border-l-4 border-l-red-500 hover:border-red-500/60 bg-red-500/[0.04]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[NO_OLVIDAR] !!! ${contenido}`,
+      colorClase: 'text-red-500 font-bold'
+    };
+  } 
+  
+  // 5. IDEAS (!)
+  else if (t.startsWith('!')) {
     return {
       tipo: 'idea',
       etiqueta: 'Idea / Insight',
@@ -162,12 +274,231 @@ const parsearLineaTerminal = (texto) => {
       formateado: `[IDEA] ! ${t.substring(1).trim()}`,
       colorClase: 'text-theme-accent font-bold italic'
     };
+  } 
+
+  // =========================================================================
+  // 🟢 NUEVOS BULLETS DINÁMICOS POR LLAVES: {tag}
+  // =========================================================================
+
+  // {WORK} - Cosas del hospital
+  else if (tLower.startsWith('{work}') || tLower.startsWith('{trabajo}')) {
+    const prefijoLength = tLower.startsWith('{work}') ? 6 : 9;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'work',
+      etiqueta: 'Hospital / Trabajo',
+      icono: Building2,
+      color: 'text-theme-trabajo',
+      bgTag: 'bg-theme-trabajo/10 border-theme-trabajo/20 text-theme-trabajo',
+      cardStyle: 'border-l-4 border-l-theme-trabajo hover:border-theme-trabajo/60 bg-theme-trabajo/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[WORK] ${contenido}`,
+      colorClase: 'text-theme-trabajo font-bold'
+    };
   }
 
+  // {HOME} - Cosas de la casa
+  else if (tLower.startsWith('{home}') || tLower.startsWith('{casa}')) {
+    const prefijoLength = tLower.startsWith('{home}') ? 6 : 6;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'home',
+      etiqueta: 'Casa / Hogar',
+      icono: Home,
+      color: 'text-theme-casa',
+      bgTag: 'bg-theme-casa/10 border-theme-casa/20 text-theme-casa',
+      cardStyle: 'border-l-4 border-l-theme-casa hover:border-theme-casa/60 bg-theme-casa/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[HOME] ${contenido}`,
+      colorClase: 'text-theme-casa font-bold'
+    };
+  }
+
+  // {WIFE} - Vicky (Triángulo hacia abajo / forma de V)
+  else if (tLower.startsWith('{wife}') || tLower.startsWith('{vicky}')) {
+    const prefijoLength = tLower.startsWith('{wife}') ? 6 : 7;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'wife',
+      etiqueta: 'Vicky',
+      icono: (props) => <Triangle {...props} className={`${props.className || ''} rotate-180`} />,
+      color: 'text-pink-400',
+      bgTag: 'bg-pink-400/10 border-pink-400/20 text-pink-400',
+      cardStyle: 'border-l-4 border-l-pink-400 hover:border-pink-400/60 bg-pink-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[WIFE] ${contenido}`,
+      colorClase: 'text-pink-400 font-bold'
+    };
+  }
+
+  // {FAM} - Temas familiares
+  else if (tLower.startsWith('{fam}') || tLower.startsWith('{familia}')) {
+    const prefijoLength = tLower.startsWith('{fam}') ? 5 : 9;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'fam',
+      etiqueta: 'Familia',
+      icono: Users,
+      color: 'text-orange-400',
+      bgTag: 'bg-orange-400/10 border-orange-400/20 text-orange-400',
+      cardStyle: 'border-l-4 border-l-orange-400 hover:border-orange-400/60 bg-orange-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[FAM] ${contenido}`,
+      colorClase: 'text-orange-400 font-bold'
+    };
+  }
+
+  // {PAKAL} - Hijo Pakal (Símbolo P)
+  else if (tLower.startsWith('{pakal}')) {
+    const contenido = t.substring(7).trim();
+    return {
+      tipo: 'pakal',
+      etiqueta: 'Pakal',
+      icono: () => <span className="font-black text-base select-none leading-none text-cyan-400">P</span>,
+      color: 'text-cyan-400',
+      bgTag: 'bg-cyan-400/10 border-cyan-400/20 text-cyan-400',
+      cardStyle: 'border-l-4 border-l-cyan-400 hover:border-cyan-400/60 bg-cyan-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[PAKAL] ${contenido}`,
+      colorClase: 'text-cyan-400 font-black'
+    };
+  }
+
+  // {ME} - Triángulo hacia arriba (Personal)
+  else if (tLower.startsWith('{me}')) {
+    const contenido = t.substring(4).trim();
+    return {
+      tipo: 'me',
+      etiqueta: 'Personal / Mío',
+      icono: Triangle,
+      color: 'text-theme-accent',
+      bgTag: 'bg-theme-accent/10 border-theme-accent/20 text-theme-accent',
+      cardStyle: 'border-l-4 border-l-theme-accent hover:border-theme-accent/60 bg-theme-accent/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[ME] ${contenido}`,
+      colorClase: 'text-theme-accent font-bold'
+    };
+  }
+
+  // {COUPLE} - Mi vieja y yo (Rombo / dos triángulos)
+  else if (tLower.startsWith('{couple}') || tLower.startsWith('{pareja}')) {
+    const prefijoLength = tLower.startsWith('{couple}') ? 8 : 8;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'couple',
+      etiqueta: 'Pareja',
+      icono: Hourglass,
+      color: 'text-purple-400',
+      bgTag: 'bg-purple-400/10 border-purple-400/20 text-purple-400',
+      cardStyle: 'border-l-4 border-l-purple-400 hover:border-purple-400/60 bg-purple-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[COUPLE] ${contenido}`,
+      colorClase: 'text-purple-400 font-bold'
+    };
+  }
+
+  // {BIKE} - Bici / Salud / Ejercicio
+  else if (tLower.startsWith('{bike}') || tLower.startsWith('{bici}')) {
+    const prefijoLength = tLower.startsWith('{bike}') ? 6 : 6;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'bike',
+      etiqueta: 'Salud / Bici',
+      icono: Bike,
+      color: 'text-lime-400',
+      bgTag: 'bg-lime-400/10 border-lime-400/20 text-lime-400',
+      cardStyle: 'border-l-4 border-l-lime-400 hover:border-lime-400/60 bg-lime-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[BIKE] ${contenido}`,
+      colorClase: 'text-lime-400 font-bold'
+    };
+  }
+
+  // {FAIL} - Rayo / Fallas importantes que tener en cuenta
+  else if (tLower.startsWith('{fail}') || tLower.startsWith('{falla}')) {
+    const prefijoLength = tLower.startsWith('{fail}') ? 6 : 7;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'fail',
+      etiqueta: 'Falla / Error',
+      icono: Zap,
+      color: 'text-yellow-300',
+      bgTag: 'bg-yellow-300/10 border-yellow-300/20 text-yellow-300',
+      cardStyle: 'border-l-4 border-l-yellow-300 hover:border-yellow-300/60 bg-yellow-300/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[FAIL] ${contenido}`,
+      colorClase: 'text-yellow-300 font-black'
+    };
+  }
+
+  // {OMEGA} - Proyecto
+  else if (tLower.startsWith('{omega}') || tLower.startsWith('{ohm}') || tLower.startsWith('{proyecto}')) {
+    const prefijoLength = tLower.startsWith('{omega}') ? 7 : tLower.startsWith('{ohm}') ? 5 : 10;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'omega',
+      etiqueta: 'Proyecto',
+      icono: () => <span className="font-black text-sm select-none leading-none">Ω</span>,
+      color: 'text-indigo-400',
+      bgTag: 'bg-indigo-400/10 border-indigo-400/20 text-indigo-400',
+      cardStyle: 'border-l-4 border-l-indigo-400 hover:border-indigo-400/60 bg-indigo-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[OMEGA] ${contenido}`,
+      colorClase: 'text-indigo-400 font-bold'
+    };
+  }
+
+  // {MUSIC} - Notita musical
+  else if (tLower.startsWith('{music}') || tLower.startsWith('{musica}')) {
+    const prefijoLength = tLower.startsWith('{music}') ? 7 : 8;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'music',
+      etiqueta: 'Música',
+      icono: Music,
+      color: 'text-fuchsia-400',
+      bgTag: 'bg-fuchsia-400/10 border-fuchsia-400/20 text-fuchsia-400',
+      cardStyle: 'border-l-4 border-l-fuchsia-400 hover:border-fuchsia-400/60 bg-fuchsia-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[MUSIC] ${contenido}`,
+      colorClase: 'text-fuchsia-400 font-semibold'
+    };
+  }
+
+  // {BASH} - Computadoras / Scripts
+  else if (tLower.startsWith('{bash}') || tLower.startsWith('{pc}') || tLower.startsWith('{code}')) {
+    const prefijoLength = tLower.startsWith('{bash}') ? 6 : tLower.startsWith('{pc}') ? 4 : 6;
+    const contenido = t.substring(prefijoLength).trim();
+    return {
+      tipo: 'bash',
+      etiqueta: 'Cómputo / Bash',
+      icono: Terminal,
+      color: 'text-emerald-400',
+      bgTag: 'bg-emerald-400/10 border-emerald-400/20 text-emerald-400',
+      cardStyle: 'border-l-4 border-l-emerald-400 hover:border-emerald-400/60 bg-emerald-400/[0.03]',
+      titulo: contenido,
+      metadato: null,
+      formateado: `[BASH] ${contenido}`,
+      colorClase: 'text-emerald-400 font-bold'
+    };
+  }
+
+  // NOTA DEFAULT (-) O TEXTO GENERAL
   return {
     tipo: 'nota',
     etiqueta: 'Nota / Bitácora',
-    icono: MessageSquare,
+    icono: BookOpen,
     color: 'text-theme-text/70',
     bgTag: 'bg-theme-border/20 border-theme-border/40 text-theme-text/70',
     cardStyle: 'border-l-4 border-l-theme-border/70 hover:border-theme-border bg-theme-border/[0.04]',
@@ -191,6 +522,43 @@ export default function Bullet({ refreshTrigger }) {
   const textareaRef = useRef(null);
 
   const detectorActivo = parsearLineaTerminal(nuevoComando || ' ');
+
+  // 🟢 CATÁLOGO DE BULLETS {TAGS} DISPONIBLES AL ESCRIBIR '{'
+  const BULLETS_SEMANTICOS = [
+    { tag: '{work}', nombre: 'Hospital / Trabajo', icono: Building2, color: 'text-theme-trabajo' },
+    { tag: '{home}', nombre: 'Casa / Hogar', icono: Home, color: 'text-theme-casa' },
+    { tag: '{wife}', nombre: 'Vicky (V)', icono: (p) => <Triangle {...p} className="rotate-180" />, color: 'text-pink-400' },
+    { tag: '{fam}', nombre: 'Familia', icono: Users, color: 'text-orange-400' },
+    { tag: '{pakal}', nombre: 'Pakal [P]', icono: () => <span className="font-bold text-xs">P</span>, color: 'text-cyan-400' },
+    { tag: '{me}', nombre: 'Mío (^)', icono: Triangle, color: 'text-theme-accent' },
+    { tag: '{couple}', nombre: 'Pareja (Rombo)', icono: Hourglass, color: 'text-purple-400' },
+    { tag: '{bike}', nombre: 'Salud / Bici', icono: Bike, color: 'text-lime-400' },
+    { tag: '{fail}', nombre: 'Falla (Rayo)', icono: Zap, color: 'text-yellow-300' },
+    { tag: '{omega}', nombre: 'Proyecto (Ω)', icono: () => <span className="font-bold text-xs">Ω</span>, color: 'text-indigo-400' },
+    { tag: '{music}', nombre: 'Música', icono: Music, color: 'text-fuchsia-400' },
+    { tag: '{bash}', nombre: 'Cómputo / Bash', icono: Terminal, color: 'text-emerald-400' }
+  ];
+
+  // Detecta si el usuario está escribiendo una llave abierta sin cerrar
+  const ultimoTermino = nuevoComando.split(/\s+/).pop() || '';
+  const mostrandoMenuLlaves = ultimoTermino.startsWith('{') && !ultimoTermino.includes('}');
+  const filtroLlave = ultimoTermino.replace('{', '').toLowerCase();
+
+  const bulletsCoincidentes = BULLETS_SEMANTICOS.filter(b => 
+    b.tag.toLowerCase().includes(filtroLlave) || b.nombre.toLowerCase().includes(filtroLlave)
+  );
+
+  const insertarTagLlave = (tag) => {
+    if (nuevoComando.trim().startsWith('{') && !nuevoComando.includes('}')) {
+      setNuevoComando(`${tag} `);
+    } else {
+      const palabras = nuevoComando.split(/\s+/);
+      palabras.pop();
+      palabras.push(tag);
+      setNuevoComando(`${palabras.join(' ')} `);
+    }
+    textareaRef.current?.focus();
+  };
 
   const cargarLogs = async () => {
     setCargando(true);
@@ -306,15 +674,11 @@ export default function Bullet({ refreshTrigger }) {
             ...analisis
           }]);
         } 
-        // =========================================================================
-        // 🟢 MODIFICACIÓN TAREA DIRECTA (.): Va directo a Kanban sin pasar por Bullet
-        // =========================================================================
         else if (analisis.tipo === 'tarea') {
           const cadenaSinPuntoConHora = analisis.hora 
             ? `${analisis.textoLimpioSinPunto}; ${analisis.hora}` 
             : analisis.textoLimpioSinPunto;
 
-          // 1. Guarda directo en Kanban como 'Por Hacer'
           const { error } = await supabase.from('kanban').insert([{
             tarea: cadenaSinPuntoConHora,
             status: 'Por Hacer',
@@ -324,28 +688,7 @@ export default function Bullet({ refreshTrigger }) {
           }]);
 
           if (error) throw error;
-
-          /* 🔴 ANTERIOR: También se guardaba como 'Bullet' y se agregaba a logs para mostrarse en esta pantalla
-          const { data: insertado, error: errBullet } = await supabase.from('kanban').insert([{
-            tarea: comandoCrudo,
-            status: 'Bullet',
-            fecha: fechaFormateada,
-            tipo: 'BulletJournal',
-            prioridad: 1
-          }]).select().single();
-
-          if (errBullet) throw errBullet;
-
-          setLogs(prev => [...prev, {
-            id: insertado ? insertado.id : Date.now(),
-            rawId: insertado ? insertado.id : Date.now(),
-            textoOriginal: comandoCrudo,
-            fecha: fechaFormateada,
-            ...analisis
-          }]);
-          */
         } 
-        // =========================================================================
         else if (analisis.tipo === 'evento') {
           await supabase.from('reuniones').insert([{
             comite: analisis.comite.toUpperCase(),
@@ -374,7 +717,7 @@ export default function Bullet({ refreshTrigger }) {
             ...analisis
           }]);
         } else {
-          // Notas e ideas
+          // Notas, ideas, no-olvidar, y todos los nuevos tags {work}, {wife}, etc.
           const { data: insertado, error } = await supabase.from('kanban').insert([{
             tarea: comandoCrudo,
             status: 'Bullet',
@@ -448,7 +791,7 @@ export default function Bullet({ refreshTrigger }) {
   return (
     <div className="flex flex-col h-[calc(100dvh-4.5rem)] w-full bg-theme-bg text-theme-text rounded-2xl border border-theme-border shadow-2xl overflow-hidden font-mono text-left">
       
-      {/* 🟢 HEADER DE CONTROL SUPERIOR */}
+      {/* 🟢 HEADER DE CONTROL SUPERIOR CON FILTROS EXTENDIDOS */}
       <header className="px-5 py-3 border-b border-theme-border bg-theme-bg/95 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-2.5 h-2.5 rounded-full bg-theme-accent animate-pulse" />
@@ -461,19 +804,32 @@ export default function Bullet({ refreshTrigger }) {
         </div>
 
         {/* Barra de Filtros Segmentados */}
-        <div className="flex items-center gap-1 bg-theme-bg border border-theme-border p-1 rounded-xl text-xs">
+        <div className="flex items-center gap-1 bg-theme-bg border border-theme-border p-1 rounded-xl text-xs overflow-x-auto max-w-full">
           {[
             { id: 'TODOS', label: 'Todos' },
             { id: 'tarea', label: 'Tareas' },
             { id: 'finanzas', label: 'Finanzas' },
             { id: 'evento', label: 'Eventos' },
+            { id: 'peligro', label: 'No Olvidar' },
+            { id: 'work', label: 'Work' },
+            { id: 'home', label: 'Home' },
+            { id: 'wife', label: 'Wife' },
+            { id: 'fam', label: 'Fam' },
+            { id: 'pakal', label: 'Pakal' },
+            { id: 'me', label: 'Me' },
+            { id: 'couple', label: 'Couple' },
+            { id: 'bike', label: 'Bike' },
+            { id: 'fail', label: 'Fail' },
+            { id: 'omega', label: 'Omega' },
+            { id: 'music', label: 'Music' },
+            { id: 'bash', label: 'Bash' },
             { id: 'idea', label: 'Ideas' },
             { id: 'nota', label: 'Notas' }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setFiltroTipo(tab.id)}
-              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex-shrink-0 ${
                 filtroTipo === tab.id
                   ? 'bg-theme-accent text-theme-bg shadow-sm'
                   : 'text-theme-text/50 hover:text-theme-text'
@@ -513,30 +869,33 @@ export default function Bullet({ refreshTrigger }) {
                   </div>
                 )}
 
-                <article className={`group relative flex items-center justify-between gap-4 p-3.5 border border-theme-border/40 hover:border-theme-border rounded-xl transition-all duration-150 ${item.cardStyle}`}>
-                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                    <div className={`p-2.5 rounded-xl border flex-shrink-0 flex items-center justify-center ${item.bgTag}`}>
+                <article className={`group relative flex items-start justify-between gap-4 p-3.5 border border-theme-border/40 hover:border-theme-border rounded-xl transition-all duration-150 ${item.cardStyle}`}>
+                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                    
+                    <div className={`p-2.5 rounded-xl border flex-shrink-0 flex items-center justify-center mt-0.5 ${item.bgTag}`}>
                       <IconoEntidad className="w-5 h-5 stroke-[2.2]" />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2.5">
-                        <span className="text-xs font-bold text-theme-text tracking-normal break-words leading-relaxed">
-                          {item.titulo}
-                        </span>
+                      <div className="flex flex-wrap items-baseline gap-2.5 mb-1">
                         {item.metadato && (
                           <span className="text-[11px] font-mono font-black px-2 py-0.5 rounded bg-theme-border/20 text-theme-text border border-theme-border/50 flex-shrink-0">
                             {item.metadato}
                           </span>
                         )}
+                        <span className={`text-[9px] uppercase tracking-wider font-black ${item.color}`}>
+                          {item.etiqueta}
+                        </span>
                       </div>
-                      <span className={`text-[9px] uppercase tracking-wider font-black block mt-0.5 ${item.color}`}>
-                        {item.etiqueta}
-                      </span>
+
+                      <div className="w-full">
+                        {renderizarMarkdownSencillo(item.titulo)}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  {/* Acciones Rápidas */}
+                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
                     {item.tipo === 'tarea' && (
                       <button
                         onClick={() => enviarAKanban(item)}
@@ -573,17 +932,51 @@ export default function Bullet({ refreshTrigger }) {
       </main>
 
       {/* 🟢 INPUT DOCK INFERIOR INTELIGENTE */}
-      <footer className="p-4 border-t border-theme-border bg-theme-bg space-y-3 flex-shrink-0">
-        <div className="flex items-center gap-2 overflow-x-auto text-xs no-scrollbar select-none">
-          <span className="text-[10px] font-black text-theme-text/50 uppercase tracking-wider mr-1 flex items-center gap-1 flex-shrink-0">
+      <footer className="p-4 border-t border-theme-border bg-theme-bg space-y-3 flex-shrink-0 relative">
+        
+        {/* 🟢 AUTOCOMPLETE DINÁMICO QUE APARECE SOLO AL ESCRIBIR '{' */}
+        {mostrandoMenuLlaves && (
+          <div className="absolute bottom-full left-4 right-4 mb-2 p-2 bg-theme-bg border border-theme-border rounded-xl shadow-2xl z-50 backdrop-blur-md animate-fadeIn">
+            <div className="text-[9px] font-black uppercase tracking-widest text-theme-text/50 px-2 pb-1 mb-1 border-b border-theme-border/40 flex justify-between items-center">
+              <span>Selecciona una categoría para completar {'{tag}'}:</span>
+              <span className="text-[8px] text-theme-accent">{bulletsCoincidentes.length} disponibles</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar">
+              {bulletsCoincidentes.map(b => {
+                const IconoB = b.icono;
+                return (
+                  <button
+                    key={b.tag}
+                    type="button"
+                    onClick={() => insertarTagLlave(b.tag)}
+                    className="flex items-center gap-2 p-2 rounded-lg border border-theme-border/50 hover:border-theme-accent bg-theme-border/10 hover:bg-theme-border/20 transition-all text-left cursor-pointer"
+                  >
+                    <div className={`p-1 rounded ${b.color}`}>
+                      <IconoB className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] font-bold text-theme-text truncate">{b.tag}</div>
+                      <div className="text-[8px] text-theme-text/50 truncate uppercase">{b.nombre}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 🟢 SOLO LOS 6 ESENCIALES SOLICITADOS EN LA BARRA DE PLANTILLAS */}
+        <div className="flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar select-none py-0.5">
+          <span className="text-[9px] font-black text-theme-text/50 uppercase tracking-wider mr-1 flex items-center gap-1 flex-shrink-0">
             Plantillas:
           </span>
           {[
             { tag: '$ Gasto', snippet: '$ Despensa; 450', color: 'hover:border-theme-casa hover:text-theme-casa' },
             { tag: '• Tarea', snippet: '. Revisar contratos; 11:00', color: 'hover:border-theme-accent hover:text-theme-accent' },
-            { tag: '# Evento', snippet: '# Demo producto; 28-jul; 15:00; Sala B', color: 'hover:border-theme-trabajo hover:text-theme-trabajo' },
+            { tag: '# Evento', snippet: '# Demo; 28-jul; 15:00; Sala B', color: 'hover:border-theme-trabajo hover:text-theme-trabajo' },
             { tag: '! Idea', snippet: '! Nueva función de automatización', color: 'hover:border-amber-400 hover:text-amber-400' },
-            { tag: '- Nota', snippet: '- Se acordó entrega para el martes', color: 'hover:border-theme-border hover:text-theme-text' }
+            { tag: '- Nota MD', snippet: '- # Nota con Markdown\n- Elemento 1\n- Elemento 2\nTexto con **negrita**', color: 'hover:border-theme-border hover:text-theme-text' },
+            { tag: '!!! No Olvidar', snippet: '!!! Trámite urgente e importante', color: 'hover:border-red-500 hover:text-red-500' }
           ].map(p => (
             <button
               key={p.tag}
@@ -592,7 +985,7 @@ export default function Bullet({ refreshTrigger }) {
                 setNuevoComando(p.snippet);
                 textareaRef.current?.focus();
               }}
-              className={`px-2.5 py-1 rounded-lg bg-theme-bg border border-theme-border text-theme-text/70 text-[10px] font-bold uppercase transition-all cursor-pointer flex-shrink-0 ${p.color}`}
+              className={`px-2.5 py-1 rounded-lg bg-theme-bg border border-theme-border text-theme-text/70 text-[9px] font-bold uppercase transition-all cursor-pointer flex-shrink-0 ${p.color}`}
             >
               {p.tag}
             </button>
@@ -619,7 +1012,7 @@ export default function Bullet({ refreshTrigger }) {
             value={nuevoComando}
             onChange={(e) => setNuevoComando(e.target.value)}
             onKeyDown={manejarTeclado}
-            placeholder="Escribe algo rápido ($ gasto, . tarea, # evento, ! idea, - nota)... [Ctrl + Enter]"
+            placeholder="Escribe comando... Presiona { para categorías semánticas. [Ctrl + Enter]"
             className="w-full bg-transparent resize-none outline-none border-none text-xs font-bold text-theme-text placeholder-theme-text/40 leading-relaxed max-h-44 font-mono"
             disabled={enviando}
           />
