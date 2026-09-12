@@ -771,7 +771,8 @@ export default function Finanzas({ refreshTrigger }) {
   const transaccionesPaginadas = [...transaccionesParaTabla].reverse().slice(indicePrimerItem, indiceUltimoItem);
 
   return (
-    <div className="space-y-6 text-left p-2 bg-theme-bg text-theme-text font-mono min-h-screen">
+    /* ORIGINAL: <div className="space-y-6 text-left p-2 bg-theme-bg text-theme-text font-mono min-h-screen"> */
+    <div className="space-y-6 text-left p-2 bg-theme-bg text-theme-text font-mono min-h-screen relative pb-20 xl:pb-2">
       
       {/* HEADER */}
       <div className="border-b border-theme-border/40 pb-5 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -999,7 +1000,8 @@ export default function Finanzas({ refreshTrigger }) {
 
       {/* GRID SECCIONES TRASERAS */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        <div className="xl:col-span-1 space-y-4">
+        {/* ORIGINAL: <div className="xl:col-span-1 space-y-4"> */}
+        <div className="xl:col-span-1 space-y-4 order-2 xl:order-1">
           <h3 className="text-sm font-black text-theme-text uppercase italic tracking-tighter">Métricas de Ritmo Quincenal</h3>
           <div className="bg-theme-bg border border-theme-border rounded-xl p-4 max-h-[600px] overflow-y-auto space-y-3 custom-scrollbar">
             {Object.keys(macroEstructura)
@@ -1103,7 +1105,8 @@ export default function Finanzas({ refreshTrigger }) {
           </div>
         </div>
 
-        <div className="xl:col-span-2 space-y-4">
+        {/* ORIGINAL: <div className="xl:col-span-2 space-y-4"> */}
+        <div className="xl:col-span-2 space-y-4 order-1 xl:order-2">
           <div className="flex justify-between items-center flex-wrap gap-2">
             <h3 className="text-sm font-black text-theme-text uppercase italic tracking-tighter">Huella de Transacciones de este Periodo</h3>
             
@@ -1240,6 +1243,17 @@ export default function Finanzas({ refreshTrigger }) {
           </div>
         </div>
       </div>
+
+      {/* 🟢 NUEVO: BOTÓN FLOTANTE PARA PANTALLAS MENORES A 1280px (REGISTRAR MOVIMIENTO) */}
+      <button
+        type="button"
+        onClick={() => setModalRegistro(true)}
+        className="fixed bottom-6 right-6 z-40 xl:hidden bg-theme-accent text-theme-bg p-3.5 rounded-full shadow-2xl border border-theme-border flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+        title="Registrar Movimiento"
+        aria-label="Registrar Movimiento"
+      >
+        <Plus className="w-6 h-6 stroke-[3]" />
+      </button>
 
       {/* ========================================================================= */}
       {/* 🟢 MODAL: EDITAR / ELIMINAR TRANSACCIÓN REGISTRADA */}
