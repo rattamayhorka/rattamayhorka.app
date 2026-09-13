@@ -136,7 +136,7 @@ const PALETA_DIBUJO = [
 ];
 
 // =========================================================
-// 🟢 CUSTOM EDGE INTERACTIVO CON MENÚ FLOTANTE
+// 🟢 CUSTOM EDGE INTERACTIVO CON MENÚ FLOTANTE Y ESCALA INVERSA
 // =========================================================
 function CustomMenuEdge({
   id,
@@ -152,6 +152,7 @@ function CustomMenuEdge({
   selected,
   data,
 }) {
+  const { zoom } = useViewport();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -193,7 +194,8 @@ function CustomMenuEdge({
           <div
             style={{
               position: 'absolute',
-              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px) scale(${1 / (zoom || 1)})`,
+              transformOrigin: 'center center',
               pointerEvents: 'all',
             }}
             className="nodrag nopan z-[100]"
@@ -288,11 +290,105 @@ function CustomMenuEdge({
 }
 
 // =========================================================
-// 1. NODO GRUPO
+// 1. NODO GRUPO (RESIZE TÁCTIL EN LAS 4 ESQUINAS CON FANTASMA Y ESCALA FIJA)
 // =========================================================
 function NodoGrupoExpandible(props) {
   const { id, data, selected } = props;
   const colorActual = OPCIONES_COLOR_GRUPO.find((c) => c.id === data.color) || OPCIONES_COLOR_GRUPO[0];
+
+  const { getViewport, getNode } = useReactFlow();
+  const { zoom } = useViewport();
+  const [isResizing, setIsResizing] = useState(false);
+  const [ghostBox, setGhostBox] = useState(null);
+  const dragCorner = useRef(null);
+  const dragStart = useRef({ mouseX: 0, mouseY: 0, nodeX: 0, nodeY: 0, w: 0, h: 0 });
+
+  const handlePointerDown = useCallback((e, corner) => {
+    e.stopPropagation();
+    e.target.setPointerCapture(e.pointerId);
+
+    const currentNode = getNode(id);
+    const startW = currentNode?.measured?.width || currentNode?.width || (typeof currentNode?.style?.width === 'number' ? currentNode.style.width : 380);
+    const startH = currentNode?.measured?.height || currentNode?.height || (typeof currentNode?.style?.height === 'number' ? currentNode.style.height : 280);
+    const startX = currentNode?.position?.x || 0;
+    const startY = currentNode?.position?.y || 0;
+
+    dragCorner.current = corner;
+    dragStart.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      nodeX: startX,
+      nodeY: startY,
+      w: startW,
+      h: startH,
+    };
+
+    setGhostBox({ relX: 0, relY: 0, w: startW, h: startH });
+    setIsResizing(true);
+  }, [getNode, id]);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!isResizing || !dragCorner.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const currentZoom = getViewport().zoom || 1;
+    const deltaX = (e.clientX - dragStart.current.mouseX) / currentZoom;
+    const deltaY = (e.clientY - dragStart.current.mouseY) / currentZoom;
+    const corner = dragCorner.current;
+
+    let newW = dragStart.current.w;
+    let newH = dragStart.current.h;
+    let relX = 0;
+    let relY = 0;
+
+    if (corner === 'bottom-right') {
+      newW = Math.max(200, dragStart.current.w + deltaX);
+      newH = Math.max(150, dragStart.current.h + deltaY);
+    } else if (corner === 'bottom-left') {
+      newW = Math.max(200, dragStart.current.w - deltaX);
+      newH = Math.max(150, dragStart.current.h + deltaY);
+      relX = dragStart.current.w - newW;
+    } else if (corner === 'top-right') {
+      newW = Math.max(200, dragStart.current.w + deltaX);
+      newH = Math.max(150, dragStart.current.h - deltaY);
+      relY = dragStart.current.h - newH;
+    } else if (corner === 'top-left') {
+      newW = Math.max(200, dragStart.current.w - deltaX);
+      newH = Math.max(150, dragStart.current.h - deltaY);
+      relX = dragStart.current.w - newW;
+      relY = dragStart.current.h - newH;
+    }
+
+    setGhostBox({ relX, relY, w: newW, h: newH });
+  }, [isResizing, getViewport]);
+
+  const handlePointerUp = useCallback((e) => {
+    if (!isResizing) return;
+    e.stopPropagation();
+    try {
+      e.target.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+
+    setIsResizing(false);
+    dragCorner.current = null;
+
+    if (ghostBox) {
+      const finalW = Math.round(ghostBox.w);
+      const finalH = Math.round(ghostBox.h);
+      const finalPosX = Math.round(dragStart.current.nodeX + ghostBox.relX);
+      const finalPosY = Math.round(dragStart.current.nodeY + ghostBox.relY);
+
+      if (data.onResizeGrupoConPosicion) {
+        data.onResizeGrupoConPosicion(id, finalW, finalH, finalPosX, finalPosY);
+      } else if (data.onResizeGrupo) {
+        data.onResizeGrupo(id, finalW, finalH);
+      }
+    }
+    setGhostBox(null);
+  }, [isResizing, ghostBox, data, id]);
+
+  const invZoom = 1 / (zoom || 1);
 
   return (
     <div
@@ -300,19 +396,91 @@ function NodoGrupoExpandible(props) {
         selected ? 'border-solid ring-1 ring-theme-text/20 ' + colorActual.border : colorActual.border + ' hover:brightness-125'
       }`}
     >
-      <NodeResizer
-        color="var(--color-theme-accent)"
-        minWidth={200}
-        minHeight={150}
-        isVisible={selected}
-        lineClassName="border-theme-accent/30"
-        handleClassName="!w-3 !h-3 !bg-theme-bg !border !border-theme-accent !rounded-sm"
-        onResizeEnd={(event, params) => {
-          if (data.onResizeGrupo) {
-            data.onResizeGrupo(id, params.width, params.height);
-          }
-        }}
-      />
+      {/* 🟢 CAJA FANTASMA */}
+      {isResizing && ghostBox && (
+        <div
+          className="absolute border-[3px] border-dashed border-theme-accent bg-theme-accent/5 z-[200] rounded-2xl pointer-events-none"
+          style={{
+            top: `${ghostBox.relY}px`,
+            left: `${ghostBox.relX}px`,
+            width: `${ghostBox.w}px`,
+            height: `${ghostBox.h}px`,
+          }}
+        />
+      )}
+
+      {/* 🟢 LAS 4 MANIJAS TÁCTILES CON ESCALA INVERSA (TAMAÑO FIJO EN PANTALLA) */}
+      {selected && (
+        <>
+          {/* Superior Izquierda */}
+          <div
+            className="absolute top-0 left-0 w-12 h-12 cursor-nwse-resize nodrag nopan flex items-center justify-center z-[150]"
+            style={{
+              touchAction: 'none',
+              transform: `translate(-50%, -50%) scale(${invZoom})`,
+              transformOrigin: 'center center',
+            }}
+            onPointerDown={(e) => handlePointerDown(e, 'top-left')}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            title="Ajustar tamaño (Superior Izquierda)"
+          >
+            <div className="w-3.5 h-3.5 bg-theme-bg border-[2px] border-theme-accent rounded-sm pointer-events-none shadow-md" />
+          </div>
+
+          {/* Superior Derecha */}
+          <div
+            className="absolute top-0 right-0 w-12 h-12 cursor-nesw-resize nodrag nopan flex items-center justify-center z-[150]"
+            style={{
+              touchAction: 'none',
+              transform: `translate(50%, -50%) scale(${invZoom})`,
+              transformOrigin: 'center center',
+            }}
+            onPointerDown={(e) => handlePointerDown(e, 'top-right')}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            title="Ajustar tamaño (Superior Derecha)"
+          >
+            <div className="w-3.5 h-3.5 bg-theme-bg border-[2px] border-theme-accent rounded-sm pointer-events-none shadow-md" />
+          </div>
+
+          {/* Inferior Izquierda */}
+          <div
+            className="absolute bottom-0 left-0 w-12 h-12 cursor-nesw-resize nodrag nopan flex items-center justify-center z-[150]"
+            style={{
+              touchAction: 'none',
+              transform: `translate(-50%, 50%) scale(${invZoom})`,
+              transformOrigin: 'center center',
+            }}
+            onPointerDown={(e) => handlePointerDown(e, 'bottom-left')}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            title="Ajustar tamaño (Inferior Izquierda)"
+          >
+            <div className="w-3.5 h-3.5 bg-theme-bg border-[2px] border-theme-accent rounded-sm pointer-events-none shadow-md" />
+          </div>
+
+          {/* Inferior Derecha */}
+          <div
+            className="absolute bottom-0 right-0 w-12 h-12 cursor-nwse-resize nodrag nopan flex items-center justify-center z-[150]"
+            style={{
+              touchAction: 'none',
+              transform: `translate(50%, 50%) scale(${invZoom})`,
+              transformOrigin: 'center center',
+            }}
+            onPointerDown={(e) => handlePointerDown(e, 'bottom-right')}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            title="Ajustar tamaño (Inferior Derecha)"
+          >
+            <div className="w-3.5 h-3.5 bg-theme-bg border-[2px] border-theme-accent rounded-sm pointer-events-none shadow-md" />
+          </div>
+        </>
+      )}
 
       <div className={`${selected ? 'opacity-100' : 'opacity-0 group-hover/groupnode:opacity-100'} transition-opacity duration-200`}>
         <Handle type="target" position={Position.Top} id="g-t-in" className="w-2.5 h-2.5 !bg-theme-border border-none z-50" />
@@ -349,7 +517,12 @@ function NodoGrupoExpandible(props) {
         </span>
       </div>
 
+      {/* 🟢 MENÚ CONTEXTUAL DEL GRUPO CON ESCALA INVERSA */}
       <div
+        style={{
+          transform: `scale(${invZoom})`,
+          transformOrigin: 'top left',
+        }}
         className={`absolute top-full left-4 pt-2 z-[100] nodrag transition-opacity duration-150 ${
           selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/groupnode:opacity-100 group-hover/groupnode:pointer-events-auto'
         }`}
@@ -394,6 +567,7 @@ function NodoGrupoExpandible(props) {
 // =========================================================
 function NodoMetaAutonomo(props) {
   const { id, data, selected } = props;
+  const { zoom } = useViewport();
 
   let statusColor = 'border-2 border-theme-border bg-theme-bg text-theme-text';
   if (data.status === 'En Progreso') {
@@ -440,8 +614,13 @@ function NodoMetaAutonomo(props) {
         </p>
       </div>
 
+      {/* 🟢 MENÚ CONTEXTUAL DE LA NOTA CON ESCALA INVERSA */}
       <div
-        className={`absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[100] nodrag transition-all duration-150 ease-out ${
+        style={{
+          transform: `translateX(-50%) scale(${1 / (zoom || 1)})`,
+          transformOrigin: 'top center',
+        }}
+        className={`absolute top-full left-1/2 pt-3 z-[100] nodrag transition-opacity duration-150 ease-out ${
           selected ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover/node:opacity-100 group-hover/node:pointer-events-auto'
         }`}
       >
@@ -791,7 +970,7 @@ export function GestionProyectosContenido() {
       if (boardMode !== 'draw' || e.button !== 0) return;
 
       const target = e.target;
-      if (target.closest('.react-flow__controls') || target.closest('button')) return;
+      if (target.closest('.react-flow__controls') || target.closest('button') || target.closest('.nodrag')) return;
 
       isPointerDownRef.current = true;
       const point = screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -906,6 +1085,41 @@ export function GestionProyectosContenido() {
         }
         return n;
       });
+      guardarEnSupabase(actualizados, edgesRef.current);
+      return actualizados;
+    });
+  }, []);
+
+  // 🟢 COMPENSACIÓN MATEMÁTICA: Permite mover cualquier esquina del grupo sin mover las notas internas
+  const resizeGrupoConPosicion = useCallback((idGrupo, width, height, posX, posY) => {
+    setNodes((nds) => {
+      const grupoAnterior = nds.find((n) => n.id === idGrupo);
+      const deltaX = posX - (grupoAnterior?.position?.x || posX);
+      const deltaY = posY - (grupoAnterior?.position?.y || posY);
+
+      const actualizados = nds.map((n) => {
+        if (n.id === idGrupo) {
+          return {
+            ...n,
+            position: { x: posX, y: posY },
+            style: { ...n.style, width, height },
+          };
+        }
+
+        // Si la esquina superior o izquierda desplazó el origen del grupo, compensamos la nota hija
+        if (n.parentId === idGrupo && (deltaX !== 0 || deltaY !== 0)) {
+          return {
+            ...n,
+            position: {
+              x: n.position.x - deltaX,
+              y: n.position.y - deltaY,
+            },
+          };
+        }
+
+        return n;
+      });
+
       guardarEnSupabase(actualizados, edgesRef.current);
       return actualizados;
     });
@@ -1059,6 +1273,7 @@ export function GestionProyectosContenido() {
                 onCambiarColorGrupo: cambiarColorGrupo,
                 onEditarNombreGrupo: editarNombreGrupo,
                 onResizeGrupo: resizeGrupo,
+                onResizeGrupoConPosicion: resizeGrupoConPosicion,
               },
             };
           }
@@ -1074,6 +1289,7 @@ export function GestionProyectosContenido() {
               onCambiarColorGrupo: cambiarColorGrupo,
               onEditarNombreGrupo: editarNombreGrupo,
               onResizeGrupo: resizeGrupo,
+              onResizeGrupoConPosicion: resizeGrupoConPosicion,
             },
           };
         });
@@ -1103,6 +1319,7 @@ export function GestionProyectosContenido() {
       cambiarColorGrupo,
       editarNombreGrupo,
       resizeGrupo,
+      resizeGrupoConPosicion,
       toggleMenuEdge,
       cerrarMenuEdge,
       modificarEdge,
@@ -1379,6 +1596,7 @@ export function GestionProyectosContenido() {
         onCambiarColorGrupo: cambiarColorGrupo,
         onEditarNombreGrupo: editarNombreGrupo,
         onResizeGrupo: resizeGrupo,
+        onResizeGrupoConPosicion: resizeGrupoConPosicion,
       },
     };
 
@@ -1448,6 +1666,7 @@ export function GestionProyectosContenido() {
           onCambiarColorGrupo: cambiarColorGrupo,
           onEditarNombreGrupo: editarNombreGrupo,
           onResizeGrupo: resizeGrupo,
+          onResizeGrupoConPosicion: resizeGrupoConPosicion,
         },
       };
 
@@ -1482,7 +1701,7 @@ export function GestionProyectosContenido() {
       setNodes(ordenados);
       guardarEnSupabase(ordenados, edgesRef.current);
     },
-    [eliminarNodo, cambiarColorGrupo, editarNombreGrupo, resizeGrupo]
+    [eliminarNodo, cambiarColorGrupo, editarNombreGrupo, resizeGrupo, resizeGrupoConPosicion]
   );
 
   const onSelectionEnd = useCallback(() => {
@@ -1597,9 +1816,9 @@ export function GestionProyectosContenido() {
           </button>
         </div>
 
-        {/* 🟢 BARRA DE CONTROLES: SWITCH MODO + HERRAMIENTAS DE DIBUJO DINÁMICAS */}
+        {/* 🟢 BARRA DE CONTROLES ANTERIOR (Comentada sin borrar nada) */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* SWITCH PRINCIPAL: NOTAS VS DIBUJO */}
+          {/*
           <div className="flex items-center bg-theme-bg border border-theme-border/60 rounded-lg p-1">
             <button
               type="button"
@@ -1630,10 +1849,8 @@ export function GestionProyectosContenido() {
             </button>
           </div>
 
-          {/* SUB-BARRA DE DIBUJO (Solo visible si boardMode === 'draw') */}
           {boardMode === 'draw' && (
             <div className="flex items-center gap-1.5 bg-theme-bg border border-theme-border/60 rounded-lg p-1 animate-in fade-in duration-200">
-              {/* Lápiz */}
               <button
                 type="button"
                 onClick={() => setDrawTool('pen')}
@@ -1648,7 +1865,6 @@ export function GestionProyectosContenido() {
                 <span>Lápiz</span>
               </button>
 
-              {/* Borrador */}
               <button
                 type="button"
                 onClick={() => setDrawTool('eraser')}
@@ -1663,7 +1879,6 @@ export function GestionProyectosContenido() {
                 <span>Borrador</span>
               </button>
 
-              {/* Limpiar trazos */}
               <button
                 type="button"
                 onClick={limpiarSoloTrazos}
@@ -1673,12 +1888,10 @@ export function GestionProyectosContenido() {
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
 
-              {/* Controles de color y tamaño exclusivos del lápiz */}
               {drawTool === 'pen' && (
                 <>
                   <div className="w-[1px] h-4 bg-theme-border/60" />
 
-                  {/* Paleta rápida */}
                   <div className="flex items-center gap-1.5 px-1">
                     {PALETA_DIBUJO.map((item) => (
                       <button
@@ -1694,7 +1907,6 @@ export function GestionProyectosContenido() {
 
                   <div className="w-[1px] h-4 bg-theme-border/60" />
 
-                  {/* Slider de tamaño */}
                   <div className="flex items-center gap-1.5 px-1">
                     <span className="text-[10px] text-theme-text/60">{strokeSize}px</span>
                     <input
@@ -1711,25 +1923,7 @@ export function GestionProyectosContenido() {
               )}
             </div>
           )}
-
-          {/* =========================================================
-              BOTONES DE NOTA Y GRUPO (Comentados a petición)
-             =========================================================
-          <button
-            type="button"
-            onClick={() => handleCrearNuevaMetaDirecta()}
-            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nota
-          </button>
-          <button
-            type="button"
-            onClick={handleCrearContenedorGrupo}
-            className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3 py-1.5 rounded-lg text-xs font-bold flex items-center shadow transition-all cursor-pointer"
-          >
-            <Layers className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Grupo
-          </button>
-          ========================================================= */}
+          */}
         </div>
       </div>
 
@@ -1748,6 +1942,114 @@ export function GestionProyectosContenido() {
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerLeave}
       >
+        {/* =========================================================
+            🟢 DOCK FLOTANTE ESTILO EXCALIDRAW (ÚNICAMENTE ICONOS)
+            1. Notas (Mover canvas, zoom, notas)
+            2. Lápiz (Trazar, paleta de colores y grosor)
+            3. Borrador (Borrar trazos o pixeles)
+            4. Limpiar trazos
+            ========================================================= */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100] nodrag nopan">
+          <div className="flex items-center gap-1 bg-theme-bg/95 backdrop-blur-md border border-theme-border/90 shadow-2xl rounded-2xl p-1.5">
+            {/* 1. Modo Notas */}
+            <button
+              type="button"
+              onClick={() => setBoardMode('notes')}
+              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                boardMode === 'notes'
+                  ? 'bg-theme-accent text-theme-bg shadow-sm'
+                  : 'text-theme-text/70 hover:text-theme-text hover:bg-theme-border/30'
+              }`}
+              title="Modo Notas (Mover canvas, zoom, organizar notas)"
+            >
+              <FileText className="w-4 h-4 stroke-[2]" />
+            </button>
+
+            {/* 2. Lápiz */}
+            <button
+              type="button"
+              onClick={() => {
+                setBoardMode('draw');
+                setDrawTool('pen');
+              }}
+              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                boardMode === 'draw' && drawTool === 'pen'
+                  ? 'bg-theme-accent text-theme-bg shadow-sm'
+                  : 'text-theme-text/70 hover:text-theme-text hover:bg-theme-border/30'
+              }`}
+              title="Lápiz de dibujo libre"
+            >
+              <PenTool className="w-4 h-4 stroke-[2]" />
+            </button>
+
+            {/* 3. Borrador */}
+            <button
+              type="button"
+              onClick={() => {
+                setBoardMode('draw');
+                setDrawTool('eraser');
+              }}
+              className={`p-2 rounded-xl transition-all cursor-pointer ${
+                boardMode === 'draw' && drawTool === 'eraser'
+                  ? 'bg-theme-casa text-theme-bg shadow-sm'
+                  : 'text-theme-text/70 hover:text-theme-casa hover:bg-theme-border/30'
+              }`}
+              title="Borrador de trazos"
+            >
+              <Eraser className="w-4 h-4 stroke-[2]" />
+            </button>
+
+            {/* 4. Borrar todos los trazos */}
+            <button
+              type="button"
+              onClick={limpiarSoloTrazos}
+              className="p-2 text-theme-text/50 hover:text-theme-casa hover:bg-theme-casa/20 rounded-xl transition-colors cursor-pointer"
+              title="Eliminar todos los trazos de dibujo"
+            >
+              <Trash2 className="w-4 h-4 stroke-[2]" />
+            </button>
+
+            {/* Controles contextuales del lápiz (Colores y grosor) */}
+            {boardMode === 'draw' && drawTool === 'pen' && (
+              <>
+                <div className="w-[1px] h-5 bg-theme-border/60 mx-1" />
+
+                {/* Paleta rápida de colores */}
+                <div className="flex items-center gap-1.5 px-1 animate-in fade-in duration-150">
+                  {PALETA_DIBUJO.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setStrokeColor(item.color)}
+                      className={`w-4 h-4 rounded-full ${item.bgClass} transition-transform hover:scale-125 cursor-pointer ${
+                        strokeColor === item.color ? 'ring-2 ring-theme-text scale-110' : 'opacity-60 hover:opacity-100'
+                      }`}
+                      title={`Color: ${item.id}`}
+                    />
+                  ))}
+                </div>
+
+                <div className="w-[1px] h-5 bg-theme-border/60 mx-1" />
+
+                {/* Slider de grosor del trazo */}
+                <div className="flex items-center gap-2 px-1.5 animate-in fade-in duration-150">
+                  <span className="text-[11px] font-mono text-theme-text/60 w-4 text-center">{strokeSize}</span>
+                  <input
+                    type="range"
+                    min="2"
+                    max="24"
+                    step="1"
+                    value={strokeSize}
+                    onChange={(e) => setStrokeSize(Number(e.target.value))}
+                    className="w-16 accent-theme-accent cursor-pointer h-1.5 bg-theme-border rounded-lg"
+                    title={`Grosor de trazo: ${strokeSize}px`}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
         <ReactFlow
           nodes={nodes}
           edges={edges}
