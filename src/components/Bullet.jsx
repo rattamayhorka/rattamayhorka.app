@@ -102,7 +102,7 @@ const renderizarMarkdownSencillo = (texto) => {
           return (
             <h5 key={idx} className="text-[11px] font-bold text-theme-text/80 uppercase pt-0.5">
               {renderizarInline(lTrim.substring(4), `h3-${idx}`)}
-            </h5>
+          </h5>
           );
         }
         if (lTrim.startsWith('- ') || lTrim.startsWith('* ') || lTrim.startsWith('• ')) {
@@ -891,11 +891,15 @@ export default function Bullet({ refreshTrigger }) {
                       <div className="w-full">
                         {renderizarMarkdownSencillo(item.titulo)}
                       </div>
-                    </div>
+  
                   </div>
+                </div>
 
-                  {/* Acciones Rápidas */}
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
+                {/* Acciones Rápidas */}
+                {/* 
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5"> 
+                */}
+                <div className="flex items-center gap-1.5 opacity-100 max-[1279px]:opacity-100 min-[1280px]:opacity-0 min-[1280px]:group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
                     {item.tipo === 'tarea' && (
                       <button
                         onClick={() => enviarAKanban(item)}
@@ -969,7 +973,7 @@ export default function Bullet({ refreshTrigger }) {
         <div className="flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar select-none py-0.5">
           <span className="text-[9px] font-black text-theme-text/50 uppercase tracking-wider mr-1 flex items-center gap-1 flex-shrink-0">
             Plantillas:
-          </span>
+        </span>
           {[
             { tag: '$ Gasto', snippet: '$ Despensa; 450', color: 'hover:border-theme-casa hover:text-theme-casa' },
             { tag: '• Tarea', snippet: '. Revisar contratos; 11:00', color: 'hover:border-theme-accent hover:text-theme-accent' },
