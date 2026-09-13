@@ -543,7 +543,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.0.11 "balazos programados"
+            rattamayhorka v2.0.12 "nodos necios"
           </div>
         </div>
       </div>
