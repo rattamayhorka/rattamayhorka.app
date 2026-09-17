@@ -270,8 +270,11 @@ export default function App() {
     }
   };
 
-  const manejarVerificacionCodigo = async (e) => {
-    e.preventDefault();
+  // 🚀 FUNCIÓN CENTRALIZADA DE VERIFICACIÓN (Acepta código opcional para validación inmediata)
+  const verificarCodigo = async (codigoAEvaluar) => {
+    const codigoAProcesar = codigoAEvaluar || codigoInput;
+    if (codigoAProcesar.length !== 6 || cargando) return;
+
     setCargando(true);
     setErrorAuth('');
 
@@ -279,7 +282,7 @@ export default function App() {
       const res = await fetch('/api/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputCode: codigoInput, tempToken })
+        body: JSON.stringify({ inputCode: codigoAProcesar, tempToken })
       });
       const data = await res.json();
 
@@ -297,6 +300,18 @@ export default function App() {
     } finally {
       setCargando(false);
     }
+  };
+
+  // ⚡ EFECTO PARA VALIDAR AUTOMÁTICAMENTE AL ALCANZAR LOS 6 DÍGITOS
+  useEffect(() => {
+    if (pasoAuth === 2 && codigoInput.length === 6) {
+      verificarCodigo(codigoInput);
+    }
+  }, [codigoInput]);
+
+  const manejarVerificacionCodigo = async (e) => {
+    e.preventDefault();
+    verificarCodigo(codigoInput);
   };
 
   const cerrarSesion = () => {
@@ -482,7 +497,7 @@ export default function App() {
               <span className="hidden xl:inline px-1">Finanzas</span>
             </button>
 
-            <button   
+            <button    
               onClick={() => cambiarSeccion('deudas')}  
               title="Tarjeta y Deudas"
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${
@@ -495,7 +510,7 @@ export default function App() {
               <span className="hidden xl:inline px-1">Control Deudas</span>
             </button>
 
-            <button   
+            <button    
               onClick={() => cambiarSeccion('proyectos_grafo')}  
               title="Mapa de Proyectos"
               className={`w-full flex items-center justify-center xl:justify-start gap-3 p-3 rounded-xl font-bold uppercase text-[11px] transition-all tracking-wider cursor-pointer ${

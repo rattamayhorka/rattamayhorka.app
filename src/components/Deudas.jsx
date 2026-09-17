@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-import { RefreshCw, TrendingDown, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3, GripVertical, Eye, EyeOff, Flame, ShieldCheck } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { RefreshCw, TrendingDown, TrendingUp, Landmark, PiggyBank, Plus, Trash2, CheckCircle2, ShieldAlert, Heart, X, Edit3, GripVertical, Eye, EyeOff, Flame, ShieldCheck, Minus } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, Line, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
 
 export default function Deudas({ refreshTrigger }) {
   const [deudas, setDeudas] = useState([]);
@@ -230,7 +230,6 @@ export default function Deudas({ refreshTrigger }) {
       descripcion: formEditDeuda.descripcion.trim().toUpperCase(),
       deuda_total: nuevoSaldo,
       monto_inicial: parseFloat(formEditDeuda.monto_inicial) || 0,
-      // 🟢 fecha_corte removida para no sobreescribir el día de corte en la tabla 'deudas'
       status: formEditDeuda.fase === 'CONTROLADA' ? 'CONTROLADA' : 'ACTIVA'
     };
 
@@ -254,7 +253,6 @@ export default function Deudas({ refreshTrigger }) {
           }]);
       }
 
-      // 🟢 La fecha del ajuste se guarda exclusivamente aquí en 'historial_deudas'
       const { error: errorHistorial } = await supabase
         .from('historial_deudas')
         .insert([{
@@ -439,6 +437,130 @@ export default function Deudas({ refreshTrigger }) {
   // Calculamos el total de deuda viva tomando el saldo más reciente por fecha de cada deuda
   const totalDeudaActual = deudasVigentes.reduce((acc, curr) => acc + obtenerSaldoMasReciente(curr), 0);
 
+  // 🟢 LÓGICA PARA IDENTIFICAR TENDENCIA (SUBIDA / BAJADA) DE LA DEUDA TOTAL
+  const calcularTendenciaDeudaTotal = () => {
+    if (deudasVigentes.length === 0) return { estado: 'ESTABLE', diferencia: 0 };
+    
+    let totalAnterior = 0;
+    deudasVigentes.forEach(deuda => {
+      const snapshots = historialDeudas
+        .filter(h => h.deuda_id === deuda.id)
+        .map(h => ({ fecha: h.fecha, monto: limpiarMonto(h.monto_saldo) }))
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+      
+      if (snapshots.length >= 2) {
+        totalAnterior += snapshots[snapshots.length - 2].monto;
+      } else {
+        totalAnterior += limpiarMonto(deuda.Monto_Inicial) || obtenerSaldoMasReciente(deuda);
+      }
+    });
+
+    const diferencia = totalDeudaActual - totalAnterior;
+    if (diferencia > 0) return { estado: 'SUBIENDO', diferencia };
+    if (diferencia < 0) return { estado: 'BAJANDO', diferencia };
+    return { estado: 'ESTABLE', diferencia: 0 };
+  };
+
+  const tendenciaDeuda = calcularTendenciaDeudaTotal();
+
+  // 🟢 FUNCIÓN CORREGIDA: Agrupa estrictamente por Quincena única (Q1: 1-15, Q2: 16-fin) sin duplicados y sin futuro
+  const generarDatosDiferenciasQuincenales = () => {
+    const normalizarFecha = (fechaStr) => {
+      if (!fechaStr) return '';
+      if (fechaStr.includes('/')) {
+        const partes = fechaStr.split('/');
+        if (partes.length === 3) {
+          return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+        }
+      }
+      return fechaStr.trim();
+    };
+
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const quincenasMap = new Map();
+
+    // Recolectar todas las fechas históricas válidas
+    deudasVigentes.forEach(deuda => {
+      const snapshots = historialDeudas.filter(h => h.deuda_id === deuda.id);
+      if (snapshots.length === 0 && deuda.Fecha_Inicial) {
+        const f = normalizarFecha(deuda.Fecha_Inicial);
+        if (f && f <= hoyStr) quincenasMap.set(f, true);
+      } else {
+        snapshots.forEach(s => {
+          const f = normalizarFecha(s.fecha);
+          if (f && f <= hoyStr) quincenasMap.set(f, true);
+        });
+      }
+    });
+    quincenasMap.set(hoyStr, true);
+
+    const fechasOrdenadas = Array.from(quincenasMap.keys()).sort((a, b) => new Date(a) - new Date(b));
+
+    // Agrupar en un mapa exclusivo por clave de quincena (Ej: "2026-09-Q1" o "2026-09-Q2") para evitar duplicados
+    const agrupadoPorQ = new Map();
+
+    fechasOrdenadas.forEach(fechaStr => {
+      const [anio, mes, diaStr] = fechaStr.split('-');
+      const dia = parseInt(diaStr, 10);
+      const qKey = `${anio}-${mes}-${dia <= 15 ? 'Q1' : 'Q2'}`;
+
+      let sumaTotalEnFecha = 0;
+      deudasVigentes.forEach(deuda => {
+        const snapshots = historialDeudas
+          .filter(h => h.deuda_id === deuda.id)
+          .map(h => ({ fecha: normalizarFecha(h.fecha), monto: limpiarMonto(h.monto_saldo) }))
+          .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+        let saldoVigente = limpiarMonto(deuda.Monto_Inicial) || limpiarMonto(deuda.Deuda_Total);
+        for (const snap of snapshots) {
+          if (snap.fecha <= fechaStr) saldoVigente = snap.monto;
+          else break;
+        }
+        sumaTotalEnFecha += saldoVigente;
+      });
+
+      // Sobrescribimos con el último registro válido de esa quincena para tener el saldo definitivo de ese periodo
+      const fechaObj = new Date(`${fechaStr}T00:00:00`);
+      const mesNombre = fechaObj.toLocaleDateString('es-MX', { month: 'short' });
+      const etiqueta = `${dia <= 15 ? '15' : '30'} ${mesNombre}`;
+
+      agrupadoPorQ.set(qKey, {
+        keyOrden: qKey,
+        name: etiqueta,
+        'Deuda Total': sumaTotalEnFecha
+      });
+    });
+
+    const listaQuincenas = Array.from(agrupadoPorQ.values()).sort((a, b) => a.keyOrden.localeCompare(b.keyOrden));
+
+    // Calcular la diferencia neta contra la quincena inmediatamente anterior
+    let deudaAnterior = null;
+    const resultados = [];
+
+    listaQuincenas.forEach(item => {
+      const totalActual = item['Deuda Total'];
+      if (deudaAnterior !== null) {
+        const variacion = totalActual - deudaAnterior;
+        resultados.push({
+          name: item.name,
+          'Variación': variacion,
+          'Deuda Total': totalActual
+        });
+      } else {
+        resultados.push({
+          name: item.name,
+          'Variación': 0,
+          'Deuda Total': totalActual
+        });
+      }
+      deudaAnterior = totalActual;
+    });
+
+    return resultados;
+  };
+
+  const datosDiferencias = generarDatosDiferenciasQuincenales();
+
   const totalAhorrado = transacciones
     .filter(t => {
       const rubroT = (t.Rubro || t.rubro || "").toString().toUpperCase().trim();
@@ -456,7 +578,23 @@ export default function Deudas({ refreshTrigger }) {
   const generarDatosGrafica = (deuda) => {
     const actual = obtenerSaldoMasReciente(deuda);
     const inicial = limpiarMonto(deuda.Monto_Inicial) || actual;
-    const etiquetaInicio = deuda.Fecha_Inicial ? `Inicio (${deuda.Fecha_Inicial})` : 'Inicio';
+    
+    const normalizarFecha = (fechaStr) => {
+      if (!fechaStr) return '';
+      if (fechaStr.includes('/')) {
+        const partes = fechaStr.split('/');
+        if (partes.length === 3) {
+          const dia = partes[0].padStart(2, '0');
+          const mes = partes[1].padStart(2, '0');
+          const anio = partes[2];
+          return `${anio}-${mes}-${dia}`;
+        }
+      }
+      return fechaStr.trim();
+    };
+
+    const fechaInicioStd = normalizarFecha(deuda.Fecha_Inicial || '2026-08-01');
+    const etiquetaInicio = deuda.Fecha_Inicial ? `Inicio (${fechaInicioStd})` : 'Inicio';
     
     const descUpper = (deuda.Descripcion || '').toUpperCase().trim();
     const rubroFormatoPago = `PAGO DE ${descUpper}`;
@@ -472,15 +610,19 @@ export default function Deudas({ refreshTrigger }) {
           (descT.startsWith('PAGO') && descT.includes(descUpper))
         );
       })
-      .map(t => ({
-        tipoEvento: 'ABONO',
-        fecha: t.Fecha || t.fecha || 'Abono',
-        monto: limpiarMonto(t.Importe || t.importe || 0)
-      }));
+      .map(t => {
+        const fechaOriginal = t.Fecha || t.fecha || 'Abono';
+        return {
+          tipoEvento: 'ABONO',
+          fechaOriginal: fechaOriginal,
+          fechaStd: normalizarFecha(fechaOriginal),
+          monto: limpiarMonto(t.Importe || t.importe || 0)
+        };
+      });
 
     const abonosAgrupados = [];
     abonosReales.forEach((abono) => {
-      const existe = abonosAgrupados.find(a => a.fecha === abono.fecha);
+      const existe = abonosAgrupados.find(a => a.fechaStd === abono.fechaStd);
       if (existe) {
         existe.monto += abono.monto; 
       } else {
@@ -490,21 +632,25 @@ export default function Deudas({ refreshTrigger }) {
 
     const snapshotsManuales = historialDeudas
       .filter(h => h.deuda_id === deuda.id)
-      .map(h => ({
-        tipoEvento: 'SNAPSHOT',
-        fecha: h.fecha,
-        monto: limpiarMonto(h.monto_saldo)
-      }));
+      .map(h => {
+        const fechaOriginal = h.fecha || '';
+        return {
+          tipoEvento: 'SNAPSHOT',
+          fechaOriginal: fechaOriginal,
+          fechaStd: normalizarFecha(fechaOriginal),
+          monto: limpiarMonto(h.monto_saldo)
+        };
+      });
 
     const todosLosEventos = [...abonosAgrupados, ...snapshotsManuales].sort((a, b) => {
-      return new Date(a.fecha) - new Date(b.fecha);
+      return new Date(a.fechaStd) - new Date(b.fechaStd);
     });
 
     const dataPuntos = [];
     let saldoFlujo = inicial;
     
     dataPuntos.push({
-      name: etiquetaInicio,
+      name: fechaInicioStd,
       'Historial Real': saldoFlujo,
       'Proyección Proporcionada': null,
       montoPagoReal: 0
@@ -514,7 +660,7 @@ export default function Deudas({ refreshTrigger }) {
       if (ev.tipoEvento === 'SNAPSHOT') {
         saldoFlujo = ev.monto;
         dataPuntos.push({
-          name: ev.fecha,
+          name: ev.fechaStd,
           'Historial Real': saldoFlujo,
           'Proyección Proporcionada': null,
           montoPagoReal: 0
@@ -522,7 +668,7 @@ export default function Deudas({ refreshTrigger }) {
       } else if (ev.tipoEvento === 'ABONO') {
         saldoFlujo = Math.max(0, saldoFlujo - ev.monto);
         dataPuntos.push({
-          name: ev.fecha,
+          name: ev.fechaStd,
           'Historial Real': saldoFlujo,
           'Proyección Proporcionada': null,
           montoPagoReal: ev.monto
@@ -572,7 +718,7 @@ export default function Deudas({ refreshTrigger }) {
   };
 
   const formatearEjeY = (tick) => {
-    if (tick >= 1000) return `$${(tick / 1000).toFixed(0)}k`;
+    if (tick >= 1000 || tick <= -1000) return `$${(tick / 1000).toFixed(0)}k`;
     return `$${tick}`;
   };
 
@@ -595,6 +741,30 @@ export default function Deudas({ refreshTrigger }) {
               <span className="text-theme-trabajo font-black">+{formatearMonedaCompleta(abonoEfectuado)}</span>
             </div>
           )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const CustomTooltipDiferencias = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const dataNode = payload[0].payload;
+      const variacion = dataNode['Variación'];
+      const esSubida = variacion > 0;
+      
+      return (
+        <div className="bg-theme-bg border border-theme-border p-3 rounded-xl shadow-xl font-mono text-left space-y-1">
+          <p className="text-[10px] font-bold text-theme-accent uppercase tracking-wider">Corte: {dataNode.name}</p>
+          <div className="text-xs flex items-center gap-1">
+            <span className="text-theme-text/70 font-medium">Variación: </span>
+            <span className={`font-black ${esSubida ? 'text-red-400' : 'text-theme-trabajo'}`}>
+              {esSubida ? `+${formatearMonedaCompleta(variacion)} (Subió)` : formatearMonedaCompleta(variacion) + ' (Bajó)'}
+            </span>
+          </div>
+          <div className="text-[10px] text-theme-text/50 pt-1 border-t border-theme-border/40">
+            Deuda total acumulada: {formatearMonedaCompleta(dataNode['Deuda Total'])}
+          </div>
         </div>
       );
     }
@@ -690,12 +860,28 @@ export default function Deudas({ refreshTrigger }) {
         
         {/* 1. Deuda Viva / Capital Total de Pasivos */}
         <div className="bg-theme-bg border border-theme-border rounded-2xl p-5 border-l-4 border-l-theme-casa shadow-xl">
-          <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">
-            Capital Total de Pasivos ({filtroFaseDeuda})
-          </span>
+          <div className="flex justify-between items-start">
+            <span className="text-[10px] font-black uppercase tracking-widest text-theme-text/60 block">
+              Capital Total de Pasivos ({filtroFaseDeuda})
+            </span>
+            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+              tendenciaDeuda.estado === 'SUBIENDO' 
+                ? 'bg-red-500/10 text-red-400 border-red-500/30' 
+                : tendenciaDeuda.estado === 'BAJANDO' 
+                  ? 'bg-theme-trabajo/10 text-theme-trabajo border-theme-trabajo/30' 
+                  : 'bg-theme-border/20 text-theme-text/60 border-theme-border/40'
+            }`}>
+              {tendenciaDeuda.estado === 'SUBIENDO' && <TrendingUp className="w-3 h-3 stroke-[3]" />}
+              {tendenciaDeuda.estado === 'BAJANDO' && <TrendingDown className="w-3 h-3 stroke-[3]" />}
+              {tendenciaDeuda.estado === 'ESTABLE' && <Minus className="w-3 h-3 stroke-[3]" />}
+              {tendenciaDeuda.estado}
+            </span>
+          </div>
+          
           <div className="text-2xl sm:text-3xl font-black text-theme-text tabular-nums tracking-tight mt-1 font-mono">
             ${totalDeudaActual.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </div>
+          
           <div className="mt-2 flex items-center gap-1.5 text-[10px] text-theme-casa font-bold uppercase tracking-tight">
             <TrendingDown className="w-3.5 h-3.5" /> 
             {filtroFaseDeuda === 'TODAS' && 'Deuda viva consolidada'}
@@ -730,7 +916,7 @@ export default function Deudas({ refreshTrigger }) {
 
       </div>
 
-      {/* SECCIÓN DE GRÁFICAS */}
+      {/* SECCIÓN DE GRÁFICAS INDIVIDUALES */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {deudasVigentes.map((deuda, index) => {
           const datosGrafica = generarDatosGrafica(deuda);
@@ -770,7 +956,6 @@ export default function Deudas({ refreshTrigger }) {
                   title="Clic para editar saldo actual"
                 >
                   <span className="text-[9px] text-theme-text/50 block uppercase font-bold group-hover:text-theme-accent transition-colors">Saldo Actual</span>
-                  {/* 🟢 Muestra el saldo según la fecha más reciente de la BD */}
                   <span className="text-lg font-black text-theme-casa group-hover:brightness-125 transition-all">
                     ${saldoVivoMasReciente.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
@@ -854,6 +1039,56 @@ export default function Deudas({ refreshTrigger }) {
             </div>
           );
         })}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 🟢 GRÁFICA GLOBAL: VARIACIÓN NETA POR QUINCENA (SIN DUPLICADOS) */}
+      {/* ========================================================================= */}
+      <div className="bg-theme-bg border border-theme-border rounded-2xl p-5 space-y-4 shadow-xl">
+        <div className="flex justify-between items-center border-b border-theme-border/40 pb-3">
+          <div>
+            <h3 className="text-lg font-black text-theme-text uppercase tracking-tight flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-theme-accent" /> Variación Neta de Deuda por Quincena
+            </h3>
+            <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-0.5">
+              Diferencia exacta respecto a la quincena anterior (Verde = Bajó | Rojo = Subió)
+            </p>
+          </div>
+        </div>
+
+        <div className="h-72 w-full bg-theme-bg p-2 rounded-xl border border-theme-border/60 overflow-hidden relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={datosDiferencias} margin={{ top: 15, right: 15, left: -10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-theme-border)" opacity={0.3} vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                stroke="var(--color-theme-text)" 
+                opacity={0.6}
+                fontSize={9} 
+                fontWeight="bold"
+                tickLine={false} 
+                dy={8}
+              />
+              <YAxis 
+                stroke="var(--color-theme-text)" 
+                opacity={0.6}
+                fontSize={10} 
+                fontWeight="bold"
+                tickLine={false} 
+                tickFormatter={formatearEjeY}
+              />
+              <Tooltip content={<CustomTooltipDiferencias />} />
+              <Bar dataKey="Variación" radius={[6, 6, 6, 6]}>
+                {datosDiferencias.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry['Variación'] > 0 ? '#ef4444' : 'var(--color-theme-trabajo)'} 
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ========================================================================= */}
