@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-import { X, Calendar, MapPin, Clock, Trash2, Filter, Repeat, Edit2, Plus, Save } from 'lucide-react';
+// import { X, Calendar, MapPin, Clock, Trash2, Filter, Repeat, Edit2, Plus, Save } from 'lucide-react';
+import { X, Calendar, MapPin, Clock, Trash2, Filter, Repeat, Edit2, Plus, Save, Check } from 'lucide-react';
 
 export default function Reuniones() {
   const [reunionesRaw, setReunionesRaw] = useState([]);
   const [cargando, setCargando] = useState(true);
   
+  // 🟢 NUEVO: Estado en memoria para guardar las llaves de las reuniones ocultadas/completadas en esta sesión
+  const [ocultosHoy, setOcultosHoy] = useState(new Set());
+
   // Estado para controlar el filtro Casa / Trabajo / Todos
   const [filtroTipo, setFiltroTipo] = useState('Todos');
 
@@ -41,6 +45,20 @@ export default function Reuniones() {
     lugar: '',
     tipo: 'Trabajo'
   });
+
+  // 🟢 NUEVO: Función para alternar el efecto fantasma/blur sólo en memoria
+  const alternarOcultoHoy = (e, claveInstancia) => {
+    e.stopPropagation(); // Evita que se dispare el modal de edición
+    setOcultosHoy(prev => {
+      const nuevo = new Set(prev);
+      if (nuevo.has(claveInstancia)) {
+        nuevo.delete(claveInstancia);
+      } else {
+        nuevo.add(claveInstancia);
+      }
+      return nuevo;
+    });
+  };
 
   const cargarReuniones = async () => {
     setCargando(true);
@@ -416,11 +434,27 @@ export default function Reuniones() {
                       ? "text-theme-casa bg-theme-casa/10 border-theme-casa/30"
                       : "text-theme-trabajo bg-theme-trabajo/10 border-theme-trabajo/30";
 
+                    // 🟢 NUEVO: Identificador de la reunión y comprobación de si es de hoy y está oculta/borrosa
+                    const esHoy = diffDays === 0;
+                    const claveItem = `${item.rawId}-${item.Fecha}-${item.Hora}`;
+                    const estaOculto = esHoy && ocultosHoy.has(claveItem);
+
                     return (
+                      // 🟢 ANTERIOR:
+                      // <div 
+                      //   key={idx} 
+                      //   onClick={() => abrirEdicionReunion(item)} // 🟢 ABRE MODAL CON EDITAR Y ELIMINAR
+                      //   className={`${estiloTarjeta} p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group transition-all duration-200 border`}
+                      // >
+                      // 🟢 NUEVO: Si está oculta, no abre modal al dar clic y aplica estilo fantasma (blur + opacidad baja)
                       <div 
                         key={idx} 
-                        onClick={() => abrirEdicionReunion(item)} // 🟢 ABRE MODAL CON EDITAR Y ELIMINAR
-                        className={`${estiloTarjeta} p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group transition-all duration-200 border`}
+                        onClick={() => {
+                          if (!estaOculto) abrirEdicionReunion(item);
+                        }} 
+                        className={`${estiloTarjeta} p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group transition-all duration-200 border ${
+                          estaOculto ? 'opacity-35 blur-[1px] grayscale select-none hover:blur-none hover:opacity-60' : ''
+                        }`}
                       >
                         <div>
                           <div className="flex justify-between items-center">
@@ -428,17 +462,53 @@ export default function Reuniones() {
                               <Clock className="w-2.5 h-2.5" /> {item.Hora}
                             </span>
 
-                            {item.tipo_recurrencia !== 'unica' && (
-                              <span title="Evento recurrente" className="text-[8px] font-black uppercase text-theme-accent bg-theme-accent/10 px-1.5 py-0.5 rounded flex items-center gap-1 border border-theme-accent/20">
-                                <Repeat className="w-2.5 h-2.5" /> Recurrente
-                              </span>
-                            )}
-                            
-                            <div className="flex items-center gap-1 text-theme-text/40 group-hover:text-theme-accent transition-colors">
-                              <Edit2 className="w-3.5 h-3.5" />
+                            {/* 🟢 NUEVO CONTENEDOR FLEX: Agrupa la etiqueta recurrente, el botón ocultar/check y el lápiz de edición */}
+                            <div className="flex items-center gap-1.5">
+                              {item.tipo_recurrencia !== 'unica' && (
+                                <span title="Evento recurrente" className="text-[8px] font-black uppercase text-theme-accent bg-theme-accent/10 px-1.5 py-0.5 rounded flex items-center gap-1 border border-theme-accent/20">
+                                  <Repeat className="w-2.5 h-2.5" /> Recurrente
+                                </span>
+                              )}
+
+                              {/* 🟢 NUEVO: Botón ocultar/fantasma visible exclusivamente en los elementos de HOY */}
+                              {esHoy && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => alternarOcultoHoy(e, claveItem)}
+                                  title={estaOculto ? "Restaurar vista" : "Marcar como hecho / Ocultar en esta sesión"}
+                                  className={`p-1 rounded-md border transition-all cursor-pointer ${
+                                    estaOculto 
+                                      ? 'bg-theme-accent text-theme-bg border-theme-accent' 
+                                      : 'border-theme-border/60 text-theme-text/40 hover:text-theme-accent hover:border-theme-accent'
+                                  }`}
+                                >
+                                  <Check className="w-3 h-3 stroke-[2.5]" />
+                                </button>
+                              )}
+                              
+                              {/* 🟢 ANTERIOR:
+                              <div className="flex items-center gap-1 text-theme-text/40 group-hover:text-theme-accent transition-colors">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </div>
+                              */}
+                              {/* 🟢 NUEVO: El botón de editar solo se muestra si el elemento no está borroso */}
+                              {!estaOculto && (
+                                <div className="flex items-center gap-1 text-theme-text/40 group-hover:text-theme-accent transition-colors">
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </div>
+                              )}
                             </div>
                           </div>
+
+                          {/* 🟢 ANTERIOR:
                           <h4 className="text-sm font-black text-theme-text uppercase mt-3 mb-4 tracking-tight leading-snug">
+                            {item['Comité / Evento']}
+                          </h4>
+                          */}
+                          {/* 🟢 NUEVO: Tachado suave en el título cuando se marca como realizado */}
+                          <h4 className={`text-sm font-black uppercase mt-3 mb-4 tracking-tight leading-snug ${
+                            estaOculto ? 'line-through text-theme-text/50' : 'text-theme-text'
+                          }`}>
                             {item['Comité / Evento']}
                           </h4>
                         </div>
