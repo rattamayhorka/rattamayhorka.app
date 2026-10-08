@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../supabase';
-import { X, Star, Trash2, Pencil, History, RotateCcw, Search } from 'lucide-react';
+import { X, Star, Trash2, Pencil, History, RotateCcw, Search, AlertCircle } from 'lucide-react';
 
 export default function Compras() {
   const [compras, setCompras] = useState([]);
@@ -21,9 +21,25 @@ export default function Compras() {
   const [statusActualEditar, setStatusActualEditar] = useState("");
   const [nuevoStatus, setNuevoStatus] = useState("");
   const [nuevoProveedor, setNuevoProveedor] = useState("");
+  const [nuevoRequierePago, setNuevoRequierePago] = useState("NO"); // <-- NUEVO ESTADO PARA EL TOGGLE DE PAGO
   const [guardando, setGuardando] = useState(false);
 
   // Configuración de Estados adaptada al Tema
+  /* CONFIGURACIÓN CON ESTADO DE PAGO INSERTADO:
+  const configEstados = [
+    { nombre: "Por Cotizar Biomedica", color: "bg-theme-casa", texto: "text-theme-casa" },
+    { nombre: "Por Cotizar Compras", color: "bg-theme-casa", texto: "text-theme-casa" },
+    { nombre: "Por Autorizar", color: "bg-theme-accent", texto: "text-theme-accent" },
+    { nombre: "Por hacer Requisicion", color: "bg-theme-accent", texto: "text-theme-accent" },
+    { nombre: "En espera de OC", color: "bg-theme-trabajo", texto: "text-theme-trabajo" },
+    { nombre: "En espera de Pago / Anticipo", color: "bg-theme-accent", texto: "text-theme-accent" },
+    { nombre: "En espera de Material", color: "bg-theme-trabajo", texto: "text-theme-trabajo" },
+    { nombre: "Por hacer Recepcion en SIHO", color: "bg-theme-text", texto: "text-theme-text" },
+    { nombre: "Por entregar a CxP", color: "bg-theme-text", texto: "text-theme-text" }
+  ];
+  */
+
+  // CONFIGURACIÓN OPERATIVA LINEAL (Las 8 fases reales):
   const configEstados = [
     { nombre: "Por Cotizar Biomedica", color: "bg-theme-casa", texto: "text-theme-casa" },
     { nombre: "Por Cotizar Compras", color: "bg-theme-casa", texto: "text-theme-casa" },
@@ -98,6 +114,7 @@ export default function Compras() {
     setStatusActualEditar(item.Status || '');
     setNuevoStatus((item.Status || '').split(' - ')[0].trim());
     setNuevoProveedor(item.Proveedor === '---' ? '' : (item.Proveedor || ''));
+    setNuevoRequierePago(item['Requiere Pago'] === 'SÍ' ? 'SÍ' : 'NO'); // <-- CARGA EL VALOR ACTUAL
     setModalStatus(true);
   };
 
@@ -132,10 +149,20 @@ export default function Compras() {
     setGuardando(true);
     
     try {
+      /* QUERY ANTERIOR SIN ACTUALIZAR REQUIERE_PAGO:
       let query = supabase.from('compras').update({ 
         articulo_servicio: nuevoArticuloTexto.trim(),
         status: nuevoStatus,
         proveedor: nuevoProveedor.trim()
+      });
+      */
+
+      // NUEVO QUERY CON ACTUALIZACIÓN DE CONDICIÓN DE PAGO:
+      let query = supabase.from('compras').update({ 
+        articulo_servicio: nuevoArticuloTexto.trim(),
+        status: nuevoStatus,
+        proveedor: nuevoProveedor.trim(),
+        requiere_pago: nuevoRequierePago
       });
 
       if (idAEditar) {
@@ -203,8 +230,24 @@ export default function Compras() {
   }
 
   const listaWishlist = compras.filter(item => (item.Status || "").includes("Wishlist"));
-  const listaPagos = compras.filter(item => !item.Status.includes("Wishlist") && item['Requiere Pago'] === 'SÍ');
-  const listaTramites = compras.filter(item => !item.Status.includes("Wishlist") && item['Requiere Pago'] !== 'SÍ');
+
+  /* LISTAS ANTERIORES SEPARADAS:
+  const listaPagos = compras.filter(item => 
+    !item.Status.includes("Wishlist") && 
+    (item.Status === "En espera de Pago / Anticipo" || item['Requiere Pago'] === 'SÍ')
+  );
+
+  const listaTramites = compras.filter(item => 
+    !item.Status.includes("Wishlist") && 
+    item.Status !== "En espera de Pago / Anticipo" && 
+    item['Requiere Pago'] !== 'SÍ'
+  );
+  */
+
+  // NUEVAS LISTAS: Todos los trámites activos se quedan en la lista de la derecha (no se mueven de lugar)
+  const listaTramites = compras.filter(item => !item.Status.includes("Wishlist"));
+  // Resumen informativo de cuáles tienen pago pendiente (sin sacarlas de su orden)
+  const listaPagos = listaTramites.filter(item => item['Requiere Pago'] === 'SÍ');
 
   const archivadasFiltradas = comprasArchivadas.filter(item => 
     (item['Artículo / Servicio'] || '').toLowerCase().includes(busquedaHistorial.toLowerCase()) ||
@@ -232,7 +275,7 @@ export default function Compras() {
             onClick={() => setModalHistorial(true)} 
             className="bg-theme-bg hover:opacity-80 text-theme-text/70 border border-theme-border px-3.5 py-2 rounded-lg flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
           >
-            <History className="w-3.5 h-3.5" /> Historial ({comprasArchivadas.length})
+            <Trash2 className="w-3.5 h-3.5" /> Papelera ({comprasArchivadas.length})
           </button>
           
           <button 
@@ -266,7 +309,7 @@ export default function Compras() {
       {/* Grid del Dashboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Columna Izquierda: Wishlist y Esperando Pago */}
+        {/* Columna Izquierda: Wishlist y Resumen de Esperando Pago */}
         <div className="lg:col-span-1 space-y-8">
           
           {/* Bloque Wishlist */}
@@ -296,10 +339,13 @@ export default function Compras() {
             </div>
           </div>
 
-          {/* Bloque Esperando Pago */}
+          {/* Bloque Informativo de Trámites Detenidos por Pago (Acceso Rápido) */}
           <div>
-            <h3 className="text-lg font-black text-theme-accent uppercase italic tracking-tighter mb-4 flex items-center">
-              Esperando Pago
+            <h3 className="text-lg font-black text-amber-400 uppercase italic tracking-tighter mb-4 flex items-center justify-between">
+              <span>Detenidos por Pago</span>
+              <span className="text-xs bg-amber-400/20 text-amber-400 border border-amber-400/30 px-2 py-0.5 rounded-full not-italic">
+                {listaPagos.length}
+              </span>
             </h3>
             <div className="bg-theme-bg shadow-lg rounded-xl overflow-hidden border border-theme-border">
               <table className="w-full text-left">
@@ -311,12 +357,17 @@ export default function Compras() {
                       className="border-b border-theme-border/40 hover:bg-theme-border/10 cursor-pointer transition-colors"
                     >
                       <td className="p-3">
-                        <div className="text-[11px] font-black text-theme-accent uppercase leading-none">{item['Artículo / Servicio']}</div>
-                        <div className="text-[8px] font-bold text-theme-text/60 uppercase mt-1 italic tracking-widest">{item.Status}</div>
+                        <div className="text-[11px] font-black text-amber-400 uppercase leading-none flex items-center gap-1.5">
+                          <AlertCircle className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                          <span>{item['Artículo / Servicio']}</span>
+                        </div>
+                        <div className="text-[8px] font-bold text-theme-text/60 uppercase mt-1 italic tracking-widest pl-4.5">
+                          {item.Status}
+                        </div>
                       </td>
                     </tr>
                   )) : (
-                    <tr><td className="p-4 text-[10px] text-theme-text/50 uppercase font-bold italic">Sin pagos pendientes</td></tr>
+                    <tr><td className="p-4 text-[10px] text-theme-text/50 uppercase font-bold italic">Sin trámites frenados por pago</td></tr>
                   )}
                 </tbody>
               </table>
@@ -325,7 +376,7 @@ export default function Compras() {
 
         </div>
 
-        {/* Columna Derecha: Trámites en Curso */}
+        {/* Columna Derecha: Trámites en Curso (TODOS Permanecen Aquí) */}
         <div className="lg:col-span-2">
           <h3 className="text-lg font-black text-theme-text uppercase italic tracking-tighter mb-4">Trámites en Curso</h3>
           <div className="bg-theme-bg shadow-2xl rounded-xl overflow-hidden border border-theme-border">
@@ -339,6 +390,7 @@ export default function Compras() {
               <tbody>
                 {listaTramites.length > 0 ? listaTramites.map((item, idx) => {
                   const statusActual = item.Status || "";
+                  const paradoPorPago = item['Requiere Pago'] === 'SÍ';
                   let index = configEstados.findIndex(e => statusActual.includes(e.nombre));
                   const config = index !== -1 ? configEstados[index] : { color: "bg-theme-text/40", texto: "text-theme-text/50" };
                   const progreso = index === -1 ? 5 : ((index + 1) / configEstados.length) * 100;
@@ -347,20 +399,45 @@ export default function Compras() {
                     <tr 
                       key={idx} 
                       onClick={() => abrirModalStatus(item)}
-                      className="hover:bg-theme-border/10 border-b border-theme-border/40 cursor-pointer transition-colors text-left"
+                      className={`border-b border-theme-border/40 cursor-pointer transition-colors text-left ${
+                        paradoPorPago 
+                          ? 'bg-amber-400/[0.04] hover:bg-amber-400/[0.08] border-l-4 border-l-amber-400' 
+                          : 'hover:bg-theme-border/10'
+                      }`}
                     >
                       <td className="p-4 border-r border-theme-border/40">
-                        <div className="text-sm font-black text-theme-text uppercase leading-tight tracking-tighter">{item['Artículo / Servicio']}</div>
-                        <div className="text-[9px] font-bold text-theme-text/60 uppercase mt-1 italic tracking-widest">{item.Proveedor || '---'}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-black text-theme-text uppercase leading-tight tracking-tighter">
+                            {item['Artículo / Servicio']}
+                          </div>
+                        </div>
+
+                        {/* Tag indicador de bloqueo por pago */}
+                        {paradoPorPago && (
+                          <div className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 rounded mt-1.5 animate-pulse">
+                            <AlertCircle className="w-2.5 h-2.5" /> Detenido por Pago / Anticipo
+                          </div>
+                        )}
+
+                        <div className="text-[9px] font-bold text-theme-text/60 uppercase mt-1 italic tracking-widest">
+                          {item.Proveedor || '---'}
+                        </div>
                       </td>
                       <td className="p-4">
                         <div className="flex flex-col gap-2">
                           <div className="flex justify-between items-center text-[9px] font-black uppercase">
-                            <span className={`${config.texto} italic`}>{statusActual}</span>
+                            <span className={`${paradoPorPago ? 'text-amber-400 font-black' : config.texto} italic`}>
+                              {statusActual}
+                            </span>
                             <span className="text-theme-text/60">{Math.round(progreso)}%</span>
                           </div>
+                          
+                          {/* Barra de Progreso con color de advertencia si requiere pago */}
                           <div className="w-full bg-theme-bg rounded-full h-1.5 overflow-hidden border border-theme-border/60">
-                            <div className={`${config.color} h-full transition-all duration-1000 shadow-inner`} style={{ width: `${progreso}%` }}></div>
+                            <div 
+                              className={`${paradoPorPago ? 'bg-amber-400' : config.color} h-full transition-all duration-1000 shadow-inner`} 
+                              style={{ width: `${progreso}%` }}
+                            ></div>
                           </div>
                         </div>
                       </td>
@@ -383,7 +460,7 @@ export default function Compras() {
             
             <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-xs tracking-wider flex justify-between items-center border-b border-theme-border">
               <div className="flex items-center gap-2 text-theme-accent">
-                <History className="w-4 h-4" /> Historial de Compras Archivadas ({comprasArchivadas.length})
+                <History className="w-4 h-4" /> Papelera de Compras ({comprasArchivadas.length})
               </div>
               <button onClick={() => setModalHistorial(false)} className="cursor-pointer text-theme-text/50 hover:text-theme-text">
                 <X className="w-4 h-4" />
@@ -447,7 +524,7 @@ export default function Compras() {
 
             <div className="p-3 border-t border-theme-border/40 bg-theme-border/5 text-right">
               <button 
-                onClick={() => setModalHistorial(false)}
+                onClick={() => setModalHistorial(false)} 
                 className="px-4 py-1.5 text-[10px] font-black uppercase text-theme-text/60 hover:text-theme-text cursor-pointer"
               >
                 Cerrar
@@ -489,7 +566,7 @@ export default function Compras() {
         </div>
       )}
 
-      {/* MODAL: EDITAR DETALLES, STATUS, PROVEEDOR & ELIMINAR */}
+      {/* MODAL: EDITAR DETALLES, STATUS, PROVEEDOR, CONDICIÓN DE PAGO & ELIMINAR */}
       {modalStatus && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 text-left">
           <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-theme-border border-t-8 border-t-theme-accent">
@@ -527,10 +604,32 @@ export default function Compras() {
                   <option value="Por Autorizar">Por Autorizar</option>
                   <option value="Por hacer Requisicion">Por hacer Requisicion</option>
                   <option value="En espera de OC">En espera de OC</option>
+                  {/* OPCIÓN ANTERIOR COMENTADA:
+                  <option value="En espera de Pago / Anticipo">En espera de Pago / Anticipo</option>
+                  */}
                   <option value="En espera de Material">En espera de Material</option>
                   <option value="Por hacer Recepcion en SIHO">Por hacer Recepcion en SIHO</option>
                   <option value="Por entregar a CxP">Por entregar a CxP</option>
                   <option value="Concluido">Concluido (Archivar)</option>
+                </select>
+              </div>
+
+              {/* 🟢 NUEVO SELECT / SWITCH: CONDICIÓN DE PAGO / ANTICIPO */}
+              <div>
+                <label className="block text-[9px] font-black uppercase text-theme-text/60 mb-1">
+                  Condición de Pago / Anticipo
+                </label>
+                <select 
+                  value={nuevoRequierePago}
+                  onChange={(e) => setNuevoRequierePago(e.target.value)}
+                  className={`w-full bg-theme-bg border rounded-lg p-3 text-xs font-bold uppercase outline-none transition-colors ${
+                    nuevoRequierePago === 'SÍ' 
+                      ? 'border-amber-400 text-amber-400 bg-amber-400/[0.05]' 
+                      : 'border-theme-border text-theme-text focus:border-theme-accent'
+                  }`}
+                >
+                  <option value="NO">Crédito / No requiere pago previo</option>
+                  <option value="SÍ">⚠️ Requiere Anticipo / Detenido por Pago</option>
                 </select>
               </div>
 

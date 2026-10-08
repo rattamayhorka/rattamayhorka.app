@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { 
   Send, Loader2, Trash2, Edit2, X, 
@@ -7,7 +7,9 @@ import {
   CornerDownLeft, Sparkles, Filter, Terminal, Database, HelpCircle, Columns3,
   // 🟢 ICONOS DE LOS BULLETS PERSONALIZADOS Y DE CONTEXTO
   Plus, Square, Triangle, Home, Hourglass, Bike, Zap, Activity, Music, AtSign, AlertTriangle,
-  Building2, Users, Heart, Stethoscope
+  Building2, Users, Heart, Stethoscope,
+  // 🟢 NUEVO ICONO AGREGADO PARA PESO
+  Scale, TrendingUp, TrendingDown, Minus
 } from 'lucide-react';
 
 const MESES_MAP = {
@@ -136,6 +138,45 @@ const renderizarMarkdownSencillo = (texto) => {
 const parsearLineaTerminal = (texto) => {
   const t = texto.trim();
   const tLower = t.toLowerCase();
+
+  // =========================================================================
+  // 🟢 NUEVO: 0. DETECCIÓN DE PESO (Comando: 'w 82.5', 'peso 82.5', '{peso} 82.5')
+  // =========================================================================
+  const esPrefijoPeso = 
+    tLower.startsWith('w ') || 
+    tLower.startsWith('peso ') || 
+    tLower.startsWith('{peso}') || 
+    tLower.startsWith('{weight}');
+
+  if (esPrefijoPeso) {
+    let contenidoLimpio = t;
+    if (tLower.startsWith('w ')) contenidoLimpio = t.substring(2).trim();
+    else if (tLower.startsWith('peso ')) contenidoLimpio = t.substring(5).trim();
+    else if (tLower.startsWith('{peso}')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('{weight}')) contenidoLimpio = t.substring(8).trim();
+
+    // Extraer valor numérico del peso (acepta punto y coma)
+    const matchPeso = contenidoLimpio.match(/(\d+(\.\d+)?)/);
+    const valorPeso = matchPeso ? parseFloat(matchPeso[0]) : null;
+    const notaAdicional = matchPeso 
+      ? contenidoLimpio.replace(matchPeso[0], '').replace(/[;,\-]/g, '').trim() 
+      : contenidoLimpio;
+
+    return {
+      tipo: 'peso',
+      etiqueta: 'Registro de Peso',
+      icono: Scale,
+      color: 'text-teal-400',
+      bgTag: 'bg-teal-400/10 border-teal-400/20 text-teal-400',
+      cardStyle: 'border-l-4 border-l-teal-400 hover:border-teal-400/60 bg-teal-400/[0.03]',
+      titulo: notaAdicional ? `Pesaje: ${valorPeso ? valorPeso + ' kg' : ''} (${notaAdicional})` : `Pesaje corporal: ${valorPeso ? valorPeso + ' kg' : 'Sin registrar'}`,
+      metadato: valorPeso ? `${valorPeso.toFixed(1)} kg` : null,
+      formateado: `[PESO] ⚖ ${valorPeso ? valorPeso + ' kg' : ''} ${notaAdicional ? `(${notaAdicional})` : ''}`,
+      colorClase: 'text-teal-400 font-bold',
+      pesoValor: valorPeso,
+      notaPeso: notaAdicional
+    };
+  }
 
   // 1. FINANZAS ($)
   if (t.startsWith('$')) {
@@ -518,13 +559,17 @@ export default function Bullet({ refreshTrigger }) {
   const [modoEdicion, setModoEdicion] = useState(false);
   const [notaAEditar, setNotaAEditar] = useState(null);
 
+  // 🟢 ESTADOS ADICIONALES PARA LA GRÁFICA DE PESO
+  const [mostrarGraficaPeso, setMostrarGraficaPeso] = useState(true);
+
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
   const detectorActivo = parsearLineaTerminal(nuevoComando || ' ');
 
-  // 🟢 CATÁLOGO DE BULLETS {TAGS} DISPONIBLES AL ESCRIBIR '{'
+  // 🟢 CATÁLOGO DE BULLETS {TAGS} DISPONIBLES AL ESCRIBIR '{' (Se agregó {peso})
   const BULLETS_SEMANTICOS = [
+    { tag: '{peso}', nombre: 'Peso Corporal (⚖)', icono: Scale, color: 'text-teal-400' }, // <-- NUEVO TAG
     { tag: '{work}', nombre: 'Hospital / Trabajo', icono: Building2, color: 'text-theme-trabajo' },
     { tag: '{home}', nombre: 'Casa / Hogar', icono: Home, color: 'text-theme-casa' },
     { tag: '{wife}', nombre: 'Vicky (V)', icono: (p) => <Triangle {...p} className="rotate-180" />, color: 'text-pink-400' },
@@ -615,6 +660,30 @@ export default function Bullet({ refreshTrigger }) {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
   }, [nuevoComando]);
+
+  // =========================================================================
+  // 🟢 CÁLCULO Y METADATOS DE HISTORIAL DE PESO PARA LA GRÁFICA
+  // =========================================================================
+  const historialPeso = useMemo(() => {
+    return logs
+      .filter(l => l.tipo === 'peso' && typeof l.pesoValor === 'number' && !isNaN(l.pesoValor))
+      .map(l => ({
+        id: l.rawId,
+        fecha: l.fecha,
+        peso: l.pesoValor,
+        texto: l.titulo
+      }));
+  }, [logs]);
+
+  const statsPeso = useMemo(() => {
+    if (historialPeso.length === 0) return null;
+    const ultimo = historialPeso[historialPeso.length - 1].peso;
+    const primero = historialPeso[0].peso;
+    const min = Math.min(...historialPeso.map(p => p.peso));
+    const max = Math.max(...historialPeso.map(p => p.peso));
+    const diff = ultimo - primero;
+    return { ultimo, primero, min, max, diff, total: historialPeso.length };
+  }, [historialPeso]);
 
   const ejecutarRegistro = async () => {
     if (!nuevoComando.trim() || enviando) return;
@@ -717,7 +786,7 @@ export default function Bullet({ refreshTrigger }) {
             ...analisis
           }]);
         } else {
-          // Notas, ideas, no-olvidar, y todos los nuevos tags {work}, {wife}, etc.
+          // Notas, ideas, no-olvidar, {peso}, y todos los nuevos tags {work}, {wife}, etc.
           const { data: insertado, error } = await supabase.from('kanban').insert([{
             tarea: comandoCrudo,
             status: 'Bullet',
@@ -801,12 +870,28 @@ export default function Bullet({ refreshTrigger }) {
           <span className="text-[10px] px-2 py-0.5 rounded-md bg-theme-border/20 text-theme-text/60 font-bold">
             {logsFiltrados.length} entradas
           </span>
+
+          {/* 🟢 BOTÓN TOGGLE PARA VER/OCULTAR LA GRÁFICA DE PESO */}
+          {historialPeso.length > 0 && (
+            <button
+              onClick={() => setMostrarGraficaPeso(!mostrarGraficaPeso)}
+              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase flex items-center gap-1 border transition-all cursor-pointer ${
+                mostrarGraficaPeso 
+                  ? 'bg-teal-400/20 border-teal-400/40 text-teal-400' 
+                  : 'bg-theme-border/20 border-theme-border/40 text-theme-text/50 hover:text-theme-text'
+              }`}
+            >
+              <Scale className="w-3 h-3" />
+              {mostrarGraficaPeso ? 'Ocultar Gráfica Peso' : 'Ver Gráfica Peso'}
+            </button>
+          )}
         </div>
 
         {/* Barra de Filtros Segmentados */}
         <div className="flex items-center gap-1 bg-theme-bg border border-theme-border p-1 rounded-xl text-xs overflow-x-auto max-w-full">
           {[
             { id: 'TODOS', label: 'Todos' },
+            { id: 'peso', label: 'Peso' }, // <-- NUEVA PESTAÑA DE FILTRO
             { id: 'tarea', label: 'Tareas' },
             { id: 'finanzas', label: 'Finanzas' },
             { id: 'evento', label: 'Eventos' },
@@ -840,6 +925,121 @@ export default function Bullet({ refreshTrigger }) {
           ))}
         </div>
       </header>
+
+      {/* ========================================================================= */}
+      {/* 🟢 NUEVO: WIDGET RECUENTO Y GRÁFICA DE EVOLUCIÓN DE PESO CORPORAL        */}
+      {/* ========================================================================= */}
+      {mostrarGraficaPeso && historialPeso.length > 0 && (
+        <section className="bg-theme-bg border-b border-theme-border/60 p-4 px-6 flex-shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-teal-400/10 border border-teal-400/20 text-teal-400">
+                <Scale className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-theme-text flex items-center gap-2">
+                  Evolución de Peso Corporal
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-400/10 text-teal-400 border border-teal-400/20 font-bold">
+                    {statsPeso?.total} registros
+                  </span>
+                </h3>
+              </div>
+            </div>
+
+            {/* Recuento / Estadísticas Rápidas */}
+            {statsPeso && (
+              <div className="flex items-center gap-4 text-xs font-mono">
+                <div className="text-left">
+                  <div className="text-[8px] uppercase text-theme-text/50 font-bold">Actual</div>
+                  <div className="text-sm font-black text-teal-400">{statsPeso.ultimo.toFixed(1)} kg</div>
+                </div>
+                <div className="text-left border-l border-theme-border/40 pl-3">
+                  <div className="text-[8px] uppercase text-theme-text/50 font-bold">Inicial</div>
+                  <div className="text-xs font-bold text-theme-text/70">{statsPeso.primero.toFixed(1)} kg</div>
+                </div>
+                <div className="text-left border-l border-theme-border/40 pl-3">
+                  <div className="text-[8px] uppercase text-theme-text/50 font-bold">Cambio</div>
+                  <div className={`text-xs font-black flex items-center gap-0.5 ${statsPeso.diff > 0 ? 'text-amber-400' : statsPeso.diff < 0 ? 'text-lime-400' : 'text-theme-text/70'}`}>
+                    {statsPeso.diff > 0 ? <TrendingUp className="w-3 h-3" /> : statsPeso.diff < 0 ? <TrendingDown className="w-3 h-3" /> : <Minus className="w-3 h-3" />}
+                    {statsPeso.diff > 0 ? `+${statsPeso.diff.toFixed(1)}` : statsPeso.diff.toFixed(1)} kg
+                  </div>
+                </div>
+                <div className="text-left border-l border-theme-border/40 pl-3">
+                  <div className="text-[8px] uppercase text-theme-text/50 font-bold">Mín / Máx</div>
+                  <div className="text-[10px] font-bold text-theme-text/60">
+                    {statsPeso.min.toFixed(1)} / {statsPeso.max.toFixed(1)} kg
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Gráfico SVG Responsivo Vectorial */}
+          <div className="w-full h-32 bg-theme-border/[0.07] border border-theme-border/40 rounded-xl p-3 relative overflow-hidden flex flex-col justify-end">
+            {historialPeso.length < 2 ? (
+              <div className="h-full flex items-center justify-center text-xs text-theme-text/40">
+                Se necesitan al menos 2 registros para trazar la gráfica. Registra otro peso hoy o mañana usando: <code className="ml-1 text-teal-400 font-bold">w 82.5</code>
+              </div>
+            ) : (() => {
+              const paddingX = 35;
+              const paddingY = 15;
+              const ancho = 800;
+              const alto = 100;
+              const rango = (statsPeso.max - statsPeso.min) || 1;
+
+              const puntos = historialPeso.map((item, i) => {
+                const x = paddingX + (i / (historialPeso.length - 1)) * (ancho - paddingX * 2);
+                const y = alto - paddingY - ((item.peso - statsPeso.min) / rango) * (alto - paddingY * 2);
+                return { x, y, ...item };
+              });
+
+              const dStr = puntos.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`, '');
+              const dArea = `${dStr} L ${puntos[puntos.length - 1].x.toFixed(1)} ${alto} L ${puntos[0].x.toFixed(1)} ${alto} Z`;
+
+              return (
+                <svg viewBox={`0 0 ${ancho} ${alto}`} className="w-full h-full overflow-visible">
+                  <defs>
+                    <linearGradient id="gradientePeso" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Línea guía de base */}
+                  <line x1={paddingX} y1={alto - paddingY} x2={ancho - paddingX} y2={alto - paddingY} stroke="currentColor" strokeOpacity="0.1" strokeDasharray="3 3" />
+                  <line x1={paddingX} y1={paddingY} x2={ancho - paddingX} y2={paddingY} stroke="currentColor" strokeOpacity="0.1" strokeDasharray="3 3" />
+
+                  {/* Área rellenada */}
+                  <path d={dArea} fill="url(#gradientePeso)" />
+
+                  {/* Trazo de línea */}
+                  <path d={dStr} fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+                  {/* Nodos interactivos */}
+                  {puntos.map((p, i) => (
+                    <g key={p.id || i} className="group cursor-pointer">
+                      <circle cx={p.x} cy={p.y} r="3.5" fill="#14b8a6" className="stroke-theme-bg stroke-2 hover:r-5 transition-all" />
+                      
+                      {/* Tooltip / Etiqueta al hacer hover */}
+                      <text
+                        x={p.x}
+                        y={p.y - 7}
+                        textAnchor="middle"
+                        fill="#2dd4bf"
+                        fontSize="9"
+                        fontWeight="bold"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity font-mono select-none"
+                      >
+                        {p.peso}kg ({p.fecha})
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              );
+            })()}
+          </div>
+        </section>
+      )}
 
       {/* 🟢 FEED DE CONTENIDO PRINCIPAL */}
       <main ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-2.5 bg-theme-bg">
@@ -892,14 +1092,11 @@ export default function Bullet({ refreshTrigger }) {
                         {renderizarMarkdownSencillo(item.titulo)}
                       </div>
   
+                    </div>
                   </div>
-                </div>
 
-                {/* Acciones Rápidas */}
-                {/* 
-                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5"> 
-                */}
-                <div className="flex items-center gap-1.5 opacity-100 max-[1279px]:opacity-100 min-[1280px]:opacity-0 min-[1280px]:group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
+                  {/* Acciones Rápidas */}
+                  <div className="flex items-center gap-1.5 opacity-100 max-[1279px]:opacity-100 min-[1280px]:opacity-0 min-[1280px]:group-hover:opacity-100 transition-opacity flex-shrink-0 pt-0.5">
                     {item.tipo === 'tarea' && (
                       <button
                         onClick={() => enviarAKanban(item)}
@@ -969,13 +1166,14 @@ export default function Bullet({ refreshTrigger }) {
           </div>
         )}
 
-        {/* 🟢 SOLO LOS 6 ESENCIALES SOLICITADOS EN LA BARRA DE PLANTILLAS */}
+        {/* 🟢 BARRA DE PLANTILLAS RÁPIDAS (Se añadió el botón rápido de ⚖ Peso) */}
         <div className="flex items-center gap-1.5 overflow-x-auto text-xs no-scrollbar select-none py-0.5">
           <span className="text-[9px] font-black text-theme-text/50 uppercase tracking-wider mr-1 flex items-center gap-1 flex-shrink-0">
             Plantillas:
-        </span>
+          </span>
           {[
-            { tag: '$ Gasto', snippet: '$ Despensa; 450', color: 'hover:border-theme-casa hover:text-theme-casa' },
+            { tag: '⚖ Peso', snippet: 'w 82.5', color: 'hover:border-teal-400 hover:text-teal-400' }, // <-- NUEVA PLANTILLA
+            { tag: '$Gasto', snippet: '$ Despensa; 450', color: 'hover:border-theme-casa hover:text-theme-casa' },
             { tag: '• Tarea', snippet: '. Revisar contratos; 11:00', color: 'hover:border-theme-accent hover:text-theme-accent' },
             { tag: '# Evento', snippet: '# Demo; 28-jul; 15:00; Sala B', color: 'hover:border-theme-trabajo hover:text-theme-trabajo' },
             { tag: '! Idea', snippet: '! Nueva función de automatización', color: 'hover:border-amber-400 hover:text-amber-400' },
@@ -1016,7 +1214,7 @@ export default function Bullet({ refreshTrigger }) {
             value={nuevoComando}
             onChange={(e) => setNuevoComando(e.target.value)}
             onKeyDown={manejarTeclado}
-            placeholder="Escribe comando... Presiona { para categorías semánticas. [Ctrl + Enter]"
+            placeholder="Escribe comando... 'w 82.5' para peso, '{' para categorías. [Ctrl + Enter]"
             className="w-full bg-transparent resize-none outline-none border-none text-xs font-bold text-theme-text placeholder-theme-text/40 leading-relaxed max-h-44 font-mono"
             disabled={enviando}
           />

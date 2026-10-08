@@ -558,7 +558,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.1.1 "game"
+            rattamayhorka v2.1.2 "a ver cuando pagan"
           </div>
         </div>
       </div>
