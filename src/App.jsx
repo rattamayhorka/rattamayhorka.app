@@ -213,16 +213,16 @@ export default function App() {
   const [cargando, setCargando] = useState(false);
 
   const ENLACES_DATABASE = {
-    kanban: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
-    bullet: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
-    field: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407',
-    futureloghst: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1273409378',
-    compromisos: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=215090502',
-    compras: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1191916610',
-    casa_gastos: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=361143608',
-    deudas: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=2015874162',
-    proyectos_grafo: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=1108017808',
-    default: 'https://docs.google.com/spreadsheets/d/1zAkCvBUPxxGFY_-a6M92hhqzJXNM6TPGCVVuL-Pu19Q/edit?gid=816871407'
+    kanban: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    bullet: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    field: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    futureloghst: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    compromisos: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    compras: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    casa_gastos: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    deudas: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    proyectos_grafo: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public',
+    default: 'https://supabase.com/dashboard/project/vopnijxeainjamhkofcs/editor/17742?schema=public'
   };
 
   useEffect(() => {
@@ -558,7 +558,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.1.2 "a ver cuando pagan"
+            rattamayhorka v2.1.3 "debtzualizer"
           </div>
         </div>
       </div>
