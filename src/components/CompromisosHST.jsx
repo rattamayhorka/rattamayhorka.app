@@ -351,11 +351,24 @@ export default function Proyectos() {
   };
 
   const obtenerProximos = () => {
-    return acuerdosFiltrados.filter(item => {
-      const fVal = parseFecha(item['Fecha compromiso']);
-      const statusUpper = (item.Status || "").trim().toUpperCase();
-      return fVal > hoy && statusUpper !== 'HECHO';
-    });
+    /* 
+      CAMBIO: Se filtran los próximos y se ordenan de menor a mayor (más cercanos a más lejanos) 
+      utilizando la función parseFecha sobre 'Fecha compromiso'.
+    */
+    // Codigo original comentado:
+    // return acuerdosFiltrados.filter(item => {
+    //   const fVal = parseFecha(item['Fecha compromiso']);
+    //   const statusUpper = (item.Status || "").trim().toUpperCase();
+    //   return fVal > hoy && statusUpper !== 'HECHO';
+    // });
+    
+    return acuerdosFiltrados
+      .filter(item => {
+        const fVal = parseFecha(item['Fecha compromiso']);
+        const statusUpper = (item.Status || "").trim().toUpperCase();
+        return fVal > hoy && statusUpper !== 'HECHO';
+      })
+      .sort((a, b) => parseFecha(a['Fecha compromiso']) - parseFecha(b['Fecha compromiso']));
   };
 
   const obtenerHistorial = () => {
