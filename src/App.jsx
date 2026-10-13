@@ -558,7 +558,7 @@ export default function App() {
           </button>
           
           <div className="hidden xl:block text-center text-[9px] font-bold text-theme-text/50 tracking-widest mt-1">
-            rattamayhorka v2.1.4 "debtzualizer"
+            rattamayhorka v2.1.5 "rapidhashtag"
           </div>
         </div>
       </div>
