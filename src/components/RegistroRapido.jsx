@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../supabase';
-import { CheckCircle2, AlertCircle, ArrowLeft, Terminal, Send, Database } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ArrowLeft, Terminal, Send, Database, Building2, Home, Triangle, Users, Hourglass, Bike, Zap, Music, Scale } from 'lucide-react';
 
 const MESES_MAP = {
   ene: 0, jan: 0, feb: 1, mar: 2, abr: 3, apr: 3, may: 4, jun: 5,
@@ -55,6 +55,32 @@ const determinarTipoEvento = (fechaObj, horaStr) => {
 // =========================================================================
 const parsearSintaxis = (texto) => {
   const t = texto.trim();
+  const tLower = t.toLowerCase();
+
+  // 🟢 NUEVO: 0. DETECCIÓN DE PESO (Comando: 'w 82.5', 'peso 82.5', '{peso} 82.5')
+  const esPrefijoPeso = 
+    tLower.startsWith('w ') || 
+    tLower.startsWith('peso ') || 
+    tLower.startsWith('{peso}') || 
+    tLower.startsWith('{weight}');
+
+  if (esPrefijoPeso) {
+    let contenidoLimpio = t;
+    if (tLower.startsWith('w ')) contenidoLimpio = t.substring(2).trim();
+    else if (tLower.startsWith('peso ')) contenidoLimpio = t.substring(5).trim();
+    else if (tLower.startsWith('{peso}')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('{weight}')) contenidoLimpio = t.substring(8).trim();
+
+    const matchPeso = contenidoLimpio.match(/(\d+(\.\d+)?)/);
+    const valorPeso = matchPeso ? parseFloat(matchPeso[0]) : null;
+
+    return {
+      tipo: 'PESO',
+      icono: Scale,
+      color: 'text-teal-400 font-bold',
+      formateado: `[PESO] ⚖ ${valorPeso ? valorPeso + ' kg' : ''}`
+    };
+  }
 
   // 🟢 FINANZAS ($): Soporta "$ comida;150", "$150 comida", "$ 300 uber"
   if (t.startsWith('$')) {
@@ -68,7 +94,6 @@ const parsearSintaxis = (texto) => {
       concepto = partes[0].trim();
       monto = partes[1]?.trim() || '0.00';
     } else {
-      // Extrae el primer número que encuentre como monto
       const matchMonto = limpio.match(/(\d+(\.\d+)?)/);
       if (matchMonto) {
         monto = matchMonto[0];
@@ -128,6 +153,46 @@ const parsearSintaxis = (texto) => {
   // 🟢 IDEAS (!)
   if (t.startsWith('!')) return { tipo: 'IDEA', icono: '💡', color: 'text-yellow-300 font-bold' };
 
+  // =========================================================================
+  // 🟢 NUEVO: DETECCIÓN DE TODOS LOS TAGS CON LLAVES {tag} PARA PREVISUALIZACIÓN
+  // =========================================================================
+  if (tLower.startsWith('{work}') || tLower.startsWith('{trabajo}')) {
+    return { tipo: 'WORK', icono: Building2, color: 'text-theme-trabajo font-bold' };
+  }
+  if (tLower.startsWith('{home}') || tLower.startsWith('{casa}')) {
+    return { tipo: 'HOME', icono: Home, color: 'text-theme-casa font-bold' };
+  }
+  if (tLower.startsWith('{wife}') || tLower.startsWith('{vicky}')) {
+    return { tipo: 'WIFE', icono: Triangle, color: 'text-pink-400 font-bold' };
+  }
+  if (tLower.startsWith('{fam}') || tLower.startsWith('{familia}')) {
+    return { tipo: 'FAM', icono: Users, color: 'text-orange-400 font-bold' };
+  }
+  if (tLower.startsWith('{pakal}')) {
+    return { tipo: 'PAKAL', icono: 'P', color: 'text-cyan-400 font-black' };
+  }
+  if (tLower.startsWith('{me}')) {
+    return { tipo: 'ME', icono: Triangle, color: 'text-theme-accent font-bold' };
+  }
+  if (tLower.startsWith('{couple}') || tLower.startsWith('{pareja}')) {
+    return { tipo: 'COUPLE', icono: Hourglass, color: 'text-purple-400 font-bold' };
+  }
+  if (tLower.startsWith('{bike}') || tLower.startsWith('{bici}')) {
+    return { tipo: 'BIKE', icono: Bike, color: 'text-lime-400 font-bold' };
+  }
+  if (tLower.startsWith('{fail}') || tLower.startsWith('{falla}')) {
+    return { tipo: 'FAIL', icono: Zap, color: 'text-yellow-300 font-black' };
+  }
+  if (tLower.startsWith('{omega}') || tLower.startsWith('{ohm}') || tLower.startsWith('{proyecto}')) {
+    return { tipo: 'OMEGA', icono: 'Ω', color: 'text-indigo-400 font-bold' };
+  }
+  if (tLower.startsWith('{music}') || tLower.startsWith('{musica}')) {
+    return { tipo: 'MUSIC', icono: Music, color: 'text-fuchsia-400 font-semibold' };
+  }
+  if (tLower.startsWith('{bash}') || tLower.startsWith('{pc}') || tLower.startsWith('{code}')) {
+    return { tipo: 'BASH', icono: Terminal, color: 'text-emerald-400 font-bold' };
+  }
+
   return { tipo: 'REGISTRO PLANO', icono: '›', color: 'text-amber-200/90' };
 };
 
@@ -138,12 +203,9 @@ export default function RegistroRapido() {
 
   const deteccion = parsearSintaxis(texto);
 
-  // ==========================================
-  // 🟢 NUEVO: Función para insertar plantilla de ejemplo sin borrar manualmente
   const insertarEjemplo = (ejemplo) => {
     setTexto(ejemplo);
   };
-  // ==========================================
 
   const ejecutarGuardado = async (e) => {
     e.preventDefault();
@@ -200,7 +262,7 @@ export default function RegistroRapido() {
         const { error } = await supabase.from('reuniones').insert([payloadReunion]);
         if (error) throw error;
       } 
-      // 4. NOTAS (-), IDEAS (!) O TEXTO PLANO -> TABLA KANBAN (STATUS: Bullet)
+      // 4. NOTAS (-), IDEAS (!), PESO O TAGS {TAG} -> TABLA KANBAN (STATUS: Bullet)
       else {
         const payloadGenerico = {
           tarea: texto.trim(),
@@ -245,17 +307,7 @@ export default function RegistroRapido() {
 
         <div className="p-5 space-y-5">
           {/* LEYENDA DE SINTAXIS */}
-          {/* 🔴 ANTERIOR: Leyenda no clickeable */}
-          {/* <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
-            <div className="text-emerald-400 bg-emerald-950/20 py-1 rounded"><b className="text-emerald-300">$</b> Gasto</div>
-            <div className="text-zinc-400 bg-zinc-900/40 py-1 rounded"><b className="text-zinc-200">-</b> Nota</div>
-            <div className="text-sky-400 bg-sky-950/20 py-1 rounded"><b className="text-sky-300">.</b> Tarea</div>
-            <div className="text-fuchsia-400 bg-fuchsia-950/20 py-1 rounded"><b className="text-fuchsia-300">#</b> Evento</div>
-            <div className="text-yellow-300 bg-yellow-950/20 py-1 rounded"><b className="text-yellow-200">!</b> Idea</div>
-          </div> */}
-
-          {/* 🟢 NUEVO: Leyenda con botones interactivos que insertan la plantilla si se te olvida */}
-          <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-xl border border-zinc-900/80">
+          <div className="grid grid-cols-5 gap-1 text-[8px] font-bold text-center bg-zinc-900/30 p-2 rounded-2xl border border-zinc-900/80">
             <button type="button" onClick={() => insertarEjemplo('$ comida; 150')} className="text-emerald-400 bg-emerald-950/20 hover:bg-emerald-950/40 py-1 rounded cursor-pointer transition-all border-none">
               <b className="text-emerald-300">$</b> Gasto
             </button>
@@ -279,7 +331,7 @@ export default function RegistroRapido() {
                 <span>COMANDO / INPUT</span>
                 {texto && (
                   <span className={`flex items-center gap-1 font-bold ${deteccion.color}`}>
-                    <span>{deteccion.icono}</span> {deteccion.tipo}
+                    <span>{typeof deteccion.icono === 'string' ? deteccion.icono : '🏷️'}</span> {deteccion.tipo}
                   </span>
                 )}
               </div>
@@ -295,24 +347,33 @@ export default function RegistroRapido() {
                     setTexto(e.target.value);
                     if (mensaje) setMensaje(null);
                   }}
-                  placeholder="Escribe... ($ gasto;monto / . tarea;10:00 / # evento;28jul;10:00 / ! idea)"
+                  placeholder="Escribe... ($ gasto;monto / . tarea;10:00 / {work} nota / w 82.5)"
                   className="w-full bg-transparent resize-none outline-none text-xs font-mono text-zinc-100 placeholder-zinc-700 leading-relaxed"
                 />
               </div>
 
-              {/* ========================================== */}
-              {/* 🟢 NUEVO: Guía visual permanente debajo del textarea para no olvidar la sintaxis mientras escribes */}
-              <div className="mt-2 px-1 text-[8px] font-mono text-zinc-500 space-y-0.5">
-                <div className="text-[7.5px] uppercase font-bold text-zinc-600 tracking-wider">Formato:</div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  <span className={texto.startsWith('$') ? 'text-emerald-400 font-bold' : ''}><b>$</b> gasto; monto</span>
-                  <span className={texto.startsWith('.') ? 'text-sky-400 font-bold' : ''}><b>.</b> tarea; hora</span>
-                  <span className={texto.startsWith('#') ? 'text-fuchsia-400 font-bold' : ''}><b>#</b> evento; fecha; hora; lugar</span>
-                  <span className={texto.startsWith('!') ? 'text-yellow-300 font-bold' : ''}><b>!</b> idea</span>
-                  <span className={texto.startsWith('-') ? 'text-zinc-300 font-bold' : ''}><b>-</b> nota</span>
+              {/* GUÍA VISUAL PERMANENTE DE FORMATOS Y NUEVOS TAGS {TAG} */}
+              <div className="mt-2 px-1 text-[8px] font-mono text-zinc-500 space-y-1">
+                <div className="text-[7.5px] uppercase font-bold text-zinc-600 tracking-wider">Formatos y Tags por llaves:</div>
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  <span className={texto.startsWith('$') ? 'text-emerald-400 font-bold' : ''}><b>$</b> gasto</span>
+                  <span className={texto.startsWith('.') ? 'text-sky-400 font-bold' : ''}><b>.</b> tarea</span>
+                  <span className={texto.startsWith('#') ? 'text-fuchsia-400 font-bold' : ''}><b>#</b> evento</span>
+                  <span className={texto.toLowerCase().startsWith('w ') ? 'text-teal-400 font-bold' : ''}><b>w</b> 82.5</span>
+                  <span className={texto.toLowerCase().startsWith('{work}') ? 'text-indigo-400 font-bold' : ''}><b>{'{work}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{home}') ? 'text-emerald-400 font-bold' : ''}><b>{'{home}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{wife}') ? 'text-pink-400 font-bold' : ''}><b>{'{wife}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{fam}') ? 'text-orange-400 font-bold' : ''}><b>{'{fam}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{pakal}') ? 'text-cyan-400 font-bold' : ''}><b>{'{pakal}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{me}') ? 'text-sky-400 font-bold' : ''}><b>{'{me}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{couple}') ? 'text-purple-400 font-bold' : ''}><b>{'{couple}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{bike}') ? 'text-lime-400 font-bold' : ''}><b>{'{bike}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{fail}') ? 'text-yellow-300 font-bold' : ''}><b>{'{fail}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{omega}') ? 'text-indigo-400 font-bold' : ''}><b>{'{omega}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{music}') ? 'text-fuchsia-400 font-bold' : ''}><b>{'{music}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('{bash}') ? 'text-emerald-400 font-bold' : ''}><b>{'{bash}'}</b></span>
                 </div>
               </div>
-              {/* ========================================== */}
             </div>
 
             <button 
