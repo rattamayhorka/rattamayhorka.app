@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '../supabase';
-import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter, Trash2 } from 'lucide-react';
+import { Plus, Calendar, Clock, CheckCircle2, RotateCcw, Play, X, Filter, Trash2, AlertCircle } from 'lucide-react';
 
 function RutinaControl() {
   const [paso, setPaso] = useState(() => {
@@ -439,74 +439,86 @@ export default function Kanban({ refreshTrigger }) {
     return <p className="text-xs font-black uppercase tracking-wider text-theme-text/50 animate-pulse text-left">Actualizando...</p>;
   }
 
+  const tareasPorHacer = filtrarPorColumna('Por Hacer');
+  const tareasEnProceso = filtrarPorColumna('En Proceso');
+  const tareasHecho = filtrarPorColumna('Hecho');
+
   return (
-    <div className="space-y-6 text-left relative">
+    <div className="space-y-3 md:space-y-6 text-left relative">
       
-      <div className="flex justify-between items-end border-b border-theme-border pb-4">
+      {/* 📱 Encabezado ultra sutil y compacto en celulares, intacto en PC */}
+      <div className="flex justify-between items-center border-b border-theme-border pb-2 md:pb-4">
         <div>
-          <h2 className="text-2xl font-black text-theme-accent tracking-tighter uppercase italic">Tablero Kanban Global</h2>
-          <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">
+          <h2 className="text-xs font-bold text-theme-accent uppercase md:text-2xl md:font-black md:tracking-tighter md:italic">
+            Kanban <span className="md:hidden opacity-60">({filtoEntorno})</span>
+          </h2>
+          <p className="hidden md:block text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">
             Gestión Unificada de Actividades
           </p>
         </div>
         
-        <div className="flex gap-2 items-center">
-          <RutinaControl />
+        <div className="flex gap-1.5 md:gap-2 items-center">
+          <div className="hidden md:block">
+            <RutinaControl />
+          </div>
           
           <button 
             onClick={abrirPapelera}
             title="Ver tareas archivadas / terminadas"
-            className="bg-theme-bg hover:opacity-80 text-theme-casa border border-theme-border px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
+            className="bg-theme-bg hover:opacity-80 text-theme-casa border border-theme-border px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center shadow-md transition-all cursor-pointer h-8 md:h-10"
           >
-            <Trash2 className="w-3.5 h-3.5 mr-1 text-theme-casa" /> Papelera
+            <Trash2 className="w-3 h-3 md:w-3.5 md:h-3.5 md:mr-1 text-theme-casa" /> <span className="hidden md:inline">Papelera</span>
           </button>
      
           <button 
             onClick={abrirModalCreacion}
-            className="bg-theme-border hover:opacity-80 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer h-10"
+            className="bg-theme-border hover:opacity-80 text-theme-bg px-2.5 py-1.5 md:px-4 md:py-2 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center shadow-md transition-all cursor-pointer h-8 md:h-10"
           >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Nueva Tarea
+            <Plus className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" /> <span className="hidden md:inline">Nueva Tarea</span>
           </button>
         </div>
       </div>
 
-      {/* 🎯 SECCIÓN DE FILTROS SUPERIORES */}
-      <div className="flex gap-2 bg-theme-bg p-2 rounded-xl border border-theme-border/40 items-center">
-        <span className="text-[9px] font-black uppercase text-theme-text/60 px-2 flex items-center gap-1">
+      {/* 🎯 SECCIÓN DE FILTROS SUPERIORES (Muy sutil en celulares) */}
+      <div className="flex gap-1.5 md:gap-2 bg-theme-bg p-1.5 md:p-2 rounded-xl border border-theme-border/40 items-center">
+        <span className="hidden md:flex text-[9px] font-black uppercase text-theme-text/60 px-2 items-center gap-1">
           <Filter className="w-3 h-3" /> Entorno:
         </span>
         <button
           onClick={() => setFiltroEntorno('Todos')}
-          className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtoEntorno === 'Todos' ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
+          className={`hidden md:block text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtoEntorno === 'Todos' ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
         >
           Todos ({tareas.length})
         </button>
         <button
           onClick={() => setFiltroEntorno('Trabajo')}
-          className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtoEntorno === 'Trabajo' ? 'bg-theme-trabajo text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-trabajo border border-theme-border'}`}
+          className={`flex-1 md:flex-none text-[8px] md:text-[9px] font-black uppercase tracking-wider px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg transition-all cursor-pointer text-center ${filtoEntorno === 'Trabajo' ? 'bg-theme-trabajo text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-trabajo border border-theme-border'}`}
         >
           Trabajo ({tareas.filter(t => (t.Tipo || "").toLowerCase().trim() === 'trabajo').length})
         </button>
         <button
           onClick={() => setFiltroEntorno('Casa')}
-          className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtoEntorno === 'Casa' ? 'bg-theme-casa text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-casa border border-theme-border'}`}
+          className={`flex-1 md:flex-none text-[8px] md:text-[9px] font-black uppercase tracking-wider px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg transition-all cursor-pointer text-center ${filtoEntorno === 'Casa' ? 'bg-theme-casa text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-casa border border-theme-border'}`}
         >
           Casa ({tareas.filter(t => (t.Tipo || "").toLowerCase().trim() === 'casa').length})
         </button>
       </div>
       
-      {/* BLOQUE CON ATRIBUTOS DE DETECCIÓN TÁCTIL */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* BLOQUE DE COLUMNAS: En celulares se ocultan las columnas vacías (sin reservar espacio) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
+        
         {/* COLUMNA: POR HACER */}
         <div 
           data-status="Por Hacer"
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => manejarDropContenedor(e, 'Por Hacer')} 
-          className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
+          className={`bg-theme-bg border border-theme-border/60 p-3 md:p-4 rounded-2xl md:min-h-[450px] ${tareasPorHacer.length === 0 ? 'hidden md:block' : ''}`}
         >
-          <h3 className="text-xs font-black uppercase text-theme-text/80 mb-4 flex items-center tracking-wider italic"><Clock className="w-3.5 h-3.5 mr-2 text-theme-text/50" /> Por Hacer</h3>
-          <div className="space-y-3">
-            {filtrarPorColumna('Por Hacer').map((task, i) => (
+          <h3 className="text-[10px] md:text-xs font-black uppercase text-theme-text/80 mb-2.5 md:mb-4 flex items-center tracking-wider italic">
+            <Clock className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1.5 md:mr-2 text-theme-text/50" /> Por Hacer <span className="md:hidden">({tareasPorHacer.length})</span>
+          </h3>
+          <div className="space-y-2 md:space-y-3">
+            {tareasPorHacer.map((task, i) => (
               <Tarjeta 
                 key={i} 
                 task={task} 
@@ -524,16 +536,18 @@ export default function Kanban({ refreshTrigger }) {
           </div>
         </div>
 
-        {/* COLUMNA: EN PROCESO */}
+        {/* COLUMNA: EN PROCESO (Oculta en cel si está vacía) */}
         <div 
           data-status="En Proceso"
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => manejarDropContenedor(e, 'En Proceso')} 
-          className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
+          className={`bg-theme-bg border border-theme-border/60 p-3 md:p-4 rounded-2xl md:min-h-[450px] ${tareasEnProceso.length === 0 ? 'hidden md:block' : ''}`}
         >
-          <h3 className="text-xs font-black uppercase text-theme-accent mb-4 flex items-center tracking-wider italic"><Activity className="w-3.5 h-3.5 mr-2 text-theme-accent" /> En Proceso</h3>
-          <div className="space-y-3">
-            {filtrarPorColumna('En Proceso').map((task, i) => (
+          <h3 className="text-[10px] md:text-xs font-black uppercase text-theme-accent mb-2.5 md:mb-4 flex items-center tracking-wider italic">
+            <Activity className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1.5 md:mr-2 text-theme-accent" /> En Proceso <span className="md:hidden">({tareasEnProceso.length})</span>
+          </h3>
+          <div className="space-y-2 md:space-y-3">
+            {tareasEnProceso.map((task, i) => (
               <Tarjeta 
                 key={i} 
                 task={task} 
@@ -551,16 +565,18 @@ export default function Kanban({ refreshTrigger }) {
           </div>
         </div>
 
-        {/* COLUMNA: HECHO */}
+        {/* COLUMNA: HECHO (Oculta en cel si está vacía) */}
         <div 
           data-status="Hecho"
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => manejarDropContenedor(e, 'Hecho')} 
-          className="bg-theme-bg border border-theme-border/60 p-4 rounded-2xl min-h-[450px]"
+          className={`bg-theme-bg border border-theme-border/60 p-3 md:p-4 rounded-2xl md:min-h-[450px] ${tareasHecho.length === 0 ? 'hidden md:block' : ''}`}
         >
-          <h3 className="text-xs font-black uppercase text-theme-accent mb-4 flex items-center tracking-wider italic"><CheckCircle2 className="w-3.5 h-3.5 mr-2 text-theme-accent" /> Hecho</h3>
-          <div className="space-y-3">
-            {filtrarPorColumna('Hecho').map((task, i) => (
+          <h3 className="text-[10px] md:text-xs font-black uppercase text-theme-accent mb-2.5 md:mb-4 flex items-center tracking-wider italic">
+            <CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1.5 md:mr-2 text-theme-accent" /> Hecho <span className="md:hidden">({tareasHecho.length})</span>
+          </h3>
+          <div className="space-y-2 md:space-y-3">
+            {tareasHecho.map((task, i) => (
               <Tarjeta 
                 key={i} 
                 task={task} 
@@ -714,14 +730,11 @@ export default function Kanban({ refreshTrigger }) {
         </div>
       )}
 
-      {/* ========================================== */}
-      {/* 🟢 NUEVO: MODAL TRASH BIN (PAPELERA Y VACIADO DEFINITIVO) */}
-      {/* ========================================== */}
+      {/* MODAL TRASH BIN */}
       {mostrarModalTrash && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border-t-4 border-t-theme-casa">
             
-            {/* Header del Modal */}
             <div className="bg-theme-bg p-4 text-theme-text font-black uppercase text-[10px] tracking-widest flex justify-between items-center border-b border-theme-border/50">
               <span className="flex items-center gap-1.5 text-theme-casa">
                 <Trash2 className="w-4 h-4 text-theme-casa" /> Papelera de Tareas ({tareasArchivadas.length})
@@ -731,7 +744,6 @@ export default function Kanban({ refreshTrigger }) {
               </button>
             </div>
 
-            {/* Listado de tareas archivadas */}
             <div className="p-4 max-h-72 overflow-y-auto space-y-2">
               {cargandoTrash ? (
                 <p className="text-xs italic text-theme-text/50 text-center py-4">Cargando elementos...</p>
@@ -749,7 +761,6 @@ export default function Kanban({ refreshTrigger }) {
               )}
             </div>
 
-            {/* Acciones de pie de modal */}
             <div className="p-4 border-t border-theme-border/40 flex justify-end gap-2 bg-theme-bg">
               <button
                 type="button"
@@ -793,12 +804,16 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
   const estiloIconoCalendario = esTrabajo ? "text-theme-trabajo" : "text-theme-casa";
 
   const handleTouchStart = (e) => {
+    if (window.innerWidth < 768) return;
+
     const touch = e.touches[0];
     touchStartPos.current = { x: touch.clientX, y: touch.clientY };
     isDraggingTouch.current = false;
   };
 
   const handleTouchMove = (e) => {
+    if (window.innerWidth < 768) return;
+
     const touch = e.touches[0];
     const deltaX = touch.clientX - touchStartPos.current.x;
     const deltaY = touch.clientY - touchStartPos.current.y;
@@ -824,6 +839,7 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
   };
 
   const handleTouchEnd = (e) => {
+    if (window.innerWidth < 768) return;
     if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
 
     if (isDraggingTouch.current) {
@@ -854,6 +870,8 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
     }
   };
 
+  const statusActual = (task.Status || "").toLowerCase().trim();
+
   return (
     <div 
       ref={cardRef}
@@ -869,15 +887,34 @@ function Tarjeta({ task, onDragStart, onDragOverCard, onDragLeaveCard, onDropCar
       onClick={(e) => {
         if (!isDraggingTouch.current) onClick(e);
       }}
-      className={`border p-3 rounded-xl shadow-md cursor-grab active:cursor-grabbing transition-shadow duration-200 group ${estiloEntornoTarjeta} ${
+      className={`border p-2 md:p-3 rounded-xl shadow-md cursor-grab active:cursor-grabbing transition-shadow duration-200 group ${estiloEntornoTarjeta} ${
         isTarget ? 'border-t-4 border-t-theme-accent bg-theme-accent/10' : ''
       }`}
     >
-      <p className="text-[11px] font-bold uppercase leading-snug tracking-tight pointer-events-none">
-        {task.Tarea || 'SIN DESCRIPCIÓN'}
-      </p>
+      {/* 📱 En celulares se ve en un solo renglón compacto con icono visual de estado. En PC/Tablet mantiene su estructura */}
+      <div className="flex items-center justify-between gap-2 md:block">
+        <div className="flex items-center gap-1.5 truncate flex-1">
+          {/* Icono visual según el estatus actual para celulares */}
+          <span className="md:hidden flex-shrink-0" title={`Estatus: ${task.Status}`}>
+            {statusActual === 'por hacer' && <Clock className="w-3 h-3 text-theme-text/50" />}
+            {statusActual === 'en proceso' && <Activity className="w-3 h-3 text-theme-accent" />}
+            {statusActual === 'hecho' && <CheckCircle2 className="w-3 h-3 text-theme-accent" />}
+          </span>
+
+          <p className="text-[10px] md:text-[11px] font-bold uppercase truncate md:whitespace-normal md:leading-snug md:tracking-tight pointer-events-none">
+            {task.Tarea || 'SIN DESCRIPCIÓN'}
+          </p>
+        </div>
+        
+        {/* Fecha compacta en celular */}
+        <span className="md:hidden flex items-center text-[7.5px] font-bold text-theme-text/60 italic flex-shrink-0">
+          <Calendar className={`w-2.5 h-2.5 mr-0.5 ${estiloIconoCalendario}`} />
+          {task.Fecha || '---'}
+        </span>
+      </div>
       
-      <div className="flex justify-between items-center mt-3 pt-1.5 border-t border-theme-border/20 text-theme-text/60 font-bold text-[8px] tracking-widest uppercase pointer-events-none">
+      {/* Footer original para tablets y PC */}
+      <div className="hidden md:flex justify-between items-center mt-3 pt-1.5 border-t border-theme-border/20 text-theme-text/60 font-bold text-[8px] tracking-widest uppercase pointer-events-none">
         <span className="flex items-center italic">
           <Calendar className={`w-2.5 h-2.5 mr-1 ${estiloIconoCalendario}`} />
           {task.Fecha || '---'}

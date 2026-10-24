@@ -44,16 +44,16 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
   const totalDiasLinea = bloquesTimeline.reduce((acc, b) => acc + b.duracionDias, 0);
 
   return (
-    <div className="bg-theme-bg p-6 rounded-2xl border border-theme-border/80 mb-6 shadow-inner text-left">
-      <div className="flex items-center gap-2 mb-8">
+    <div className="bg-theme-bg p-6 max-md:p-3 rounded-2xl border border-theme-border/80 mb-6 shadow-inner text-left">
+      <div className="flex items-center gap-2 mb-8 max-md:mb-4">
         <div className="w-2 h-2 rounded-full bg-theme-accent shadow-sm" />
-        <h3 className="text-xs font-black uppercase text-theme-text/60 tracking-wider italic">
+        <h3 className="text-xs max-md:text-[10px] font-black uppercase text-theme-text/60 tracking-wider italic">
           Timeline
         </h3>
       </div>
 
-      <div className="overflow-x-auto pb-6 scrollbar-thin scrollbar-thumb-theme-border scrollbar-track-transparent">
-        <div className="min-w-[1100px] flex items-start relative py-4 px-2">
+      <div className="overflow-x-auto pb-6 max-md:pb-3 scrollbar-thin scrollbar-thumb-theme-border scrollbar-track-transparent">
+        <div className="min-w-[1100px] flex items-start relative py-4 max-md:py-2 px-2">
           {bloquesTimeline.map((item, idx) => {
             const esVencido = item.diasRestantes < 0;
             const textoLimpio = (item.Acciones || "").replace(/\[(.*?)\]/, "").trim();
@@ -83,20 +83,20 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                 className="flex flex-col flex-1"
                 style={{ width: `${Math.max(anchoPorcentaje, 16)}%`, minWidth: '180px' }}
               >
-                <div className="mb-3 px-2 flex flex-col items-center text-center">
-                  <span className="text-[9px] font-black text-theme-text/80 tracking-tighter uppercase bg-theme-bg border border-theme-border px-2 py-0.5 rounded-md">
+                <div className="mb-3 max-md:mb-1.5 px-2 flex flex-col items-center text-center">
+                  <span className="text-[9px] max-md:text-[8px] font-black text-theme-text/80 tracking-tighter uppercase bg-theme-bg border border-theme-border px-2 py-0.5 rounded-md">
                     {item['Fecha compromiso']}
                   </span>
-                  <span className={`text-[8px] font-bold mt-1 uppercase tracking-tight ${esVencido ? 'text-theme-casa' : 'text-theme-text/50'}`}>
+                  <span className={`text-[8px] max-md:text-[7px] font-bold mt-1 uppercase tracking-tight ${esVencido ? 'text-theme-casa' : 'text-theme-text/50'}`}>
                     {esVencido ? `Vencido hace ${Math.abs(item.diasRestantes)}d` : `Faltan ${item.diasRestantes}d`}
                   </span>
                 </div>
 
                 <div 
                   onClick={() => alHacerClickItem(item)}
-                  className={`relative h-10 border flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm mx-0.5 rounded-xl text-center group ${colorBloque}`}
+                  className={`relative h-10 max-md:h-8 border flex items-center justify-center cursor-pointer transition-all duration-200 shadow-sm mx-0.5 rounded-xl text-center group ${colorBloque}`}
                 >
-                  <span className="text-[10px] font-black uppercase tracking-widest pointer-events-none truncate px-2">
+                  <span className="text-[10px] max-md:text-[9px] font-black uppercase tracking-widest pointer-events-none truncate px-2">
                     {item.duracionDias} {item.duracionDias === 1 ? 'Día' : 'Días'}
                   </span>
                   
@@ -107,13 +107,13 @@ function GanttDashboard({ acuerdos, parseFecha, hoy, alHacerClickItem }) {
                   )}
                 </div>
 
-                <div className="mt-3 px-3 text-center flex flex-col items-center">
-                  <span className={`text-[8px] font-extrabold uppercase tracking-widest mb-1 ${colorTextoComite}`}>
+                <div className="mt-3 max-md:mt-1.5 px-3 text-center flex flex-col items-center">
+                  <span className={`text-[8px] max-md:text-[7px] font-extrabold uppercase tracking-widest mb-1 ${colorTextoComite}`}>
                     {item.Tema ? item.Tema.replace('COMITE DE ', '').substring(0, 12) : 'ACUERDO'}
                   </span>
                   <p 
                     onClick={() => alHacerClickItem(item)}
-                    className="text-[10px] font-black uppercase text-theme-text leading-snug tracking-tight line-clamp-2 cursor-pointer hover:text-theme-accent transition-colors"
+                    className="text-[10px] max-md:text-[9px] font-black uppercase text-theme-text leading-snug tracking-tight line-clamp-2 cursor-pointer hover:text-theme-accent transition-colors"
                     title={textoLimpio}
                   >
                     {textoLimpio}
@@ -351,17 +351,6 @@ export default function Proyectos() {
   };
 
   const obtenerProximos = () => {
-    /* 
-      CAMBIO: Se filtran los próximos y se ordenan de menor a mayor (más cercanos a más lejanos) 
-      utilizando la función parseFecha sobre 'Fecha compromiso'.
-    */
-    // Codigo original comentado:
-    // return acuerdosFiltrados.filter(item => {
-    //   const fVal = parseFecha(item['Fecha compromiso']);
-    //   const statusUpper = (item.Status || "").trim().toUpperCase();
-    //   return fVal > hoy && statusUpper !== 'HECHO';
-    // });
-    
     return acuerdosFiltrados
       .filter(item => {
         const fVal = parseFecha(item['Fecha compromiso']);
@@ -386,37 +375,37 @@ export default function Proyectos() {
   }).length;
 
   return (
-    <div className="space-y-6 text-left relative font-mono">
+    <div className="space-y-6 max-md:space-y-3 text-left relative font-mono">
       
       {/* Encabezado */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-theme-border pb-4 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-theme-border pb-4 max-md:pb-2 gap-4 max-md:gap-2">
         <div>
-          <h2 className="text-2xl font-black text-theme-accent tracking-tighter uppercase italic">Seguimiento de Minutas</h2>
-          <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">Dashboard de Acuerdos / Compromisos</p>
+          <h2 className="text-2xl max-md:text-lg font-black text-theme-accent tracking-tighter uppercase italic">Seguimiento de Minutas</h2>
+          <p className="text-[10px] max-md:text-[9px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">Dashboard de Acuerdos / Compromisos</p>
         </div>
         
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setMostrarModalCrear(true)}
-            className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 max-md:px-2.5 max-md:py-1.5 rounded-xl text-[10px] max-md:text-[9px] font-black uppercase tracking-widest flex items-center shadow-lg transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nuevo Compromiso
           </button>
           
-          <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase italic tracking-tighter text-theme-bg ${totalCriticosGeneral > 0 ? 'bg-theme-casa animate-pulse' : 'bg-theme-trabajo'}`}>
+          <div className={`px-4 py-2 max-md:px-2.5 max-md:py-1.5 rounded-xl text-xs max-md:text-[9px] font-black uppercase italic tracking-tighter text-theme-bg ${totalCriticosGeneral > 0 ? 'bg-theme-casa animate-pulse' : 'bg-theme-trabajo'}`}>
             {totalCriticosGeneral} Vencidos
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-2 bg-theme-bg p-2 rounded-xl border border-theme-border/40 items-center">
-        <span className="text-[9px] font-black uppercase text-theme-text/60 px-2 flex items-center gap-1">
+      <div className="flex flex-wrap gap-2 max-md:gap-1 bg-theme-bg p-2 max-md:p-1.5 rounded-xl border border-theme-border/40 items-center">
+        <span className="text-[9px] max-md:text-[8px] font-black uppercase text-theme-text/60 px-2 max-md:px-1 flex items-center gap-1">
           <Filter className="w-3 h-3" /> Filtrar:
         </span>
         <button
           onClick={() => setFiltroActivo('Todos')}
-          className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtroActivo === 'Todos' ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
+          className={`text-[9px] max-md:text-[8px] font-black uppercase tracking-wider px-3 py-1.5 max-md:px-2 max-md:py-1 rounded-lg transition-all cursor-pointer ${filtroActivo === 'Todos' ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
         >
           Todos
         </button>
@@ -424,7 +413,7 @@ export default function Proyectos() {
           <button
             key={comite}
             onClick={() => setFiltroActivo(comite)}
-            className={`text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer ${filtroActivo === comite ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
+            className={`text-[9px] max-md:text-[8px] font-black uppercase tracking-wider px-3 py-1.5 max-md:px-2 max-md:py-1 rounded-lg transition-all cursor-pointer ${filtroActivo === comite ? 'bg-theme-accent text-theme-bg shadow-md' : 'bg-theme-bg text-theme-text/70 hover:text-theme-text border border-theme-border'}`}
           >
             {comite.replace('COMITE DE ', '').replace('DEPARTAMENTO DE ', '').replace('UNIDAD DE ', '')}
           </button>
@@ -440,25 +429,25 @@ export default function Proyectos() {
       />
 
       {/* Bloques del Dashboard */}
-      <div className="space-y-8">
-        <div className="bg-theme-bg p-5 rounded-2xl border border-theme-casa/40">
-          <h3 className="text-xs font-black uppercase text-theme-casa mb-4 flex items-center tracking-wider italic"><AlertTriangle className="w-4 h-4 mr-2" /> Acciones Críticas (Vencidas)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {obtenerCriticos().length > 0 ? obtenerCriticos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={true} onClick={() => abrirEdicion(item)} />) : <p className="text-xs font-bold text-theme-text/50 uppercase italic col-span-full p-2">Sin acuerdos vencidos en esta sección.</p>}
+      <div className="space-y-8 max-md:space-y-4">
+        <div className="bg-theme-bg p-5 max-md:p-3 rounded-2xl border border-theme-casa/40">
+          <h3 className="text-xs max-md:text-[10px] font-black uppercase text-theme-casa mb-4 max-md:mb-2 flex items-center tracking-wider italic"><AlertTriangle className="w-4 h-4 mr-2" /> Acciones Críticas (Vencidas)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-md:gap-2">
+            {obtenerCriticos().length > 0 ? obtenerCriticos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={true} onClick={() => abrirEdicion(item)} />) : <p className="text-xs max-md:text-[9px] font-bold text-theme-text/50 uppercase italic col-span-full p-2">Sin acuerdos vencidos en esta sección.</p>}
           </div>
         </div>
 
-        <div className="bg-theme-bg p-5 rounded-2xl border border-theme-border">
-          <h3 className="text-xs font-black uppercase text-theme-accent mb-4 flex items-center tracking-wider italic"><Calendar className="w-4 h-4 mr-2" /> Próximos Compromisos (En Curso)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {obtenerProximos().length > 0 ? obtenerProximos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={false} onClick={() => abrirEdicion(item)} />) : <p className="text-xs font-bold text-theme-text/50 uppercase italic col-span-full p-2">No hay compromisos futuros programados.</p>}
+        <div className="bg-theme-bg p-5 max-md:p-3 rounded-2xl border border-theme-border">
+          <h3 className="text-xs max-md:text-[10px] font-black uppercase text-theme-accent mb-4 max-md:mb-2 flex items-center tracking-wider italic"><Calendar className="w-4 h-4 mr-2" /> Próximos Compromisos (En Curso)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-md:gap-2">
+            {obtenerProximos().length > 0 ? obtenerProximos().map((item, i) => <TarjetaAcuerdo key={i} item={item} esVencido={false} onClick={() => abrirEdicion(item)} />) : <p className="text-xs max-md:text-[9px] font-bold text-theme-text/50 uppercase italic col-span-full p-2">No hay compromisos futuros programados.</p>}
           </div>
         </div>
 
-        <div className="bg-theme-bg/50 p-5 rounded-2xl border border-dashed border-theme-border">
-          <h3 className="text-xs font-black uppercase text-theme-text/40 mb-4 flex items-center tracking-wider italic"><CheckCircle2 className="w-4 h-4 mr-2" /> Historial de Acuerdos Concluidos</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {obtenerHistorial().length > 0 ? obtenerHistorial().map((item, i) => <TarjetaAcuerdo key={i} item={item} esHecho={true} onClick={() => abrirEdicion(item)} />) : <p className="text-xs font-bold text-theme-text/40 uppercase italic col-span-full p-2">Sin registros archivados.</p>}
+        <div className="bg-theme-bg/50 p-5 max-md:p-3 rounded-2xl border border-dashed border-theme-border">
+          <h3 className="text-xs max-md:text-[10px] font-black uppercase text-theme-text/40 mb-4 max-md:mb-2 flex items-center tracking-wider italic"><CheckCircle2 className="w-4 h-4 mr-2" /> Historial de Acuerdos Concluidos</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-md:gap-2">
+            {obtenerHistorial().length > 0 ? obtenerHistorial().map((item, i) => <TarjetaAcuerdo key={i} item={item} esHecho={true} onClick={() => abrirEdicion(item)} />) : <p className="text-xs max-md:text-[9px] font-bold text-theme-text/40 uppercase italic col-span-full p-2">Sin registros archivados.</p>}
           </div>
         </div>
       </div>
@@ -467,9 +456,9 @@ export default function Proyectos() {
       {mostrarModalCrear && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border-t-4 border-t-theme-accent">
-            <form onSubmit={ejecutarCrearCompromiso} className="p-6 space-y-4">
+            <form onSubmit={ejecutarCrearCompromiso} className="p-6 max-md:p-4 space-y-4 max-md:space-y-2.5">
               <div className="flex justify-between items-center mb-1">
-                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic flex items-center gap-1.5">
+                <h4 className="text-sm max-md:text-xs font-black text-theme-text uppercase tracking-tighter italic flex items-center gap-1.5">
                   <Plus className="w-4 h-4 text-theme-accent" /> Registrar Compromiso
                 </h4>
                 <button type="button" onClick={() => setMostrarModalCrear(false)} className="text-theme-text/50 hover:text-theme-text cursor-pointer">
@@ -486,12 +475,12 @@ export default function Proyectos() {
                   rows={3}
                   value={formNuevo.acciones}
                   onChange={(e) => setFormNuevo(prev => ({ ...prev, acciones: e.target.value }))}
-                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-xs font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none"
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 max-md:p-2 text-xs max-md:text-[11px] font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none"
                   placeholder="Ej. Capacitación de bombas de infusión [PNO-01_Capacitacion]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 max-md:gap-2">
                 <div>
                   <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Comité / Tema</label>
                   <input
@@ -501,7 +490,7 @@ export default function Proyectos() {
                     value={formNuevo.tema}
                     onChange={(e) => setFormNuevo(prev => ({ ...prev, tema: e.target.value }))}
                     placeholder="Ej. CTV, UHTV"
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase text-theme-text outline-none focus:border-theme-accent"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold uppercase text-theme-text outline-none focus:border-theme-accent"
                   />
                   <datalist id="lista-temas-sugeridos">
                     {comitesDisponibles.map((t, idx) => <option key={idx} value={t} />)}
@@ -516,12 +505,12 @@ export default function Proyectos() {
                     value={formNuevo.responsable}
                     onChange={(e) => setFormNuevo(prev => ({ ...prev, responsable: e.target.value }))}
                     placeholder="Ej. Jefe de Biomédica"
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold text-theme-text outline-none focus:border-theme-accent"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 max-md:gap-2">
                 <div>
                   <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Fecha Compromiso</label>
                   <input
@@ -529,7 +518,7 @@ export default function Proyectos() {
                     required
                     value={formNuevo.fecha_compromiso}
                     onChange={(e) => setFormNuevo(prev => ({ ...prev, fecha_compromiso: e.target.value }))}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold text-theme-text outline-none focus:border-theme-accent"
                   />
                 </div>
 
@@ -538,7 +527,7 @@ export default function Proyectos() {
                   <select 
                     value={formNuevo.status}
                     onChange={(e) => setFormNuevo(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
                   >
                     <option value="PENDIENTE">PENDIENTE</option>
                     <option value="HECHO">HECHO</option>
@@ -557,7 +546,7 @@ export default function Proyectos() {
                 <button 
                   type="submit" 
                   disabled={guardando}
-                  className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
+                  className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 max-md:py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   {guardando ? 'Guardando...' : 'Crear Compromiso'}
                 </button>
@@ -571,9 +560,9 @@ export default function Proyectos() {
       {mostrarModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-theme-bg border border-theme-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-left border-t-4 border-t-theme-accent">
-            <form onSubmit={ejecutarActualizarEstatus} className="p-6 space-y-4">
+            <form onSubmit={ejecutarActualizarEstatus} className="p-6 max-md:p-4 space-y-4 max-md:space-y-2.5">
               <div className="flex justify-between items-center mb-1">
-                <h4 className="text-sm font-black text-theme-text uppercase tracking-tighter italic">Editar Compromiso</h4>
+                <h4 className="text-sm max-md:text-xs font-black text-theme-text uppercase tracking-tighter italic">Editar Compromiso</h4>
                 <button type="button" onClick={() => setMostrarModal(false)} className="text-theme-text/50 hover:text-theme-text cursor-pointer"><X className="w-4 h-4" /></button>
               </div>
 
@@ -583,19 +572,19 @@ export default function Proyectos() {
                   value={textoAcuerdoEditado}
                   onChange={(e) => setTextoAcuerdoEditado(e.target.value)}
                   rows={3}
-                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 text-xs font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none"
+                  className="w-full bg-theme-bg border border-theme-border rounded-lg p-3 max-md:p-2 text-xs max-md:text-[11px] font-bold text-theme-text uppercase leading-snug outline-none focus:border-theme-accent resize-none"
                   placeholder="Escribe el compromiso aquí... [nombre_nota_obsidian]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 max-md:gap-2">
                 <div>
                   <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Comité / Tema</label>
                   <input
                     type="text"
                     value={temaEditado}
                     onChange={(e) => setTemaEditado(e.target.value)}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase text-theme-text outline-none focus:border-theme-accent"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold uppercase text-theme-text outline-none focus:border-theme-accent"
                   />
                 </div>
 
@@ -605,19 +594,19 @@ export default function Proyectos() {
                     type="text"
                     value={responsableEditado}
                     onChange={(e) => setResponsableEditado(e.target.value)}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold text-theme-text outline-none focus:border-theme-accent"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 max-md:gap-2">
                 <div>
                   <label className="block text-[8px] font-black uppercase text-theme-text/60 tracking-wider mb-1">Fecha Compromiso</label>
                   <input
                     type="date"
                     value={fechaEditada}
                     onChange={(e) => setFechaEditada(e.target.value)}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold text-theme-text outline-none focus:border-theme-accent"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold text-theme-text outline-none focus:border-theme-accent"
                   />
                 </div>
 
@@ -626,7 +615,7 @@ export default function Proyectos() {
                   <select 
                     value={nuevoStatus}
                     onChange={(e) => setNuevoStatus(e.target.value)}
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 max-md:p-2 text-xs max-md:text-[11px] font-bold uppercase outline-none text-theme-text focus:border-theme-accent cursor-pointer"
                   >
                     <option value="PENDIENTE">PENDIENTE</option>
                     <option value="HECHO">HECHO (Mover a Historial)</option>
@@ -641,7 +630,7 @@ export default function Proyectos() {
                   disabled={guardando}
                   onClick={ejecutarEliminarCompromiso}
                   title="Eliminar acuerdo permanentemente"
-                  className="p-3 bg-theme-bg border border-theme-border text-theme-text/40 hover:text-red-400 hover:border-red-400/50 rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                  className="p-3 max-md:p-2.5 bg-theme-bg border border-theme-border text-theme-text/40 hover:text-red-400 hover:border-red-400/50 rounded-lg transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -657,7 +646,7 @@ export default function Proyectos() {
                 <button 
                   type="submit" 
                   disabled={guardando}
-                  className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
+                  className="flex-1 bg-theme-accent hover:opacity-90 text-theme-bg py-3 max-md:py-2.5 rounded-lg text-[10px] font-black uppercase shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   {guardando ? 'Sincronizando...' : 'Guardar Cambios'}
                 </button>
@@ -706,11 +695,11 @@ function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
   return (
     <div 
       onClick={onClick}
-      className={`bg-theme-bg border p-4 rounded-xl shadow-md flex flex-col justify-between group min-h-[140px] cursor-pointer hover:border-theme-border/80 transition-all duration-300 ${estiloFondoTarjeta}`}
+      className={`bg-theme-bg border p-4 max-md:p-3 rounded-xl shadow-md flex flex-col justify-between group min-h-[140px] max-md:min-h-[110px] cursor-pointer hover:border-theme-border/80 transition-all duration-300 ${estiloFondoTarjeta}`}
     >
       <div>
-        <div className="flex justify-between items-start mb-3 gap-2">
-          <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border tracking-wider ${badgeColor}`}>{item.Tema}</span>
+        <div className="flex justify-between items-start mb-3 max-md:mb-2 gap-2">
+          <span className={`text-[8px] max-md:text-[7px] font-black uppercase px-2 py-0.5 rounded border tracking-wider ${badgeColor}`}>{item.Tema}</span>
           
           <div className="flex items-center gap-1.5">
             {urlObsidian && (
@@ -724,17 +713,17 @@ function TarjetaAcuerdo({ item, esVencido, esHecho, onClick }) {
               </a>
             )}
 
-            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${
+            <span className={`text-[8px] max-md:text-[7px] font-black uppercase px-1.5 py-0.5 rounded border ${
               esHecho ? 'bg-theme-trabajo/20 text-theme-trabajo border-theme-trabajo/40' : (esVencido ? 'bg-theme-casa/20 text-theme-casa border-theme-casa/40' : 'bg-theme-bg text-theme-text/60 border-theme-border')
             }`}>{item.Status}</span>
           </div>
         </div>
-        <p className="text-[11px] text-theme-text font-medium leading-snug uppercase tracking-tight line-clamp-3 group-hover:line-clamp-none transition-all duration-300">
+        <p className="text-[11px] max-md:text-[10px] text-theme-text font-medium leading-snug uppercase tracking-tight line-clamp-3 group-hover:line-clamp-none transition-all duration-300">
           {textoLimpioParaMostrar}
         </p>
       </div>
       
-      <div className="flex justify-between items-center mt-4 pt-2 border-t border-theme-border/40 text-theme-text/60 font-bold text-[9px]">
+      <div className="flex justify-between items-center mt-4 max-md:mt-2.5 pt-2 border-t border-theme-border/40 text-theme-text/60 font-bold text-[9px] max-md:text-[8px]">
         <span className="italic text-theme-text/70 flex items-center gap-1">
           <User className="w-3 h-3 text-theme-text/40" /> {item.Responsable || 'BIOMÉDICA'}
         </span>

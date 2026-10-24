@@ -47,7 +47,6 @@ export default async function handler(req, res) {
     const mesNum = partes.month;
     const anioNum = partes.year;
     
-    // Soporte para ambos formatos de fecha
     const fechaSlash = `${diaNum}/${mesNum}/${anioNum}`; // "29/08/2026"
     const fechaDash = `${anioNum}-${mesNum}-${diaNum}`;  // "2026-08-29"
 
@@ -63,7 +62,116 @@ export default async function handler(req, res) {
 
     let notificacionesEnviadas = 0;
 
-    // 2. REVISAR EVENTOS DE FUTURELOG (reuniones)
+    // ==========================================
+    // NUEVO: RESUMEN MATUTINO A LAS 08:00 AM
+    // ==========================================
+    // Asumiendo que tu cron corre cada minuto o a las 08:00 en punto:
+    //if (hNow === 8 && mNow === 0) {
+    if (hNow === 17) {
+    
+      let resumenReuniones = [];
+      let resumenTareas = [];
+
+      // A. Recopilar reuniones de hoy
+      const { data: reuniones, error: errReuniones } = await supabase
+        .from('reuniones')
+        .select('*');
+
+      if (!errReuniones && reuniones) {
+        for (const r of reuniones) {
+          if (!r.hora) continue;
+          let aplicaHoy = false;
+          const fechaEvento = (r.fecha || '').trim();
+
+          if (!r.tipo_recurrencia || r.tipo_recurrencia === 'unica') {
+            if (fechaEvento === fechaSlash || fechaEvento === fechaDash) aplicaHoy = true;
+          } else if (r.tipo_recurrencia === 'mensual_dia') {
+            if (parseInt(r.dia_mes, 10) === diaDelMes) aplicaHoy = true;
+          } else if (r.tipo_recurrencia === 'mensual_rango') {
+            const dias = (r.dias_mes || '').split(',').map(n => parseInt(n.trim(), 10));
+            if (dias.includes(diaDelMes)) aplicaHoy = true;
+          } else if (r.tipo_recurrencia === 'semanal_dias') {
+            const diasSem = (r.dias_semana || '').split(',').map(n => parseInt(n.trim(), 10));
+            if (diasSem.includes(diaDeSemana)) aplicaHoy = true;
+          }
+
+          if (aplicaHoy) {
+            resumenReuniones.push({
+              hora: r.hora,
+              titulo: r.comite,
+              lugar: r.lugar || 'No especificado',
+              tipo: r.tipo || 'Trabajo'
+            });
+          }
+        }
+      }
+
+      // Ordenar reuniones por hora
+      resumenReuniones.sort((a, b) => a.hora.localeCompare(b.hora));
+
+      // B. Recopilar tareas Kanban pendientes / para hoy
+      const { data: tareas, error: errTareas } = await supabase
+        .from('kanban')
+        .select('*')
+        .neq('status', 'Terminado')
+        .neq('status', 'Bullet');
+
+      if (!errTareas && tareas) {
+        for (const t of tareas) {
+          if (t.tarea) {
+            let textoTarea = t.tarea;
+            let horaTarea = null;
+
+            if (t.tarea.includes(';')) {
+              const partesT = t.tarea.split(';');
+              textoTarea = partesT[0].trim();
+              horaTarea = partesT[1].trim();
+            }
+
+            // Puedes agregar aquí un filtro si tus tareas tienen fecha asignada, 
+            // o listar todas las activas/compromisos pendientes para el día.
+            resumenTareas.push({
+              tarea: textoTarea,
+              hora: horaTarea || 'Sin hora específica',
+              status: t.status
+            });
+          }
+        }
+      }
+
+      // C. Construir y enviar el mensaje consolidado
+      let mensajeResumen = `🌅 <b>¡Buenos días! Resumen del día (${fechaSlash})</b>\n\n`;
+
+      // Sección de Reuniones
+      mensajeResumen += `🗓️ <b>Reuniones (${resumenReuniones.length}):</b>\n`;
+      if (resumenReuniones.length > 0) {
+        resumenReuniones.forEach(r => {
+          mensajeResumen += `• <b>${r.hora}</b> - ${r.titulo} <i>(${r.lugar})</i>\n`;
+        });
+      } else {
+        mensajeResumen += `<i>No hay reuniones programadas para hoy.</i>\n`;
+      }
+
+      mensajeResumen += `\n`;
+
+      // Sección de Tareas Kanban / Compromisos
+      mensajeResumen += `📋 <b>Compromisos y Tareas Kanban (${resumenTareas.length}):</b>\n`;
+      if (resumenTareas.length > 0) {
+        resumenTareas.forEach(t => {
+          const horaTxt = t.hora !== 'Sin hora específica' ? ` [${t.hora}]` : '';
+          mensajeResumen += `• [${t.status}] ${t.tarea}${horaTxt}\n`;
+        });
+      } else {
+        mensajeResumen += `<i>No hay tareas pendientes.</i>\n`;
+      }
+
+      await enviarTelegram(mensajeResumen);
+      notificacionesEnviadas++;
+    }
+
+    // ==========================================
+    // 2. TUS RECORDATORIOS INDIVIDUALES (EXISTENTES)
+    // ==========================================
     const { data: reuniones, error: errReuniones } = await supabase
       .from('reuniones')
       .select('*');
@@ -75,11 +183,8 @@ export default async function handler(req, res) {
         let aplicaHoy = false;
         const fechaEvento = (r.fecha || '').trim();
 
-        // Normalización y chequeo de recurrencia
         if (!r.tipo_recurrencia || r.tipo_recurrencia === 'unica') {
-          if (fechaEvento === fechaSlash || fechaEvento === fechaDash) {
-            aplicaHoy = true;
-          }
+          if (fechaEvento === fechaSlash || fechaEvento === fechaDash) aplicaHoy = true;
         } else if (r.tipo_recurrencia === 'mensual_dia') {
           if (parseInt(r.dia_mes, 10) === diaDelMes) aplicaHoy = true;
         } else if (r.tipo_recurrencia === 'mensual_rango') {
@@ -94,7 +199,6 @@ export default async function handler(req, res) {
           const [hEvent, mEvent] = r.hora.split(':').map(Number);
           const diffMinutos = (hEvent * 60 + mEvent) - (hNow * 60 + mNow);
 
-          // Si el evento ocurre en los próximos 0 a 5 minutos
           if (diffMinutos >= 0 && diffMinutos <= MINUTOS_ANTICIPACION) {
             const msg = `🗓️ <b>Recordatorio de Evento (en ${diffMinutos} min):</b>\n\n` +
                         `📌 <b>${r.comite}</b>\n` +
@@ -109,7 +213,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // 3. REVISAR TAREAS KANBAN CON HORA PROGRAMADA
+    // 3. REVISAR TAREAS KANBAN CON HORA PROGRAMADA (EXISTENTE)
     const { data: tareas, error: errTareas } = await supabase
       .from('kanban')
       .select('*')

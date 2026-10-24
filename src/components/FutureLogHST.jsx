@@ -342,29 +342,29 @@ export default function Reuniones() {
   }
 
   return (
-    <div className="space-y-8 text-left">
+    <div className="space-y-6 sm:space-y-8 text-left">
       
       {/* Encabezado */}
-      <div className="mb-8 border-b border-theme-border/40 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+      <div className="mb-6 sm:mb-8 border-b border-theme-border/40 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-4">
         <div>
-          <h2 className="text-2xl font-black text-theme-accent tracking-tighter uppercase italic">Future LOG</h2>
-          <p className="text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">
+          <h2 className="text-xl sm:text-2xl font-black text-theme-accent tracking-tighter uppercase italic">Future LOG</h2>
+          <p className="text-[9px] sm:text-[10px] font-bold text-theme-text/60 uppercase tracking-widest mt-1 italic">
             Cronograma de eventos — {filtroTipo}
           </p>
         </div>
 
         {/* CONTROLES Y FILTRO EN LA PARTE SUPERIOR */}
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
           
           {/* BARRA DE FILTROS */}
-          <div className="bg-theme-bg p-1 rounded-xl border border-theme-border flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5 text-theme-text/50 ml-2 mr-1" />
+          <div className="bg-theme-bg p-1 rounded-xl border border-theme-border flex items-center gap-0.5 sm:gap-1">
+            <Filter className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-theme-text/50 ml-1.5 sm:ml-2 mr-0.5 sm:mr-1" />
             {['Todos', 'Casa', 'Trabajo'].map(tipo => (
               <button
                 key={tipo}
                 type="button"
                 onClick={() => setFiltroTipo(tipo)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
                   filtroTipo === tipo
                     ? 'bg-theme-accent text-theme-bg shadow'
                     : 'text-theme-text/60 hover:text-theme-text hover:bg-theme-border/20'
@@ -377,12 +377,12 @@ export default function Reuniones() {
 
           <button 
             onClick={() => setModalAbierto(true)} 
-            className="bg-theme-accent hover:opacity-90 text-theme-bg px-4 py-2 rounded-lg shadow-lg flex items-center text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+            className="bg-theme-accent hover:opacity-90 text-theme-bg px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg shadow-lg flex items-center text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 mr-1 stroke-[3]" /> Nuevo evento
+            <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1 stroke-[3]" /> Nuevo evento
           </button>
           
-          <div className={`px-4 py-2 rounded-lg shadow-sm text-xs font-black uppercase italic tracking-tighter border ${
+          <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg shadow-sm text-[11px] sm:text-xs font-black uppercase italic tracking-tighter border ${
             eventosHoy > 0 ? 'text-theme-casa bg-theme-casa/10 border-theme-casa animate-pulse' : 'text-theme-accent bg-theme-bg border-theme-border'
           }`}>
             {eventosHoy} Eventos para Hoy
@@ -391,7 +391,7 @@ export default function Reuniones() {
       </div>
 
       {/* RENDERIZADO DEL CRONOGRAMA */}
-      <div className="space-y-10 relative pl-4">
+      <div className="space-y-6 sm:space-y-10 relative pl-2 sm:pl-4">
         {fechasOrdenadas.length > 0 ? (
           fechasOrdenadas.map(fecha => {
             const items = grupos[fecha];
@@ -414,16 +414,16 @@ export default function Reuniones() {
             }
 
             return (
-              <div key={fecha} className="relative pl-8 border-l-2 border-theme-border/40">
-                <div className={`absolute -left-[13px] top-0 h-6 w-6 rounded-full ${bgDia} flex items-center justify-center shadow-md border text-[11px]`}>
-                  <Calendar className="w-3 h-3" />
+              <div key={fecha} className="relative pl-6 sm:pl-8 border-l-2 border-theme-border/40">
+                <div className={`absolute -left-[11px] sm:-left-[13px] top-0 h-5 w-5 sm:h-6 sm:w-6 rounded-full ${bgDia} flex items-center justify-center shadow-md border text-[10px] sm:text-[11px]`}>
+                  <Calendar className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 </div>
                 
-                <h3 className={`text-xs font-black uppercase tracking-widest ${colorDia} mb-6 italic`}>
+                <h3 className={`text-[11px] sm:text-xs font-black uppercase tracking-widest ${colorDia} mb-4 sm:mb-6 italic`}>
                   {tituloFecha} — {fecha}
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {items.map((item, idx) => {
                     const esCasa = (item.Tipo || 'Trabajo').toString().toUpperCase() === 'CASA';
                     const estiloTarjeta = esCasa
@@ -452,21 +452,21 @@ export default function Reuniones() {
                         onClick={() => {
                           if (!estaOculto) abrirEdicionReunion(item);
                         }} 
-                        className={`${estiloTarjeta} p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group transition-all duration-200 border ${
+                        className={`${estiloTarjeta} p-3.5 sm:p-5 rounded-xl shadow-sm flex flex-col justify-between cursor-pointer group transition-all duration-200 border ${
                           estaOculto ? 'opacity-35 blur-[1px] grayscale select-none hover:blur-none hover:opacity-60' : ''
                         }`}
                       >
                         <div>
                           <div className="flex justify-between items-center">
-                            <span className={`text-[9px] font-black uppercase italic px-2 py-0.5 rounded border w-fit flex items-center gap-1 ${estiloHora}`}>
-                              <Clock className="w-2.5 h-2.5" /> {item.Hora}
+                            <span className={`text-[8px] sm:text-[9px] font-black uppercase italic px-1.5 sm:px-2 py-0.5 rounded border w-fit flex items-center gap-1 ${estiloHora}`}>
+                              <Clock className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> {item.Hora}
                             </span>
 
                             {/* 🟢 NUEVO CONTENEDOR FLEX: Agrupa la etiqueta recurrente, el botón ocultar/check y el lápiz de edición */}
                             <div className="flex items-center gap-1.5">
                               {item.tipo_recurrencia !== 'unica' && (
-                                <span title="Evento recurrente" className="text-[8px] font-black uppercase text-theme-accent bg-theme-accent/10 px-1.5 py-0.5 rounded flex items-center gap-1 border border-theme-accent/20">
-                                  <Repeat className="w-2.5 h-2.5" /> Recurrente
+                                <span title="Evento recurrente" className="text-[7px] sm:text-[8px] font-black uppercase text-theme-accent bg-theme-accent/10 px-1.5 py-0.5 rounded flex items-center gap-1 border border-theme-accent/20">
+                                  <Repeat className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> Recurrente
                                 </span>
                               )}
 
@@ -482,7 +482,7 @@ export default function Reuniones() {
                                       : 'border-theme-border/60 text-theme-text/40 hover:text-theme-accent hover:border-theme-accent'
                                   }`}
                                 >
-                                  <Check className="w-3 h-3 stroke-[2.5]" />
+                                  <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[2.5]" />
                                 </button>
                               )}
                               
@@ -494,7 +494,7 @@ export default function Reuniones() {
                               {/* 🟢 NUEVO: El botón de editar solo se muestra si el elemento no está borroso */}
                               {!estaOculto && (
                                 <div className="flex items-center gap-1 text-theme-text/40 group-hover:text-theme-accent transition-colors">
-                                  <Edit2 className="w-3.5 h-3.5" />
+                                  <Edit2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                 </div>
                               )}
                             </div>
@@ -506,14 +506,14 @@ export default function Reuniones() {
                           </h4>
                           */}
                           {/* 🟢 NUEVO: Tachado suave en el título cuando se marca como realizado */}
-                          <h4 className={`text-sm font-black uppercase mt-3 mb-4 tracking-tight leading-snug ${
+                          <h4 className={`text-xs sm:text-sm font-black uppercase mt-2 sm:mt-3 mb-3 sm:mb-4 tracking-tight leading-snug ${
                             estaOculto ? 'line-through text-theme-text/50' : 'text-theme-text'
                           }`}>
                             {item['Comité / Evento']}
                           </h4>
                         </div>
-                        <div className="flex items-center text-theme-text/70 font-bold italic border-t border-theme-border/30 pt-3 text-[9px] uppercase tracking-tighter">
-                          <MapPin className="w-3 h-3 text-theme-text/40 mr-1.5 flex-shrink-0" />
+                        <div className="flex items-center text-theme-text/70 font-bold italic border-t border-theme-border/30 pt-2.5 sm:pt-3 text-[8px] sm:text-[9px] uppercase tracking-tighter">
+                          <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-theme-text/40 mr-1 sm:mr-1.5 flex-shrink-0" />
                           <span className="truncate">{item['Lugar / Link'] || 'Sin ubicación'}</span>
                         </div>
                       </div>
@@ -524,7 +524,7 @@ export default function Reuniones() {
             );
           })
         ) : (
-          <div className="p-20 text-center text-theme-text/50 font-bold uppercase border-2 border-dashed border-theme-border rounded-xl max-w-xl mx-auto text-xs italic">
+          <div className="p-12 sm:p-20 text-center text-theme-text/50 font-bold uppercase border-2 border-dashed border-theme-border rounded-xl max-w-xl mx-auto text-[11px] sm:text-xs italic">
             Sin eventos o pendientes programados para este período.
           </div>
         )}
@@ -870,7 +870,7 @@ export default function Reuniones() {
                     value={formEditData.lugar} 
                     onChange={manejarCambioEditInput} 
                     placeholder="Ej. Sala 1, Casa"
-                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none uppercase font-bold" 
+                    className="w-full bg-theme-bg border border-theme-border rounded-lg p-2.5 text-xs text-theme-text focus:border-theme-accent outline-none font-bold" 
                   />
                 </div>
               </div>
@@ -909,7 +909,6 @@ export default function Reuniones() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
