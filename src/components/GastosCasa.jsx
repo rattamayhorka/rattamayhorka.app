@@ -4,7 +4,9 @@ import {
   X, Plus, CreditCard, ChevronDown, ChevronRight, AlertTriangle, 
   ShieldCheck, Flame, Wallet, CheckCircle2, Settings, Trash2, TableProperties, Save,
   ArrowRightLeft,
-  Edit3
+  Edit3,
+  /* 🟢 NUEVO: Icono para el Bloc de Notas rápido */
+  Calculator
 } from 'lucide-react';
 
 export default function Finanzas({ refreshTrigger }) {
@@ -70,6 +72,38 @@ export default function Finanzas({ refreshTrigger }) {
     rubro: "",
     tipo: "GASTO" // GASTO o INGRESO
   });
+
+  // =========================================================================
+  // 🟢 NUEVO: ESTADOS Y EVALUADOR DEL BLOC DE NOTAS RÁPIDO TEMPORAL
+  // =========================================================================
+  const [modalBlockNotas, setModalBlockNotas] = useState(false);
+  const [textoBlock, setTextoBlock] = useState("tenia 5000\nmenos 4000\nmenos 3000\nmas 2000");
+
+  const resolverExpresionRapida = (linea) => {
+    if (!linea || !linea.trim()) return null;
+    let limpia = linea
+      .toLowerCase()
+      .replace(/(\bmenos\b|-)/g, ' - ')
+      .replace(/(\bmas\b|\bmás\b|\+)/g, ' + ')
+      .replace(/(\bpor\b|\*)/g, ' * ')
+      .replace(/(\bentre\b|\/)/g, ' / ')
+      .replace(/[^0-9+\-*/.]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!/[0-9]/.test(limpia)) return null;
+    try {
+      // eslint-disable-next-line no-new-func
+      const res = Function(`"use strict"; return (${limpia})`)();
+      return typeof res === 'number' && !isNaN(res) && isFinite(res) ? res : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const lineasBlock = textoBlock.split('\n');
+  const resultadosBlock = lineasBlock.map(resolverExpresionRapida);
+  const totalCalculadoBlock = resultadosBlock.reduce((acc, curr) => acc + (curr || 0), 0);
 
   // =========================================================================
   //  📅 MOTOR DE FECHAS Y QUINCENAS CONFORME A DÍAS DE PAGO (15 Y 30)
@@ -768,7 +802,9 @@ export default function Finanzas({ refreshTrigger }) {
   const indiceUltimoItem = paginaActual * itemsPorPagina;
   const indicePrimerItem = indiceUltimoItem - itemsPorPagina;
   
-  const transaccionesPaginadas = [...transaccionesParaTabla].reverse().slice(indicePrimerItem, indiceUltimoItem);
+  //const transaccionesPaginadas = [...transaccionesParaTabla].reverse().slice(indicePrimerItem, indiceUltimoItem);
+  const transaccionesPaginadas = transaccionesParaTabla.slice(indicePrimerItem, indiceUltimoItem);
+
 
   return (
     /* ORIGINAL: <div className="space-y-6 text-left p-2 bg-theme-bg text-theme-text font-mono min-h-screen"> */
@@ -801,6 +837,16 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
+          {/* 🟢 NUEVO: BOTÓN PARA ABRIR BLOC DE NOTAS RÁPIDO */}
+          <button 
+            type="button"
+            onClick={() => setModalBlockNotas(true)} 
+            className="bg-theme-bg hover:opacity-80 text-theme-text border border-theme-border px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center transition-all cursor-pointer shadow-sm"
+            title="Abrir bloc de cuentas rápido"
+          >
+            <Calculator className="w-3.5 h-3.5 mr-1.5 text-theme-accent" /> Bloc Cuentas
+          </button>
+
           {/* BOTÓN DE CONFIGURACIÓN EN TABLAS EDITABLES */}
           <button 
             onClick={() => setModalSettingsTabla(true)} 
@@ -1244,7 +1290,7 @@ export default function Finanzas({ refreshTrigger }) {
         </div>
       </div>
 
-      {/* 🟢 NUEVO: BOTÓN FLOTANTE PARA PANTALLAS MENORES A 1280px (REGISTRAR MOVIMIENTO) */}
+      {/* 🟢 BOTÓN FLOTANTE PARA PANTALLAS MENORES A 1280px (REGISTRAR MOVIMIENTO) */}
       <button
         type="button"
         onClick={() => setModalRegistro(true)}
@@ -1254,6 +1300,84 @@ export default function Finanzas({ refreshTrigger }) {
       >
         <Plus className="w-6 h-6 stroke-[3]" />
       </button>
+
+      {/* ========================================================================= */}
+      {/* 🟢 NUEVO: MODAL TEMPORAL BLOC DE NOTAS CON CALCULADORA AL VUELO */}
+      {/* ========================================================================= */}
+      {modalBlockNotas && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[95] flex items-center justify-center p-3 sm:p-5">
+          <div className="bg-theme-bg rounded-2xl shadow-2xl w-full max-w-2xl border border-theme-border border-t-4 border-t-theme-accent overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header del Bloc */}
+            <div className="bg-theme-bg p-3.5 border-b border-theme-border flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-theme-accent" />
+                <span className="text-xs font-black uppercase tracking-wider text-theme-text">
+                  Bloc de Cuentas Rápido (Temporal)
+                </span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setModalBlockNotas(false)} 
+                className="cursor-pointer text-theme-text/50 hover:text-theme-text"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Sub-instrucción rápida */}
+            <div className="px-4 py-2 bg-theme-border/10 text-[9px] uppercase font-bold text-theme-text/60 border-b border-theme-border/40 flex justify-between items-center">
+              <span>Escribe como hablas: ej. "5000 menos 4000", "coca 25 + papas 18"</span>
+              <button
+                type="button"
+                onClick={() => setTextoBlock("")}
+                className="text-[9px] text-theme-casa hover:underline font-bold uppercase cursor-pointer"
+              >
+                Limpiar todo
+              </button>
+            </div>
+
+            {/* Área de Notas + Columna de Resultados */}
+            <div className="flex-1 overflow-hidden grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-theme-border/40">
+              <textarea
+                value={textoBlock}
+                onChange={(e) => setTextoBlock(e.target.value)}
+                placeholder="tenia 5000&#10;menos 4000&#10;menos 3000&#10;mas 2000"
+                className="sm:col-span-2 w-full h-64 sm:h-80 p-4 bg-theme-bg text-theme-text font-mono text-xs leading-6 resize-none outline-none focus:ring-0 placeholder:text-theme-text/20 custom-scrollbar"
+                autoFocus
+              />
+
+              {/* Tira lateral de números evaluados por cada renglón */}
+              <div className="sm:col-span-1 p-3 bg-theme-border/5 overflow-y-auto max-h-64 sm:max-h-80 font-mono text-xs custom-scrollbar space-y-1">
+                <span className="text-[8px] font-black uppercase text-theme-text/40 block mb-2">Por renglón:</span>
+                {lineasBlock.map((lin, idx) => {
+                  const valor = resultadosBlock[idx];
+                  return (
+                    <div key={idx} className="flex justify-between items-center h-6 px-1 rounded hover:bg-theme-border/10">
+                      <span className="text-[8px] text-theme-text/30 font-bold">L{idx + 1}</span>
+                      <span className={`text-xs font-bold tabular-nums ${valor !== null ? (valor < 0 ? 'text-theme-casa' : 'text-theme-trabajo') : 'text-theme-text/20'}`}>
+                        {valor !== null ? `$${valor.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Footer con el Gran Total */}
+            <div className="p-4 border-t border-theme-border bg-theme-border/10 flex flex-col sm:flex-row justify-between items-center gap-3">
+              <span className="text-[9px] uppercase font-bold text-theme-text/50">
+                * No se guarda en base de datos. Es solo para resolver cuentas express.
+              </span>
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <span className="text-[10px] font-black uppercase text-theme-accent">Gran Total:</span>
+                <div className="text-xl font-black font-mono text-theme-accent tabular-nums bg-theme-bg px-3 py-1 rounded-lg border border-theme-border">
+                  ${totalCalculadoBlock.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 🟢 MODAL: EDITAR / ELIMINAR TRANSACCIÓN REGISTRADA */}
