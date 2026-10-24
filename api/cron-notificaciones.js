@@ -66,8 +66,8 @@ export default async function handler(req, res) {
     // NUEVO: RESUMEN MATUTINO A LAS 08:00 AM
     // ==========================================
     // Asumiendo que tu cron corre cada minuto o a las 08:00 en punto:
-    //if (hNow === 8 && mNow === 0) {
-    if (hNow === 17) {
+    if (hNow === 8 && mNow === 0) {
+    //if (hNow === 17) {
     
       let resumenReuniones = [];
       let resumenTareas = [];
