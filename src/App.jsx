@@ -69,13 +69,13 @@ const LISTA_TEMAS = [
 // 🧠 COMANDOS DE NAVEGACIÓN TIPO VIM (:h <seccion>)
 const COMANDOS_NAVEGACION = [
   { cmd: 'kanban', alias: 'k', desc: 'Ir al Tablero Kanban', seccion: 'kanban', icono: Columns3 },
-  { cmd: 'bullet', alias: 'b', desc: 'Ir a Rapid Logging / Bitácora', seccion: 'bullet', icono: Wrench },
-  { cmd: 'field', alias: 'n', desc: 'Ir a Editor de Notas Markdown', seccion: 'notas', icono: BookOpen },
+  { cmd: 'bullet', alias: 'b', desc: 'Ir al Rapid Logging / Bitácora', seccion: 'bullet', icono: Wrench },
+  { cmd: 'field', alias: 'n', desc: 'Ir al Editor de Notas Markdown', seccion: 'notas', icono: BookOpen },
   { cmd: 'finanzas', alias: 'f', desc: 'Ir a Gastos y Finanzas Casa', seccion: 'casa_gastos', icono: DollarSign },
-  { cmd: 'futurelog', alias: 'fl', desc: 'Ir a Future LOG Trabajo', seccion: 'futureloghst', icono: Calendar },
+  { cmd: 'futurelog', alias: 'fl', desc: 'Ir al Future LOG Trabajo', seccion: 'futureloghst', icono: Calendar },
   { cmd: 'compromisos', alias: 'comp', desc: 'Ir a Compromisos HST', seccion: 'compromisos', icono: FileText },
   { cmd: 'compras', alias: 'shop', desc: 'Ir a Lista de Compras', seccion: 'compras', icono: ShoppingCart },
-  { cmd: 'deudas', alias: 'd', desc: 'Ir a Control de Deudas y Tarjetas', seccion: 'deudas', icono: CreditCard },
+  { cmd: 'deudas', alias: 'd', desc: 'Ir al Control de Deudas y Tarjetas', seccion: 'deudas', icono: CreditCard },
   { cmd: 'proyectos', alias: 'mapa', desc: 'Ir al Mapa de Proyectos', seccion: 'proyectos_grafo', icono: Map }
 ];
 
@@ -397,7 +397,8 @@ export default function App() {
 
   return (
     <div className="bg-theme-bg text-theme-text flex h-dvh overflow-hidden font-mono">
-      <div className="w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
+      {/* Sidebar oculto en celulares (hidden), visible en tablets y PC (md:flex) */}
+      <div className="hidden md:flex w-16 xl:w-64 bg-theme-bg shadow-2xl border-r border-theme-border flex-shrink-0 flex-col justify-between h-dvh overflow-hidden transition-all duration-200">
         <div className="flex flex-col h-dvh overflow-hidden">
           <button 
             onClick={cambiarSiguienteTema}
@@ -563,7 +564,8 @@ export default function App() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-4 xl:p-8 bg-theme-bg">
+      {/* Contenedor principal ajustado con pb-20 en celulares para evitar que la barra fija tape el scroll */}
+      <main className="flex-1 overflow-y-auto p-4 xl:p-8 bg-theme-bg pb-20 md:pb-4 xl:pb-8">
         <div id="contenedor-principal">
           {seccionActiva === 'kanban' && (
             <Kanban key={refreshKeys['kanban'] || 0} filtroTipo="Trabajo" />
@@ -600,10 +602,53 @@ export default function App() {
             <GastosCasa key={refreshKeys['casa_gastos'] || 0} />
           )}
           {seccionActiva === 'deudas' && (
-            <Deudas key={refreshKeys['deudas'] || 0} />
+            <Deudas key={refreshKeys['deudas'] || 0} />  
           )}  
         </div>
       </main>
+
+      {/* 📱 BARRA INFERIOR FIJA EXCLUSIVA PARA CELULARES (Visible solo en pantallas menores a md) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-theme-bg/95 backdrop-blur-md border-t border-theme-border flex md:hidden items-center justify-around p-2 shadow-2xl">
+        <button
+          onClick={() => cambiarSeccion('bullet')}
+          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer ${
+            seccionActiva === 'bullet' ? 'text-theme-accent font-black' : 'text-theme-text/60 hover:text-theme-text'
+          }`}
+        >
+          <Wrench className="w-5 h-5 mb-1" />
+          <span className="text-[9px] uppercase tracking-wider">Bullet</span>
+        </button>
+
+        <button
+          onClick={() => cambiarSeccion('kanban')}
+          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer ${
+            seccionActiva === 'kanban' ? 'text-theme-accent font-black' : 'text-theme-text/60 hover:text-theme-text'
+          }`}
+        >
+          <Columns3 className="w-5 h-5 mb-1" />
+          <span className="text-[9px] uppercase tracking-wider">Kanban</span>
+        </button>
+
+        <button
+          onClick={() => cambiarSeccion('futureloghst')}
+          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer ${
+            seccionActiva === 'futureloghst' ? 'text-theme-accent font-black' : 'text-theme-text/60 hover:text-theme-text'
+          }`}
+        >
+          <Calendar className="w-5 h-5 mb-1" />
+          <span className="text-[9px] uppercase tracking-wider">Future Log</span>
+        </button>
+
+        <button
+          onClick={() => cambiarSeccion('compromisos')}
+          className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all cursor-pointer ${
+            seccionActiva === 'compromisos' ? 'text-theme-trabajo font-black' : 'text-theme-text/60 hover:text-theme-text'
+          }`}
+        >
+          <FileText className="w-5 h-5 mb-1" />
+          <span className="text-[9px] uppercase tracking-wider">Compromisos</span>
+        </button>
+      </nav>
 
       {/* 🔮 VIM-STYLE COMMAND PROMPT (SINTAXIS :h / :q / ACCIONES BULLET) */}
       {mostrarPromptGlobal && (
