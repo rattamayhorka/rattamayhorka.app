@@ -13,7 +13,6 @@ const parsearFechaTexto = (strFecha) => {
 
   const texto = strFecha.trim().toLowerCase();
   
-  // Si viene como DD/MM o DD/MM/YYYY
   if (texto.includes('/') || texto.includes('-')) {
     const partes = texto.split(/[\/\-]/);
     const dia = parseInt(partes[0], 10) || hoy.getDate();
@@ -22,7 +21,6 @@ const parsearFechaTexto = (strFecha) => {
     return new Date(año, mes, dia);
   }
 
-  // Si viene como "28jul" o "28-jul"
   const match = texto.match(/^(\d{1,2})\-?([a-z]{3})$/i);
   if (match) {
     const dia = parseInt(match[1], 10);
@@ -35,7 +33,7 @@ const parsearFechaTexto = (strFecha) => {
 };
 
 const determinarTipoEvento = (fechaObj, horaStr) => {
-  const diaSemana = fechaObj.getDay(); // 0 = Domingo, 6 = Sábado
+  const diaSemana = fechaObj.getDay();
 
   if (diaSemana === 0 || diaSemana === 6) {
     return 'Casa';
@@ -57,8 +55,10 @@ const parsearSintaxis = (texto) => {
   const t = texto.trim();
   const tLower = t.toLowerCase();
 
-  // 🟢 NUEVO: 0. DETECCIÓN DE PESO (Comando: 'w 82.5', 'peso 82.5', '{peso} 82.5')
+  // 🟢 0. DETECCIÓN DE PESO (Comandos: '#w', '#peso', 'w', 'peso', '{peso}')
   const esPrefijoPeso = 
+    tLower.startsWith('#w ') || 
+    tLower.startsWith('#peso ') || 
     tLower.startsWith('w ') || 
     tLower.startsWith('peso ') || 
     tLower.startsWith('{peso}') || 
@@ -66,7 +66,9 @@ const parsearSintaxis = (texto) => {
 
   if (esPrefijoPeso) {
     let contenidoLimpio = t;
-    if (tLower.startsWith('w ')) contenidoLimpio = t.substring(2).trim();
+    if (tLower.startsWith('#w ')) contenidoLimpio = t.substring(3).trim();
+    else if (tLower.startsWith('#peso ')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('w ')) contenidoLimpio = t.substring(2).trim();
     else if (tLower.startsWith('peso ')) contenidoLimpio = t.substring(5).trim();
     else if (tLower.startsWith('{peso}')) contenidoLimpio = t.substring(6).trim();
     else if (tLower.startsWith('{weight}')) contenidoLimpio = t.substring(8).trim();
@@ -82,7 +84,7 @@ const parsearSintaxis = (texto) => {
     };
   }
 
-  // 🟢 FINANZAS ($): Soporta "$ comida;150", "$150 comida", "$ 300 uber"
+  // 🟢 1. FINANZAS ($)
   if (t.startsWith('$')) {
     let limpio = t.substring(1).trim();
     let concepto = 'Gasto no especificado';
@@ -105,10 +107,10 @@ const parsearSintaxis = (texto) => {
     return { tipo: 'FINANZAS', icono: '💸', color: 'text-emerald-400', concepto, monto };
   }
 
-  // 🟢 NOTAS (-)
+  // 🟢 2. NOTAS (-)
   if (t.startsWith('-')) return { tipo: 'NOTA', icono: '📝', color: 'text-zinc-400' };
 
-  // 🟢 TAREAS (.)
+  // 🟢 3. TAREAS (.)
   if (t.startsWith('.')) {
     let limpio = t.substring(1).trim();
     let horaExtraida = "";
@@ -120,8 +122,8 @@ const parsearSintaxis = (texto) => {
     return { tipo: 'TAREA', icono: '⚡', color: 'text-sky-400', textoLimpio: limpio, hora: horaExtraida };
   }
 
-  // 🟢 EVENTOS / FUTURELOG (#) - PARSER: # comite;fecha;hora;lugar
-  if (t.startsWith('#')) {
+  // 🟢 4. EVENTOS (# con punto y coma o formato de fecha)
+  if (t.startsWith('#') && (t.includes(';') || t.includes('-') || t.includes('/'))) {
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
 
@@ -150,46 +152,46 @@ const parsearSintaxis = (texto) => {
     };
   }
 
-  // 🟢 IDEAS (!)
+  // 🟢 5. IDEAS (!)
   if (t.startsWith('!')) return { tipo: 'IDEA', icono: '💡', color: 'text-yellow-300 font-bold' };
 
   // =========================================================================
-  // 🟢 NUEVO: DETECCIÓN DE TODOS LOS TAGS CON LLAVES {tag} PARA PREVISUALIZACIÓN
+  // 🟢 DETECCIÓN DE TAGS: #tag y compatibilidad con {tag}
   // =========================================================================
-  if (tLower.startsWith('{work}') || tLower.startsWith('{trabajo}')) {
+  if (tLower.startsWith('#work') || tLower.startsWith('#trabajo') || tLower.startsWith('{work}') || tLower.startsWith('{trabajo}')) {
     return { tipo: 'WORK', icono: Building2, color: 'text-theme-trabajo font-bold' };
   }
-  if (tLower.startsWith('{home}') || tLower.startsWith('{casa}')) {
+  if (tLower.startsWith('#home') || tLower.startsWith('#casa') || tLower.startsWith('{home}') || tLower.startsWith('{casa}')) {
     return { tipo: 'HOME', icono: Home, color: 'text-theme-casa font-bold' };
   }
-  if (tLower.startsWith('{wife}') || tLower.startsWith('{vicky}')) {
+  if (tLower.startsWith('#wife') || tLower.startsWith('#vicky') || tLower.startsWith('{wife}') || tLower.startsWith('{vicky}')) {
     return { tipo: 'WIFE', icono: Triangle, color: 'text-pink-400 font-bold' };
   }
-  if (tLower.startsWith('{fam}') || tLower.startsWith('{familia}')) {
+  if (tLower.startsWith('#fam') || tLower.startsWith('#familia') || tLower.startsWith('{fam}') || tLower.startsWith('{familia}')) {
     return { tipo: 'FAM', icono: Users, color: 'text-orange-400 font-bold' };
   }
-  if (tLower.startsWith('{pakal}')) {
+  if (tLower.startsWith('#pakal') || tLower.startsWith('{pakal}')) {
     return { tipo: 'PAKAL', icono: 'P', color: 'text-cyan-400 font-black' };
   }
-  if (tLower.startsWith('{me}')) {
+  if (tLower.startsWith('#me') || tLower.startsWith('{me}')) {
     return { tipo: 'ME', icono: Triangle, color: 'text-theme-accent font-bold' };
   }
-  if (tLower.startsWith('{couple}') || tLower.startsWith('{pareja}')) {
+  if (tLower.startsWith('#couple') || tLower.startsWith('#pareja') || tLower.startsWith('{couple}') || tLower.startsWith('{pareja}')) {
     return { tipo: 'COUPLE', icono: Hourglass, color: 'text-purple-400 font-bold' };
   }
-  if (tLower.startsWith('{bike}') || tLower.startsWith('{bici}')) {
+  if (tLower.startsWith('#bike') || tLower.startsWith('#bici') || tLower.startsWith('{bike}') || tLower.startsWith('{bici}')) {
     return { tipo: 'BIKE', icono: Bike, color: 'text-lime-400 font-bold' };
   }
-  if (tLower.startsWith('{fail}') || tLower.startsWith('{falla}')) {
+  if (tLower.startsWith('#fail') || tLower.startsWith('#falla') || tLower.startsWith('{fail}') || tLower.startsWith('{falla}')) {
     return { tipo: 'FAIL', icono: Zap, color: 'text-yellow-300 font-black' };
   }
-  if (tLower.startsWith('{omega}') || tLower.startsWith('{ohm}') || tLower.startsWith('{proyecto}')) {
+  if (tLower.startsWith('#omega') || tLower.startsWith('#ohm') || tLower.startsWith('#proyecto') || tLower.startsWith('{omega}') || tLower.startsWith('{ohm}') || tLower.startsWith('{proyecto}')) {
     return { tipo: 'OMEGA', icono: 'Ω', color: 'text-indigo-400 font-bold' };
   }
-  if (tLower.startsWith('{music}') || tLower.startsWith('{musica}')) {
+  if (tLower.startsWith('#music') || tLower.startsWith('#musica') || tLower.startsWith('{music}') || tLower.startsWith('{musica}')) {
     return { tipo: 'MUSIC', icono: Music, color: 'text-fuchsia-400 font-semibold' };
   }
-  if (tLower.startsWith('{bash}') || tLower.startsWith('{pc}') || tLower.startsWith('{code}')) {
+  if (tLower.startsWith('#bash') || tLower.startsWith('#pc') || tLower.startsWith('#code') || tLower.startsWith('{bash}') || tLower.startsWith('{pc}') || tLower.startsWith('{code}')) {
     return { tipo: 'BASH', icono: Terminal, color: 'text-emerald-400 font-bold' };
   }
 
@@ -248,8 +250,8 @@ export default function RegistroRapido() {
         const { error } = await supabase.from('transacciones').insert([payloadFinanzas]);
         if (error) throw error;
       } 
-      // 3. EVENTOS (#) -> TABLA REUNIONES (FUTURE LOG)
-      else if (texto.trim().startsWith('#')) {
+      // 3. EVENTOS (# con punto y coma) -> TABLA REUNIONES (FUTURE LOG)
+      else if (texto.trim().startsWith('#') && (texto.includes(';') || texto.includes('-') || texto.includes('/'))) {
         const payloadReunion = {
           comite: deteccion.comite.toUpperCase(),
           tipo_recurrencia: 'unica',
@@ -262,7 +264,7 @@ export default function RegistroRapido() {
         const { error } = await supabase.from('reuniones').insert([payloadReunion]);
         if (error) throw error;
       } 
-      // 4. NOTAS (-), IDEAS (!), PESO O TAGS {TAG} -> TABLA KANBAN (STATUS: Bullet)
+      // 4. NOTAS (-), IDEAS (!), PESO O HASHTAGS {#TAG} -> TABLA KANBAN (STATUS: Bullet)
       else {
         const payloadGenerico = {
           tarea: texto.trim(),
@@ -275,7 +277,7 @@ export default function RegistroRapido() {
         const { error } = await supabase.from('kanban').insert([payloadGenerico]);
         if (error) throw error;
       }
-      
+       
       setMensaje({ 
         tipo: 'success', 
         texto: `LOG [${deteccion.tipo}] REGISTRADO CORRECTAMENTE` 
@@ -317,7 +319,7 @@ export default function RegistroRapido() {
             <button type="button" onClick={() => insertarEjemplo('. tarea pendiente; 10:00')} className="text-sky-400 bg-sky-950/20 hover:bg-sky-950/40 py-1 rounded cursor-pointer transition-all border-none">
               <b className="text-sky-300">.</b> Tarea
             </button>
-            <button type="button" onClick={() => insertarEjemplo('# evento; 28jul; 10:00; Lugar')} className="text-fuchsia-400 bg-fuchsia-950/20 hover:bg-fuchsia-950/40 py-1 rounded cursor-pointer transition-all border-none">
+            <button type="button" onClick={() => insertarEjemplo('# evento; 28-jul; 10:00; Lugar')} className="text-fuchsia-400 bg-fuchsia-950/20 hover:bg-fuchsia-950/40 py-1 rounded cursor-pointer transition-all border-none">
               <b className="text-fuchsia-300">#</b> Evento
             </button>
             <button type="button" onClick={() => insertarEjemplo('! idea a guardar')} className="text-yellow-300 bg-yellow-950/20 hover:bg-yellow-950/40 py-1 rounded cursor-pointer transition-all border-none">
@@ -347,31 +349,31 @@ export default function RegistroRapido() {
                     setTexto(e.target.value);
                     if (mensaje) setMensaje(null);
                   }}
-                  placeholder="Escribe... ($ gasto;monto / . tarea;10:00 / {work} nota / w 82.5)"
+                  placeholder="Escribe... ($ gasto;monto / . tarea;10:00 / #work nota / #w 82.5)"
                   className="w-full bg-transparent resize-none outline-none text-xs font-mono text-zinc-100 placeholder-zinc-700 leading-relaxed"
                 />
               </div>
 
-              {/* GUÍA VISUAL PERMANENTE DE FORMATOS Y NUEVOS TAGS {TAG} */}
+              {/* GUÍA VISUAL PERMANENTE DE FORMATOS Y NUEVOS HASHTAGS {#TAG} */}
               <div className="mt-2 px-1 text-[8px] font-mono text-zinc-500 space-y-1">
-                <div className="text-[7.5px] uppercase font-bold text-zinc-600 tracking-wider">Formatos y Tags por llaves:</div>
+                <div className="text-[7.5px] uppercase font-bold text-zinc-600 tracking-wider">Formatos y Hashtags:</div>
                 <div className="flex flex-wrap gap-x-2 gap-y-1">
                   <span className={texto.startsWith('$') ? 'text-emerald-400 font-bold' : ''}><b>$</b> gasto</span>
                   <span className={texto.startsWith('.') ? 'text-sky-400 font-bold' : ''}><b>.</b> tarea</span>
-                  <span className={texto.startsWith('#') ? 'text-fuchsia-400 font-bold' : ''}><b>#</b> evento</span>
-                  <span className={texto.toLowerCase().startsWith('w ') ? 'text-teal-400 font-bold' : ''}><b>w</b> 82.5</span>
-                  <span className={texto.toLowerCase().startsWith('{work}') ? 'text-indigo-400 font-bold' : ''}><b>{'{work}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{home}') ? 'text-emerald-400 font-bold' : ''}><b>{'{home}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{wife}') ? 'text-pink-400 font-bold' : ''}><b>{'{wife}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{fam}') ? 'text-orange-400 font-bold' : ''}><b>{'{fam}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{pakal}') ? 'text-cyan-400 font-bold' : ''}><b>{'{pakal}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{me}') ? 'text-sky-400 font-bold' : ''}><b>{'{me}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{couple}') ? 'text-purple-400 font-bold' : ''}><b>{'{couple}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{bike}') ? 'text-lime-400 font-bold' : ''}><b>{'{bike}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{fail}') ? 'text-yellow-300 font-bold' : ''}><b>{'{fail}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{omega}') ? 'text-indigo-400 font-bold' : ''}><b>{'{omega}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{music}') ? 'text-fuchsia-400 font-bold' : ''}><b>{'{music}'}</b></span>
-                  <span className={texto.toLowerCase().startsWith('{bash}') ? 'text-emerald-400 font-bold' : ''}><b>{'{bash}'}</b></span>
+                  <span className={texto.startsWith('#') && texto.includes(';') ? 'text-fuchsia-400 font-bold' : ''}><b>#</b> evento</span>
+                  <span className={texto.toLowerCase().startsWith('#w ') || texto.toLowerCase().startsWith('w ') ? 'text-teal-400 font-bold' : ''}><b>#w</b> 82.5</span>
+                  <span className={texto.toLowerCase().startsWith('#work') ? 'text-indigo-400 font-bold' : ''}><b>{'{#work}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#home') ? 'text-emerald-400 font-bold' : ''}><b>{'{#home}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#wife') ? 'text-pink-400 font-bold' : ''}><b>{'{#wife}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#fam') ? 'text-orange-400 font-bold' : ''}><b>{'{#fam}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#pakal') ? 'text-cyan-400 font-bold' : ''}><b>{'{#pakal}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#me') ? 'text-sky-400 font-bold' : ''}><b>{'{#me}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#couple') ? 'text-purple-400 font-bold' : ''}><b>{'{#couple}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#bike') ? 'text-lime-400 font-bold' : ''}><b>{'{#bike}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#fail') ? 'text-yellow-300 font-bold' : ''}><b>{'{#fail}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#omega') ? 'text-indigo-400 font-bold' : ''}><b>{'{#omega}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#music') ? 'text-fuchsia-400 font-bold' : ''}><b>{'{#music}'}</b></span>
+                  <span className={texto.toLowerCase().startsWith('#bash') ? 'text-emerald-400 font-bold' : ''}><b>{'{#bash}'}</b></span>
                 </div>
               </div>
             </div>

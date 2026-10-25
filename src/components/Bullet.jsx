@@ -86,7 +86,7 @@ const renderizarMarkdownSencillo = (texto) => {
       {lineas.map((linea, idx) => {
         const lTrim = linea.trim();
 
-        if (lTrim.startsWith('# ')) {
+        if (lTrim.startsWith('# ') && !lTrim.includes(';')) { // Asegurar que no choque con eventos antiguos si aplica
           return (
             <h3 key={idx} className="text-sm font-black text-theme-accent uppercase tracking-tight pt-1">
               {renderizarInline(lTrim.substring(2), `h1-${idx}`)}
@@ -140,22 +140,23 @@ const parsearLineaTerminal = (texto) => {
   const tLower = t.toLowerCase();
 
   // =========================================================================
-  // 🟢 NUEVO: 0. DETECCIÓN DE PESO (Comando: 'w 82.5', 'peso 82.5', '{peso} 82.5')
+  // 🟢 DETECCIÓN DE PESO (Comando: '#w 82.5', '#peso 82.5', etc.)
   // =========================================================================
   const esPrefijoPeso = 
-    tLower.startsWith('w ') || 
-    tLower.startsWith('peso ') || 
-    tLower.startsWith('{peso}') || 
+    tLower.startsWith('#w ') || 
+    tLower.startsWith('#peso ') || 
+    tLower.startsWith('#weight') ||
+    tLower.startsWith('{peso}') || // 🟢 COMENTADO/CONSERVADO ANTIGUO
     tLower.startsWith('{weight}');
 
   if (esPrefijoPeso) {
     let contenidoLimpio = t;
-    if (tLower.startsWith('w ')) contenidoLimpio = t.substring(2).trim();
-    else if (tLower.startsWith('peso ')) contenidoLimpio = t.substring(5).trim();
+    if (tLower.startsWith('#w ')) contenidoLimpio = t.substring(3).trim();
+    else if (tLower.startsWith('#peso ')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('#weight')) contenidoLimpio = t.substring(8).trim();
     else if (tLower.startsWith('{peso}')) contenidoLimpio = t.substring(6).trim();
     else if (tLower.startsWith('{weight}')) contenidoLimpio = t.substring(8).trim();
 
-    // Extraer valor numérico del peso (acepta punto y coma)
     const matchPeso = contenidoLimpio.match(/(\d+(\.\d+)?)/);
     const valorPeso = matchPeso ? parseFloat(matchPeso[0]) : null;
     const notaAdicional = matchPeso 
@@ -243,8 +244,8 @@ const parsearLineaTerminal = (texto) => {
     };
   } 
   
-  // 3. EVENTOS (#)
-  else if (t.startsWith('#')) {
+  // 3. EVENTOS (# con punto y coma o formato de fecha)
+  else if (t.startsWith('#') && (t.includes(';') || t.includes('-') || t.includes('/'))) {
     const contenidoCompleto = t.substring(1).trim();
     const partes = contenidoCompleto.split(';');
 
@@ -318,12 +319,12 @@ const parsearLineaTerminal = (texto) => {
   } 
 
   // =========================================================================
-  // 🟢 NUEVOS BULLETS DINÁMICOS POR LLAVES: {tag}
+  // 🟢 NUEVOS BULLETS DINÁMICOS POR HASHTAGS: #tag (Conservando bloques {tag})
   // =========================================================================
 
-  // {WORK} - Cosas del hospital
-  else if (tLower.startsWith('{work}') || tLower.startsWith('{trabajo}')) {
-    const prefijoLength = tLower.startsWith('{work}') ? 6 : 9;
+  // {#WORK / #WORK / #TRABAJO}
+  else if (tLower.startsWith('#work') || tLower.startsWith('#trabajo') || tLower.startsWith('{work}') || tLower.startsWith('{trabajo}')) {
+    const prefijoLength = tLower.startsWith('#work') ? 5 : tLower.startsWith('#trabajo') ? 8 : tLower.startsWith('{work}') ? 6 : 9;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'work',
@@ -339,9 +340,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {HOME} - Cosas de la casa
-  else if (tLower.startsWith('{home}') || tLower.startsWith('{casa}')) {
-    const prefijoLength = tLower.startsWith('{home}') ? 6 : 6;
+  // {#HOME / #CASA}
+  else if (tLower.startsWith('#home') || tLower.startsWith('#casa') || tLower.startsWith('{home}') || tLower.startsWith('{casa}')) {
+    const prefijoLength = tLower.startsWith('#home') ? 5 : tLower.startsWith('#casa') ? 5 : tLower.startsWith('{home}') ? 6 : 6;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'home',
@@ -357,9 +358,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {WIFE} - Vicky (Triángulo hacia abajo / forma de V)
-  else if (tLower.startsWith('{wife}') || tLower.startsWith('{vicky}')) {
-    const prefijoLength = tLower.startsWith('{wife}') ? 6 : 7;
+  // {#WIFE / #VICKY}
+  else if (tLower.startsWith('#wife') || tLower.startsWith('#vicky') || tLower.startsWith('{wife}') || tLower.startsWith('{vicky}')) {
+    const prefijoLength = tLower.startsWith('#wife') ? 5 : tLower.startsWith('#vicky') ? 6 : tLower.startsWith('{wife}') ? 6 : 7;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'wife',
@@ -375,9 +376,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {FAM} - Temas familiares
-  else if (tLower.startsWith('{fam}') || tLower.startsWith('{familia}')) {
-    const prefijoLength = tLower.startsWith('{fam}') ? 5 : 9;
+  // {#FAM / #FAMILIA}
+  else if (tLower.startsWith('#fam') || tLower.startsWith('#familia') || tLower.startsWith('{fam}') || tLower.startsWith('{familia}')) {
+    const prefijoLength = tLower.startsWith('#fam') ? 4 : tLower.startsWith('#familia') ? 8 : tLower.startsWith('{fam}') ? 5 : 9;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'fam',
@@ -393,9 +394,10 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {PAKAL} - Hijo Pakal (Símbolo P)
-  else if (tLower.startsWith('{pakal}')) {
-    const contenido = t.substring(7).trim();
+  // {#PAKAL}
+  else if (tLower.startsWith('#pakal') || tLower.startsWith('{pakal}')) {
+    const prefijoLength = tLower.startsWith('#pakal') ? 6 : 7;
+    const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'pakal',
       etiqueta: 'Pakal',
@@ -410,9 +412,10 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {ME} - Triángulo hacia arriba (Personal)
-  else if (tLower.startsWith('{me}')) {
-    const contenido = t.substring(4).trim();
+  // {#ME}
+  else if (tLower.startsWith('#me') || tLower.startsWith('{me}')) {
+    const prefijoLength = tLower.startsWith('#me') ? 3 : 4;
+    const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'me',
       etiqueta: 'Personal / Mío',
@@ -427,9 +430,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {COUPLE} - Mi vieja y yo (Rombo / dos triángulos)
-  else if (tLower.startsWith('{couple}') || tLower.startsWith('{pareja}')) {
-    const prefijoLength = tLower.startsWith('{couple}') ? 8 : 8;
+  // {#COUPLE / #PAREJA}
+  else if (tLower.startsWith('#couple') || tLower.startsWith('#pareja') || tLower.startsWith('{couple}') || tLower.startsWith('{pareja}')) {
+    const prefijoLength = tLower.startsWith('#couple') ? 7 : tLower.startsWith('#pareja') ? 7 : tLower.startsWith('{couple}') ? 8 : 8;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'couple',
@@ -445,9 +448,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {BIKE} - Bici / Salud / Ejercicio
-  else if (tLower.startsWith('{bike}') || tLower.startsWith('{bici}')) {
-    const prefijoLength = tLower.startsWith('{bike}') ? 6 : 6;
+  // {#BIKE / #BICI}
+  else if (tLower.startsWith('#bike') || tLower.startsWith('#bici') || tLower.startsWith('{bike}') || tLower.startsWith('{bici}')) {
+    const prefijoLength = tLower.startsWith('#bike') ? 5 : tLower.startsWith('#bici') ? 5 : tLower.startsWith('{bike}') ? 6 : 6;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'bike',
@@ -463,9 +466,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {FAIL} - Rayo / Fallas importantes que tener en cuenta
-  else if (tLower.startsWith('{fail}') || tLower.startsWith('{falla}')) {
-    const prefijoLength = tLower.startsWith('{fail}') ? 6 : 7;
+  // {#FAIL / #FALLA}
+  else if (tLower.startsWith('#fail') || tLower.startsWith('#falla') || tLower.startsWith('{fail}') || tLower.startsWith('{falla}')) {
+    const prefijoLength = tLower.startsWith('#fail') ? 5 : tLower.startsWith('#falla') ? 6 : tLower.startsWith('{fail}') ? 6 : 7;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'fail',
@@ -481,9 +484,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {OMEGA} - Proyecto
-  else if (tLower.startsWith('{omega}') || tLower.startsWith('{ohm}') || tLower.startsWith('{proyecto}')) {
-    const prefijoLength = tLower.startsWith('{omega}') ? 7 : tLower.startsWith('{ohm}') ? 5 : 10;
+  // {#OMEGA / #OHM / #PROYECTO}
+  else if (tLower.startsWith('#omega') || tLower.startsWith('#ohm') || tLower.startsWith('#proyecto') || tLower.startsWith('{omega}') || tLower.startsWith('{ohm}') || tLower.startsWith('{proyecto}')) {
+    const prefijoLength = tLower.startsWith('#omega') ? 6 : tLower.startsWith('#ohm') ? 4 : tLower.startsWith('#proyecto') ? 9 : tLower.startsWith('{omega}') ? 7 : tLower.startsWith('{ohm}') ? 5 : 10;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'omega',
@@ -499,9 +502,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {MUSIC} - Notita musical
-  else if (tLower.startsWith('{music}') || tLower.startsWith('{musica}')) {
-    const prefijoLength = tLower.startsWith('{music}') ? 7 : 8;
+  // {#MUSIC / #MUSICA}
+  else if (tLower.startsWith('#music') || tLower.startsWith('#musica') || tLower.startsWith('{music}') || tLower.startsWith('{musica}')) {
+    const prefijoLength = tLower.startsWith('#music') ? 6 : tLower.startsWith('#musica') ? 7 : tLower.startsWith('{music}') ? 7 : 8;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'music',
@@ -517,9 +520,9 @@ const parsearLineaTerminal = (texto) => {
     };
   }
 
-  // {BASH} - Computadoras / Scripts
-  else if (tLower.startsWith('{bash}') || tLower.startsWith('{pc}') || tLower.startsWith('{code}')) {
-    const prefijoLength = tLower.startsWith('{bash}') ? 6 : tLower.startsWith('{pc}') ? 4 : 6;
+  // {#BASH / #PC / #CODE}
+  else if (tLower.startsWith('#bash') || tLower.startsWith('#pc') || tLower.startsWith('#code') || tLower.startsWith('{bash}') || tLower.startsWith('{pc}') || tLower.startsWith('{code}')) {
+    const prefijoLength = tLower.startsWith('#bash') ? 5 : tLower.startsWith('#pc') ? 3 : tLower.startsWith('#code') ? 5 : tLower.startsWith('{bash}') ? 6 : tLower.startsWith('{pc}') ? 4 : 6;
     const contenido = t.substring(prefijoLength).trim();
     return {
       tipo: 'bash',
@@ -567,34 +570,43 @@ export default function Bullet({ refreshTrigger }) {
 
   const detectorActivo = parsearLineaTerminal(nuevoComando || ' ');
 
-  // 🟢 CATÁLOGO DE BULLETS {TAGS} DISPONIBLES AL ESCRIBIR '{' (Se agregó {peso})
+  // 🟢 CATÁLOGO DE BULLETS SEMÁNTICOS CON HASHTAGS (#)
   const BULLETS_SEMANTICOS = [
-    { tag: '{peso}', nombre: 'Peso Corporal (⚖)', icono: Scale, color: 'text-teal-400' }, // <-- NUEVO TAG
-    { tag: '{work}', nombre: 'Hospital / Trabajo', icono: Building2, color: 'text-theme-trabajo' },
-    { tag: '{home}', nombre: 'Casa / Hogar', icono: Home, color: 'text-theme-casa' },
-    { tag: '{wife}', nombre: 'Vicky (V)', icono: (p) => <Triangle {...p} className="rotate-180" />, color: 'text-pink-400' },
-    { tag: '{fam}', nombre: 'Familia', icono: Users, color: 'text-orange-400' },
-    { tag: '{pakal}', nombre: 'Pakal [P]', icono: () => <span className="font-bold text-xs">P</span>, color: 'text-cyan-400' },
-    { tag: '{me}', nombre: 'Mío (^)', icono: Triangle, color: 'text-theme-accent' },
-    { tag: '{couple}', nombre: 'Pareja (Rombo)', icono: Hourglass, color: 'text-purple-400' },
-    { tag: '{bike}', nombre: 'Salud / Bici', icono: Bike, color: 'text-lime-400' },
-    { tag: '{fail}', nombre: 'Falla (Rayo)', icono: Zap, color: 'text-yellow-300' },
-    { tag: '{omega}', nombre: 'Proyecto (Ω)', icono: () => <span className="font-bold text-xs">Ω</span>, color: 'text-indigo-400' },
-    { tag: '{music}', nombre: 'Música', icono: Music, color: 'text-fuchsia-400' },
-    { tag: '{bash}', nombre: 'Cómputo / Bash', icono: Terminal, color: 'text-emerald-400' }
+    { tag: '#peso', nombre: 'Peso Corporal (⚖)', icono: Scale, color: 'text-teal-400' },
+    { tag: '#work', nombre: 'Hospital / Trabajo', icono: Building2, color: 'text-theme-trabajo' },
+    { tag: '#home', nombre: 'Casa / Hogar', icono: Home, color: 'text-theme-casa' },
+    { tag: '#wife', nombre: 'Vicky (V)', icono: (p) => <Triangle {...p} className="rotate-180" />, color: 'text-pink-400' },
+    { tag: '#fam', nombre: 'Familia', icono: Users, color: 'text-orange-400' },
+    { tag: '#pakal', nombre: 'Pakal [P]', icono: () => <span className="font-bold text-xs">P</span>, color: 'text-cyan-400' },
+    { tag: '#me', nombre: 'Mío (^)', icono: Triangle, color: 'text-theme-accent' },
+    { tag: '#couple', nombre: 'Pareja (Rombo)', icono: Hourglass, color: 'text-purple-400' },
+    { tag: '#bike', nombre: 'Salud / Bici', icono: Bike, color: 'text-lime-400' },
+    { tag: '#fail', nombre: 'Falla (Rayo)', icono: Zap, color: 'text-yellow-300' },
+    { tag: '#omega', nombre: 'Proyecto (Ω)', icono: () => <span className="font-bold text-xs">Ω</span>, color: 'text-indigo-400' },
+    { tag: '#music', nombre: 'Música', icono: Music, color: 'text-fuchsia-400' },
+    { tag: '#bash', nombre: 'Cómputo / Bash', icono: Terminal, color: 'text-emerald-400' }
   ];
 
-  // Detecta si el usuario está escribiendo una llave abierta sin cerrar
+  // 🟢 Catálogo anterior comentado para referencia histórica
+  /*
+  const BULLETS_SEMANTICOS_OLD = [
+    { tag: '{peso}', nombre: 'Peso Corporal (⚖)', icono: Scale, color: 'text-teal-400' },
+    { tag: '{work}', nombre: 'Hospital / Trabajo', icono: Building2, color: 'text-theme-trabajo' },
+    ...
+  ];
+  */
+
+  // Detecta si el usuario está escribiendo un hashtag para autocomplete (#)
   const ultimoTermino = nuevoComando.split(/\s+/).pop() || '';
-  const mostrandoMenuLlaves = ultimoTermino.startsWith('{') && !ultimoTermino.includes('}');
-  const filtroLlave = ultimoTermino.replace('{', '').toLowerCase();
+  const mostrandoMenuLlaves = ultimoTermino.startsWith('#') && !ultimoTermino.includes(' ') && ultimoTermino.length > 1;
+  const filtroLlave = ultimoTermino.replace('#', '').toLowerCase();
 
   const bulletsCoincidentes = BULLETS_SEMANTICOS.filter(b => 
     b.tag.toLowerCase().includes(filtroLlave) || b.nombre.toLowerCase().includes(filtroLlave)
   );
 
   const insertarTagLlave = (tag) => {
-    if (nuevoComando.trim().startsWith('{') && !nuevoComando.includes('}')) {
+    if (nuevoComando.trim().startsWith('#') && !nuevoComando.includes(' ')) {
       setNuevoComando(`${tag} `);
     } else {
       const palabras = nuevoComando.split(/\s+/);
@@ -786,7 +798,7 @@ export default function Bullet({ refreshTrigger }) {
             ...analisis
           }]);
         } else {
-          // Notas, ideas, no-olvidar, {peso}, y todos los nuevos tags {work}, {wife}, etc.
+          // Notas, ideas, no-olvidar, #peso, y todos los nuevos tags #work, #wife, etc.
           const { data: insertado, error } = await supabase.from('kanban').insert([{
             tarea: comandoCrudo,
             status: 'Bullet',
@@ -891,7 +903,7 @@ export default function Bullet({ refreshTrigger }) {
         <div className="flex items-center gap-1 max-md:gap-0.5 bg-theme-bg border border-theme-border p-1 max-md:p-0.5 rounded-xl text-xs overflow-x-auto max-w-full">
           {[
             { id: 'TODOS', label: 'Todos' },
-            { id: 'peso', label: 'Peso' }, // <-- NUEVA PESTAÑA DE FILTRO
+            { id: 'peso', label: 'Peso' },
             { id: 'tarea', label: 'Tareas' },
             { id: 'finanzas', label: 'Finanzas' },
             { id: 'evento', label: 'Eventos' },
@@ -978,7 +990,7 @@ export default function Bullet({ refreshTrigger }) {
         <div className="w-full h-32 bg-theme-border/[0.07] border border-theme-border/40 rounded-xl p-3 relative overflow-hidden flex flex-col justify-end">
           {historialPeso.length < 2 ? (
             <div className="h-full flex items-center justify-center text-xs text-theme-text/40">
-              Se necesitan al menos 2 registros para trazar la gráfica. Registra otro peso hoy o mañana usando: <code className="ml-1 text-teal-400 font-bold">w 82.5</code>
+              Se necesitan al menos 2 registros para trazar la gráfica. Registra otro peso hoy o mañana usando: <code className="ml-1 text-teal-400 font-bold">#w 82.5</code>
             </div>
           ) : (() => {
             const paddingX = 35;
@@ -1092,7 +1104,7 @@ export default function Bullet({ refreshTrigger }) {
                         {renderizarMarkdownSencillo(item.titulo)}
                       </div>
   
-                  </div>
+                    </div>
                 </div>
 
                 {/* Acciones Rápidas */}
@@ -1135,11 +1147,11 @@ export default function Bullet({ refreshTrigger }) {
       {/* 🟢 INPUT DOCK INFERIOR INTELIGENTE */}
       <footer className="p-4 max-md:p-2 border-t border-theme-border bg-theme-bg space-y-3 max-md:space-y-1.5 flex-shrink-0 relative">
         
-        {/* 🟢 AUTOCOMPLETE DINÁMICO QUE APARECE SOLO AL ESCRIBIR '{' */}
+        {/* 🟢 AUTOCOMPLETE DINÁMICO QUE APARECE AL ESCRIBIR '#' */}
         {mostrandoMenuLlaves && (
           <div className="absolute bottom-full left-4 right-4 mb-2 p-2 bg-theme-bg border border-theme-border rounded-xl shadow-2xl z-50 backdrop-blur-md animate-fadeIn">
             <div className="text-[9px] font-black uppercase tracking-widest text-theme-text/50 px-2 pb-1 mb-1 border-b border-theme-border/40 flex justify-between items-center">
-              <span>Selecciona una categoría para completar {'{tag}'}:</span>
+              <span>Selecciona una categoría para completar {'{tag}'} / {'#tag'}:</span>
               <span className="text-[8px] text-theme-accent">{bulletsCoincidentes.length} disponibles</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar">
@@ -1172,7 +1184,7 @@ export default function Bullet({ refreshTrigger }) {
             Plantillas:
           </span>
           {[
-            { tag: '⚖ Peso', snippet: 'w 82.5', color: 'hover:border-teal-400 hover:text-teal-400' }, // <-- NUEVA PLANTILLA
+            { tag: '⚖ Peso', snippet: '#w 82.5', color: 'hover:border-teal-400 hover:text-teal-400' },
             { tag: '$Gasto', snippet: '$ Despensa; 450', color: 'hover:border-theme-casa hover:text-theme-casa' },
             { tag: '• Tarea', snippet: '. Revisar contratos; 11:00', color: 'hover:border-theme-accent hover:text-theme-accent' },
             { tag: '# Evento', snippet: '# Demo; 28-jul; 15:00; Sala B', color: 'hover:border-theme-trabajo hover:text-theme-trabajo' },
@@ -1214,7 +1226,7 @@ export default function Bullet({ refreshTrigger }) {
             value={nuevoComando}
             onChange={(e) => setNuevoComando(e.target.value)}
             onKeyDown={manejarTeclado}
-            placeholder="Escribe comando... 'w 82.5' para peso, '{' para categorías. [Ctrl + Enter]"
+            placeholder="Escribe comando... '#w 82.5' para peso, '#' para categorías. [Ctrl + Enter]"
             className="w-full bg-transparent resize-none outline-none border-none text-xs max-md:text-[11px] font-bold text-theme-text placeholder-theme-text/40 leading-relaxed max-h-44 font-mono"
             disabled={enviando}
           />
