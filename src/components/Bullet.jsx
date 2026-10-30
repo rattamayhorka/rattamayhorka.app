@@ -140,19 +140,44 @@ const parsearLineaTerminal = (texto) => {
   const tLower = t.toLowerCase();
 
   // =========================================================================
-  // 🟢 DETECCIÓN DE PESO (Comando: '#w 82.5', '#peso 82.5', etc.)
+  // 🟢 DETECCIÓN DE PESO (Comando: 'w 82.5', '#w 82.5', 'peso 82.5', etc.)
   // =========================================================================
+  /* 🟢 CÓDIGO ANTERIOR CONSERVADO:
   const esPrefijoPeso = 
     tLower.startsWith('#w ') || 
     tLower.startsWith('#peso ') || 
     tLower.startsWith('#weight') ||
-    tLower.startsWith('{peso}') || // 🟢 COMENTADO/CONSERVADO ANTIGUO
+    tLower.startsWith('{peso}') || 
+    tLower.startsWith('{weight}');
+  */
+
+  // 🟢 NUEVO: Acepta tanto con '#' como sin '#' ('w ', 'peso ', etc.)
+  const esPrefijoPeso = 
+    tLower.startsWith('w ') || 
+    tLower.startsWith('#w ') || 
+    tLower.startsWith('peso ') || 
+    tLower.startsWith('#peso ') || 
+    tLower.startsWith('weight ') || 
+    tLower.startsWith('#weight') ||
+    tLower.startsWith('{peso}') || 
     tLower.startsWith('{weight}');
 
   if (esPrefijoPeso) {
     let contenidoLimpio = t;
+    /* 🟢 CÓDIGO ANTERIOR CONSERVADO:
     if (tLower.startsWith('#w ')) contenidoLimpio = t.substring(3).trim();
     else if (tLower.startsWith('#peso ')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('#weight')) contenidoLimpio = t.substring(8).trim();
+    else if (tLower.startsWith('{peso}')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('{weight}')) contenidoLimpio = t.substring(8).trim();
+    */
+
+    // 🟢 NUEVO: Limpia prefijos con o sin '#'
+    if (tLower.startsWith('w ')) contenidoLimpio = t.substring(2).trim();
+    else if (tLower.startsWith('#w ')) contenidoLimpio = t.substring(3).trim();
+    else if (tLower.startsWith('peso ')) contenidoLimpio = t.substring(5).trim();
+    else if (tLower.startsWith('#peso ')) contenidoLimpio = t.substring(6).trim();
+    else if (tLower.startsWith('weight ')) contenidoLimpio = t.substring(7).trim();
     else if (tLower.startsWith('#weight')) contenidoLimpio = t.substring(8).trim();
     else if (tLower.startsWith('{peso}')) contenidoLimpio = t.substring(6).trim();
     else if (tLower.startsWith('{weight}')) contenidoLimpio = t.substring(8).trim();
@@ -687,6 +712,26 @@ export default function Bullet({ refreshTrigger }) {
       }));
   }, [logs]);
 
+  // =========================================================================
+  // 🟢 DETECCIÓN DE FECHAS DONDE SE SALIÓ A LA BICI (#bike, #bici, {bike}, etc.)
+  // =========================================================================
+  const fechasBici = useMemo(() => {
+    const conjunto = new Set();
+    logs.forEach(l => {
+      const esBici = l.tipo === 'bike' || 
+        (l.textoOriginal && (
+          l.textoOriginal.toLowerCase().includes('#bike') ||
+          l.textoOriginal.toLowerCase().includes('{bike}') ||
+          l.textoOriginal.toLowerCase().includes('#bici') ||
+          l.textoOriginal.toLowerCase().includes('{bici}')
+        ));
+      if (esBici && l.fecha && l.fecha !== '---') {
+        conjunto.add(l.fecha);
+      }
+    });
+    return conjunto;
+  }, [logs]);
+
   const statsPeso = useMemo(() => {
     if (historialPeso.length === 0) return null;
     const ultimo = historialPeso[historialPeso.length - 1].peso;
@@ -713,7 +758,8 @@ export default function Bullet({ refreshTrigger }) {
           .update({
             tarea: comandoCrudo,
             status: 'Bullet',
-            fecha: fechaFormateada,
+            //fecha: fechaFormateada,
+            fecha: notaAEditar.fecha,
             tipo: 'BulletJournal'
           })
           .eq('id', notaAEditar.rawId);
@@ -954,6 +1000,11 @@ export default function Bullet({ refreshTrigger }) {
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-400/10 text-teal-400 border border-teal-400/20 font-bold">
                   {statsPeso?.total} registros
                 </span>
+                {fechasBici.size > 0 && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-lime-400/10 text-lime-400 border border-lime-400/20 font-bold flex items-center gap-1">
+                    <Bike className="w-3 h-3" /> {fechasBici.size} rodadas
+                  </span>
+                )}
               </h3>
             </div>
           </div>
@@ -986,11 +1037,11 @@ export default function Bullet({ refreshTrigger }) {
           )}
         </div>
 
-        {/* Gráfico SVG Responsivo Vectorial */}
+        {/* Gráfico SVG Responsivo Vectorial con Curvas */}
         <div className="w-full h-32 bg-theme-border/[0.07] border border-theme-border/40 rounded-xl p-3 relative overflow-hidden flex flex-col justify-end">
           {historialPeso.length < 2 ? (
             <div className="h-full flex items-center justify-center text-xs text-theme-text/40">
-              Se necesitan al menos 2 registros para trazar la gráfica. Registra otro peso hoy o mañana usando: <code className="ml-1 text-teal-400 font-bold">#w 82.5</code>
+              Se necesitan al menos 2 registros para trazar la gráfica. Registra otro peso hoy o mañana usando: <code className="ml-1 text-teal-400 font-bold">#w 82.5</code> o <code className="ml-1 text-teal-400 font-bold">w 82.5</code>
             </div>
           ) : (() => {
             const paddingX = 35;
@@ -999,14 +1050,72 @@ export default function Bullet({ refreshTrigger }) {
             const alto = 100;
             const rango = (statsPeso.max - statsPeso.min) || 1;
 
+            /* 🟢 CÓDIGO ANTERIOR CONSERVADO (Solo mapeaba sobre historialPeso sin contemplar días de bici solos):
             const puntos = historialPeso.map((item, i) => {
               const x = paddingX + (i / (historialPeso.length - 1)) * (ancho - paddingX * 2);
               const y = alto - paddingY - ((item.peso - statsPeso.min) / rango) * (alto - paddingY * 2);
-              return { x, y, ...item };
+              const huboBici = fechasBici.has(item.fecha);
+              return { x, y, huboBici, ...item };
+            });
+            */
+
+            // 🟢 NUEVO CÓDIGO: Unifica las fechas de pesaje con las fechas de bici para que ninguna salida quede huérfana
+            const mapaPeso = new Map();
+            historialPeso.forEach(item => {
+              mapaPeso.set(item.fecha, item);
             });
 
+            // Combinar todas las fechas únicas y ordenarlas cronológicamente
+            const todasLasFechas = Array.from(new Set([...historialPeso.map(h => h.fecha), ...Array.from(fechasBici)]))
+              .sort((a, b) => parsearFechaTexto(a) - parsearFechaTexto(b));
+
+            // Interpolar o estimar peso para días de bici sin pesaje registrado
+            let ultimoPesoConocido = historialPeso[0]?.peso || 80;
+            const puntos = todasLasFechas.map((fechaStr, i) => {
+              const itemPeso = mapaPeso.get(fechaStr);
+              const esRegistroPesoReal = !!itemPeso;
+              
+              if (itemPeso) {
+                ultimoPesoConocido = itemPeso.peso;
+              }
+
+              const pesoUsado = itemPeso ? itemPeso.peso : ultimoPesoConocido;
+              const x = paddingX + (i / Math.max(todasLasFechas.length - 1, 1)) * (ancho - paddingX * 2);
+              const y = alto - paddingY - ((pesoUsado - statsPeso.min) / rango) * (alto - paddingY * 2);
+              const huboBici = fechasBici.has(fechaStr);
+
+              return {
+                id: itemPeso?.id || `fecha-${fechaStr}-${i}`,
+                x,
+                y,
+                peso: pesoUsado,
+                fecha: fechaStr,
+                esRegistroPesoReal,
+                huboBici
+              };
+            });
+
+            // Puntos que forman la línea de pesaje
+            const puntosCurva = puntos.filter(p => p.esRegistroPesoReal);
+
+            /* 🟢 CÓDIGO ANTERIOR CONSERVADO (Líneas rectas):
             const dStr = puntos.reduce((acc, p, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`, '');
             const dArea = `${dStr} L ${puntos[puntos.length - 1].x.toFixed(1)} ${alto} L ${puntos[0].x.toFixed(1)} ${alto} Z`;
+            */
+
+            // 🟢 NUEVO: Curvas Bézier suaves (Cubic Bezier)
+            const dStr = puntosCurva.reduce((acc, p, i, a) => {
+              if (i === 0) return `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+              const prev = a[i - 1];
+              const cp1x = (prev.x + (p.x - prev.x) / 2).toFixed(1);
+              const cp1y = prev.y.toFixed(1);
+              const cp2x = (prev.x + (p.x - prev.x) / 2).toFixed(1);
+              const cp2y = p.y.toFixed(1);
+              return `${acc} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+            }, '');
+            const dArea = puntosCurva.length > 0 
+              ? `${dStr} L ${puntosCurva[puntosCurva.length - 1].x.toFixed(1)} ${alto} L ${puntosCurva[0].x.toFixed(1)} ${alto} Z`
+              : '';
 
             return (
               <svg viewBox={`0 0 ${ancho} ${alto}`} className="w-full h-full overflow-visible">
@@ -1022,27 +1131,74 @@ export default function Bullet({ refreshTrigger }) {
                 <line x1={paddingX} y1={paddingY} x2={ancho - paddingX} y2={paddingY} stroke="currentColor" strokeOpacity="0.1" strokeDasharray="3 3" />
 
                 {/* Área rellenada */}
-                <path d={dArea} fill="url(#gradientePeso)" />
+                {dArea && <path d={dArea} fill="url(#gradientePeso)" />}
 
-                {/* Trazo de línea */}
-                <path d={dStr} fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Trazo de línea curva */}
+                {dStr && <path d={dStr} fill="none" stroke="#2dd4bf" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
 
-                {/* Nodos interactivos */}
+                {/* 🟢 NUEVO: Marcadores e íconos interactivos de bici y peso (incluye días con solo rodada) */}
                 {puntos.map((p, i) => (
                   <g key={p.id || i} className="group cursor-pointer">
-                    <circle cx={p.x} cy={p.y} r="3.5" fill="#14b8a6" className="stroke-theme-bg stroke-2 hover:r-5 transition-all" />
                     
-                    {/* Tooltip / Etiqueta al hacer hover */}
+                    {/* Indicador visual vertical si hubo rodada */}
+                    {p.huboBici && (
+                      <line 
+                        x1={p.x} 
+                        y1={p.y} 
+                        x2={p.x} 
+                        y2={paddingY - 5} 
+                        stroke="#a3e635" 
+                        strokeWidth="1.2" 
+                        strokeDasharray="2 2" 
+                        strokeOpacity="0.6" 
+                      />
+                    )}
+
+                    {/* Nodo de peso en la curva si hubo pesaje real */}
+                    {p.esRegistroPesoReal && (
+                      <circle 
+                        cx={p.x} 
+                        cy={p.y} 
+                        r={p.huboBici ? "4.5" : "3.5"} 
+                        fill={p.huboBici ? "#a3e635" : "#14b8a6"} 
+                        className="stroke-theme-bg stroke-2 hover:r-6 transition-all" 
+                      />
+                    )}
+
+                    {/* 🟢 Ícono de bicicleta flotando sobre la fecha registrada (haya habido peso o no) */}
+                    {p.huboBici && (
+                      <g className="transition-transform group-hover:scale-125" style={{ transformOrigin: `${p.x}px ${p.y - 14}px` }}>
+                        {/* Glow / Fondo para resaltar el ícono */}
+                        <circle cx={p.x} cy={p.y - 14} r="8.5" fill="#1e293b" stroke="#a3e635" strokeWidth="1.5" />
+                        
+                        {/* Ícono SVG Lucide Bike incrustado */}
+                        <g transform={`translate(${p.x - 6}, ${p.y - 20}) scale(0.5)`}>
+                          <path 
+                            d="M5.5 17.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm13 0a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm-3 11.5V14l-3-3 4-3 2 3h3" 
+                            fill="none" 
+                            stroke="#a3e635" 
+                            strokeWidth="2.2" 
+                            strokeLinecap="round" 
+                            strokeLinejoin="round" 
+                          />
+                        </g>
+                      </g>
+                    )}
+                    
+                    {/* Tooltip interactivo al hacer hover */}
                     <text
                       x={p.x}
-                      y={p.y - 7}
+                      y={p.huboBici ? p.y - 26 : p.y - 7}
                       textAnchor="middle"
-                      fill="#2dd4bf"
+                      fill={p.huboBici ? "#a3e635" : "#2dd4bf"}
                       fontSize="9"
                       fontWeight="bold"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity font-mono select-none"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity font-mono select-none pointer-events-none"
                     >
-                      {p.peso}kg ({p.fecha})
+                      {p.huboBici 
+                        ? (p.esRegistroPesoReal ? `🚴 ${p.peso}kg (${p.fecha})` : `🚴 Rodada (${p.fecha})`) 
+                        : `${p.peso}kg (${p.fecha})`
+                      }
                     </text>
                   </g>
                 ))}
@@ -1226,7 +1382,7 @@ export default function Bullet({ refreshTrigger }) {
             value={nuevoComando}
             onChange={(e) => setNuevoComando(e.target.value)}
             onKeyDown={manejarTeclado}
-            placeholder="Escribe comando... '#w 82.5' para peso, '#' para categorías. [Ctrl + Enter]"
+            placeholder="Escribe comando... '#w 82.5' o 'w 82.5' para peso, '#' para categorías. [Ctrl + Enter]"
             className="w-full bg-transparent resize-none outline-none border-none text-xs max-md:text-[11px] font-bold text-theme-text placeholder-theme-text/40 leading-relaxed max-h-44 font-mono"
             disabled={enviando}
           />
